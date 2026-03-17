@@ -1,39 +1,53 @@
-import { useState, FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { api } from '../services/api';
 
 export function Login() {
+  // Essa é a linha que estava faltando para o erro sumir!
+  const navigate = useNavigate(); 
+  
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
   async function handleLogin(event: FormEvent) {
-    event.preventDefault(); // Evita que a página recarregue
-    setError(''); // Limpa erros antigos
+    event.preventDefault();
+    setError('');
 
     try {
-      // Tenta fazer o login batendo na nossa rota do back-end!
       const response = await api.post('/auth/login', { email, password });
-
-      // Se der certo, mostra um alerta temporário
-      alert('Bem-vindo ao Operação Control! ' + response.data.user.name);
-      console.log(response.data);
-
+      
+      const loggedUser = response.data.user; // Pegamos os dados do usuário
+      
+      localStorage.setItem('user', JSON.stringify(loggedUser));
+      localStorage.setItem('token', response.data.token);
+      
+      alert('Bem-vindo ao Operação Control! ' + loggedUser.name);
+      
+      // A MÁGICA ACONTECE AQUI: Redireciona de acordo com o cargo!
+      if (loggedUser.role === 'admin') {
+        navigate('/dashboard');
+      } else if (loggedUser.role === 'suporte') {
+        navigate('/liberacoes');
+      } else {
+        // Se for vendedor (ou qualquer outro), vai para as vendas
+        navigate('/vendas'); 
+      }
+      
     } catch (err: any) {
-      // Se o back-end recusar (ex: "Conta pendente"), pegamos a mensagem exata
       if (err.response && err.response.data) {
         setError(err.response.data.error);
       } else {
-        setError('Erro ao conectar com o servidor.');
+        setError('Erro ao conectar com o servidor. Tente novamente.');
       }
     }
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: '100px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: '100px', fontFamily: 'sans-serif' }}>
       <h1>Operação Control</h1>
       <p>Faça login para acessar o sistema</p>
 
-      {/* Se tiver erro, mostra uma caixinha vermelha */}
       {error && <div style={{ color: 'red', border: '1px solid red', padding: '10px', marginBottom: '15px' }}>{error}</div>}
 
       <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '300px' }}>
@@ -57,6 +71,10 @@ export function Login() {
           Entrar
         </button>
       </form>
+
+      <p style={{ marginTop: '20px' }}>
+        Não tem uma conta? <Link to="/cadastro" style={{ color: '#007bff' }}>Cadastre-se aqui</Link>
+      </p>
     </div>
   );
 }
