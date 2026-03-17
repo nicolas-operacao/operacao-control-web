@@ -32,58 +32,64 @@ export function Cadastro() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: '100px', fontFamily: 'sans-serif' }}>
-      <h1>Criar Conta</h1>
-      <p>Cadastre-se para acessar o Operação Control</p>
-
-      {error && <div style={{ color: 'red', border: '1px solid red', padding: '10px', marginBottom: '15px' }}>{error}</div>}
-
-      <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: '15px', width: '300px' }}>
-        <input 
-          type="text" 
-          placeholder="Seu nome completo" 
-          value={name} 
-          onChange={(e) => setName(e.target.value)} 
-          required 
-          style={{ padding: '10px' }} 
-        />
+    <div className="flex items-center justify-center min-h-screen bg-gray-100 px-4">
+      <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
         
-        <input 
-          type="email" 
-          placeholder="Seu e-mail" 
-          value={email} 
-          onChange={(e) => setEmail(e.target.value)} 
-          required 
-          style={{ padding: '10px' }} 
-        />
-        
-        <input 
-          type="password" 
-          placeholder="Crie sua senha" 
-          value={password} 
-          onChange={(e) => setPassword(e.target.value)} 
-          required 
-          style={{ padding: '10px' }} 
-        />
+        <h1 className="text-3xl font-bold text-gray-800 text-center mb-2">Criar Conta</h1>
+        <p className="text-gray-600 text-center mb-8">Cadastre-se para acessar o Operação Control</p>
 
-        {/* NOVO: Caixa de seleção para o cargo */}
-        <select 
-          value={role} 
-          onChange={(e) => setRole(e.target.value)} 
-          style={{ padding: '10px', backgroundColor: 'white', cursor: 'pointer' }}
-        >
-          <option value="vendedor">Sou Vendedor</option>
-          <option value="suporte">Sou do Suporte</option>
-        </select>
+        {error && (
+          <div className="bg-red-100 text-red-700 p-4 rounded mb-6 text-sm">
+            {error}
+          </div>
+        )}
 
-        <button type="submit" style={{ padding: '12px', backgroundColor: '#28a745', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
-          Cadastrar
-        </button>
-      </form>
+        <form onSubmit={handleRegister} className="flex flex-col gap-5">
+          <input 
+            type="text" 
+            placeholder="Seu nome completo" 
+            value={name} 
+            onChange={(e) => setName(e.target.value)} 
+            required 
+            className="border border-gray-300 rounded p-3 text-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+          />
+          
+          <input 
+            type="email" 
+            placeholder="Seu e-mail" 
+            value={email} 
+            onChange={(e) => setEmail(e.target.value)} 
+            required 
+            className="border border-gray-300 rounded p-3 text-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+          />
+          
+          <input 
+            type="password" 
+            placeholder="Crie sua senha" 
+            value={password} 
+            onChange={(e) => setPassword(e.target.value)} 
+            required 
+            className="border border-gray-300 rounded p-3 text-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+          />
 
-      <p style={{ marginTop: '20px' }}>
-        Já tem uma conta? <Link to="/" style={{ color: '#007bff' }}>Faça login aqui</Link>
-      </p>
+          <select 
+            value={role} 
+            onChange={(e) => setRole(e.target.value)} 
+            className="border border-gray-300 rounded p-3 text-lg bg-white cursor-pointer focus:outline-none focus:ring-2 focus:ring-green-500"
+          >
+            <option value="vendedor">Sou Vendedor</option>
+            <option value="suporte">Sou do Suporte</option>
+          </select>
+
+          <button type="submit" className="bg-green-600 text-white font-semibold rounded p-3 text-lg hover:bg-green-700 transition duration-200">
+            Realizar Cadastro
+          </button>
+        </form>
+
+        <p className="mt-8 text-center text-gray-700">
+          Já tem uma conta? <Link to="/" className="text-blue-600 hover:text-blue-800 font-medium">Faça login aqui</Link>
+        </p>
+      </div>
     </div>
   );
 }

@@ -3,9 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { api } from '../services/api';
 
 export function Login() {
-  // Essa é a linha que estava faltando para o erro sumir!
-  const navigate = useNavigate(); 
-  
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -44,37 +42,50 @@ export function Login() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: '100px', fontFamily: 'sans-serif' }}>
-      <h1>Operação Control</h1>
-      <p>Faça login para acessar o sistema</p>
+    <div className="flex items-center justify-center min-h-screen bg-gray-100 px-4">
+      <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
+        
+        <h1 className="text-3xl font-bold text-gray-800 text-center mb-2">Operação Control</h1>
+        <p className="text-gray-600 text-center mb-8">Faça login para acessar o sistema</p>
 
-      {error && <div style={{ color: 'red', border: '1px solid red', padding: '10px', marginBottom: '15px' }}>{error}</div>}
+        {error && (
+          <div className="bg-red-100 text-red-700 p-4 rounded mb-6 text-sm">
+            {error}
+          </div>
+        )}
 
-      <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '300px' }}>
-        <input
-          type="email"
-          placeholder="Seu e-mail"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          style={{ padding: '10px' }}
-        />
-        <input
-          type="password"
-          placeholder="Sua senha"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          style={{ padding: '10px' }}
-        />
-        <button type="submit" style={{ padding: '10px', backgroundColor: '#007bff', color: 'white', border: 'none', cursor: 'pointer' }}>
-          Entrar
-        </button>
-      </form>
+        <form onSubmit={handleLogin} className="flex flex-col gap-5">
+          <input
+            type="email"
+            placeholder="Seu e-mail"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            className="border border-gray-300 rounded p-3 text-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <input
+            type="password"
+            placeholder="Sua senha"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            className="border border-gray-300 rounded p-3 text-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <button
+            type="submit"
+            className="bg-blue-600 text-white font-semibold rounded p-3 text-lg hover:bg-blue-700 transition duration-200"
+          >
+            Entrar
+          </button>
+        </form>
 
-      <p style={{ marginTop: '20px' }}>
-        Não tem uma conta? <Link to="/cadastro" style={{ color: '#007bff' }}>Cadastre-se aqui</Link>
-      </p>
+        <p className="mt-8 text-center text-gray-700">
+          Não tem uma conta?{' '}
+          <Link to="/cadastro" className="text-blue-600 hover:text-blue-800 font-medium">
+            Cadastre-se aqui
+          </Link>
+        </p>
+      </div>
     </div>
   );
 }
