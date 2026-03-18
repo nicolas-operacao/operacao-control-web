@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { api } from '../services/api';
 
@@ -6,85 +6,96 @@ export function Login() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  async function handleLogin(event: FormEvent) {
-    event.preventDefault();
-    setError('');
+  async function handleLogin(e: React.FormEvent) {
+    e.preventDefault();
+    setIsLoading(true);
 
     try {
       const response = await api.post('/auth/login', { email, password });
       
-      const loggedUser = response.data.user; // Pegamos os dados do usuário
+      const { user, token } = response.data;
       
-      localStorage.setItem('user', JSON.stringify(loggedUser));
-      localStorage.setItem('token', response.data.token);
+      localStorage.setItem('user', JSON.stringify(user));
+      localStorage.setItem('token', token);
       
-      alert('Bem-vindo ao Operação Control! ' + loggedUser.name);
-      
-      // A MÁGICA ACONTECE AQUI: Redireciona de acordo com o cargo!
-      if (loggedUser.role === 'admin') {
-        navigate('/dashboard');
-      } else if (loggedUser.role === 'suporte') {
-        navigate('/liberacoes');
+      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+
+      alert(`Bem-vindo, ${user.name}! Identificação confirmada.`);
+      navigate('/dashboard');
+    } catch (error: any) {
+      if (error.response) {
+        alert(error.response.data.error);
       } else {
-        // Se for vendedor (ou qualquer outro), vai para as vendas
-        navigate('/vendas'); 
+        alert('Erro ao conectar com o Comando Central.');
       }
-      
-    } catch (err: any) {
-      if (err.response && err.response.data) {
-        setError(err.response.data.error);
-      } else {
-        setError('Erro ao conectar com o servidor. Tente novamente.');
-      }
+    } finally {
+      setIsLoading(false);
     }
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100 px-4">
-      <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
+    // Fundo da página: Zinc 950 (Sombrio)
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex items-center justify-center p-4 font-sans relative">
+      
+      {/* Efeito de brilho neon verde de fundo tático */}
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-green-500/10 rounded-full blur-[150px] pointer-events-none"></div>
+
+      {/* Cartão de Login: Zinc 900 com borda escura e sombra neon suave */}
+      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-8 w-full max-w-md shadow-[0_0_60px_rgba(34,197,94,0.05)] relative z-10 overflow-hidden">
         
-        <h1 className="text-3xl font-bold text-gray-800 text-center mb-2">Operação Control</h1>
-        <p className="text-gray-600 text-center mb-8">Faça login para acessar o sistema</p>
+        {/* Detalhe tático de canto */}
+        <div className="absolute top-0 right-0 w-16 h-16 bg-green-500/10 rounded-bl-full border-b border-l border-green-500/30"></div>
 
-        {error && (
-          <div className="bg-red-100 text-red-700 p-4 rounded mb-6 text-sm">
-            {error}
+        <div className="text-center mb-10">
+          {/* Título com neon verde */}
+          <h1 className="text-3xl font-black text-white uppercase tracking-wider drop-shadow-[0_0_10px_rgba(34,197,94,0.3)]">
+            Identificação <span className="text-green-400">Tática</span>
+          </h1>
+          <p className="text-zinc-500 mt-2 text-sm font-medium uppercase tracking-widest">Acesse o Comando Central <span className='text-zinc-700'>| OP Control</span></p>
+        </div>
+
+        <form onSubmit={handleLogin} className="space-y-5">
+          <div>
+            <label className="block text-zinc-600 text-xs font-bold uppercase tracking-widest mb-1.5 ml-1">E-mail Operacional</label>
+            <input
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Ex: nicolas@comando.com"
+              className="w-full bg-zinc-950 border border-zinc-700 rounded-lg p-3.5 text-zinc-100 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-all placeholder:text-zinc-700"
+            />
           </div>
-        )}
 
-        <form onSubmit={handleLogin} className="flex flex-col gap-5">
-          <input
-            type="email"
-            placeholder="Seu e-mail"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            className="border border-gray-300 rounded p-3 text-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <input
-            type="password"
-            placeholder="Sua senha"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            className="border border-gray-300 rounded p-3 text-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
+          <div>
+            <label className="block text-zinc-600 text-xs font-bold uppercase tracking-widest mb-1.5 ml-1">Senha de Acesso</label>
+            <input
+              type="password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••••"
+              className="w-full bg-zinc-950 border border-zinc-700 rounded-lg p-3.5 text-zinc-100 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-all placeholder:text-zinc-700"
+            />
+          </div>
+
           <button
             type="submit"
-            className="bg-blue-600 text-white font-semibold rounded p-3 text-lg hover:bg-blue-700 transition duration-200"
+            disabled={isLoading}
+            className="w-full bg-green-600 hover:bg-green-700 text-black font-black py-4 rounded-lg transition-transform hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:hover:scale-100 mt-4 shadow-lg shadow-green-600/20 uppercase tracking-wider text-sm disabled:cursor-not-allowed"
           >
-            Entrar
+            {isLoading ? 'Autenticando credenciais...' : 'Confirmar Identidade'}
           </button>
-        </form>
 
-        <p className="mt-8 text-center text-gray-700">
-          Não tem uma conta?{' '}
-          <Link to="/cadastro" className="text-blue-600 hover:text-blue-800 font-medium">
-            Cadastre-se aqui
-          </Link>
-        </p>
+          <div className="text-center mt-10 pt-5 border-t border-zinc-800">
+            <p className="text-zinc-600 text-sm">Ainda não faz parte da tropa?</p>
+            <Link to="/cadastro" className="text-green-400 font-bold hover:text-green-300 transition-colors uppercase text-sm tracking-widest mt-2 block">
+              Aliste-se Aqui
+            </Link>
+          </div>
+        </form>
       </div>
     </div>
   );
