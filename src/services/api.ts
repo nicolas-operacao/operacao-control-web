@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 export const api = axios.create({
-  baseURL: 'http://localhost:3000',
+  baseURL: 'https://operacao-control-api.onrender.com',
 });
 
 // Intercepta a requisição ANTES dela sair do front-end
