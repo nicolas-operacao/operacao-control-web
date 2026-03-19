@@ -6,11 +6,11 @@ export const api = axios.create({
 
 // Intercepta a requisição ANTES dela sair do front-end
 api.interceptors.request.use((config) => {
-  // Pega o crachá da memória
+  // Pega o crachá da memória do navegador
   const token = localStorage.getItem('token');
 
-  // Se o crachá existir, anexa ele no cabeçalho no formato padrão da internet (Bearer)
-  if (token) {
+  // Se o crachá existir e a estrutura de cabeçalhos estiver pronta, anexa o token
+  if (token && config.headers) {
     config.headers.Authorization = `Bearer ${token}`;
   }
 
