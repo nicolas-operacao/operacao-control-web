@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 
-// Ensinamos o Front-end o que é um Produto
 type Produto = {
   id: number;
   nome: string;
@@ -15,8 +14,6 @@ export function Vendas() {
   const user = userString ? JSON.parse(userString) : { name: 'Vendedor', id: '' };
 
   const [isModalOpen, setIsModalOpen] = useState(false);
-  
-  // NOVO: Estado para guardar a lista de produtos que vem do banco
   const [produtos, setProdutos] = useState<Produto[]>([]);
 
   const [productName, setProductName] = useState('');
@@ -25,16 +22,16 @@ export function Vendas() {
   const [customerPhone, setCustomerPhone] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('PIX');
   const [saleValue, setSaleValue] = useState('');
+  // 🔥 NOVO: Estado para a data da venda (inicia com hoje)
+  const [saleDate, setSaleDate] = useState(new Date().toISOString().split('T')[0]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // NOVO: Busca os produtos assim que a tela carrega
   useEffect(() => {
     async function fetchProdutos() {
       try {
         const response = await api.get('/products');
         setProdutos(response.data);
         
-        // Já deixa o primeiro produto selecionado por padrão (se existir)
         if (response.data.length > 0) {
           setProductName(response.data[0].nome);
           setSaleValue(String(response.data[0].valor));
@@ -52,15 +49,13 @@ export function Vendas() {
     navigate('/');
   }
 
-  // NOVO: A MÁGICA DO PREÇO AUTOMÁTICO
   function handleProductChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const nomeSelecionado = e.target.value;
     setProductName(nomeSelecionado);
 
-    // Procura o produto escolhido na lista para pegar o valor dele
     const produtoEscolhido = produtos.find(p => p.nome === nomeSelecionado);
     if (produtoEscolhido) {
-      setSaleValue(String(produtoEscolhido.valor)); // Preenche o valor automaticamente!
+      setSaleValue(String(produtoEscolhido.valor));
     }
   }
 
@@ -76,7 +71,8 @@ export function Vendas() {
         customer_email: customerEmail,
         customer_phone: customerPhone,
         payment_method: paymentMethod,
-        sale_value: Number(saleValue)
+        sale_value: Number(saleValue),
+        sale_date: saleDate // 🔥 ENVIANDO A DATA PARA O COMANDO CENTRAL
       });
 
       alert('⚡ Venda registrada com sucesso!');
@@ -84,7 +80,8 @@ export function Vendas() {
       setCustomerName('');
       setCustomerEmail('');
       setCustomerPhone('');
-      // Não limpamos o produto e valor para facilitar a próxima venda
+      // Reseta a data para hoje após salvar
+      setSaleDate(new Date().toISOString().split('T')[0]);
       setIsModalOpen(false);
       
     } catch (error: any) {
@@ -117,7 +114,6 @@ export function Vendas() {
           </button>
         </div>
 
-        {/* ÁREA DE REGISTRO E LISTA DE VENDAS */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 shadow-2xl mt-10">
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-xl font-bold text-white uppercase tracking-wide">Minhas Vendas Recentes</h3>
@@ -138,9 +134,6 @@ export function Vendas() {
 
       </div>
 
-      {/* ========================================= */}
-      {/* MODAL DE REGISTRO DE VENDA DO VENDEDOR    */}
-      {/* ========================================= */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
@@ -162,10 +155,9 @@ export function Vendas() {
                   <label className="block text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">Produto Vendido</label>
                   <select 
                     value={productName}
-                    onChange={handleProductChange} // NOVO: Chama a mágica de preencher o preço
+                    onChange={handleProductChange}
                     className="w-full bg-zinc-950 border border-zinc-700 text-white rounded p-3 focus:outline-none focus:border-yellow-400 transition-colors cursor-pointer"
                   >
-                    {/* NOVO: Agora os produtos vêm direto do seu banco de dados! */}
                     {produtos.map(produto => (
                       <option key={produto.id} value={produto.nome}>
                         {produto.nome}
@@ -181,10 +173,23 @@ export function Vendas() {
                     step="0.01"
                     required
                     value={saleValue}
-                    onChange={(e) => setSaleValue(e.target.value)} // Permite que o vendedor altere o preço se tiver dado um desconto extra
+                    onChange={(e) => setSaleValue(e.target.value)}
                     className="w-full bg-zinc-950 border border-zinc-700 text-yellow-400 font-bold rounded p-3 focus:outline-none focus:border-yellow-400 transition-colors placeholder:text-zinc-600"
                   />
                 </div>
+              </div>
+
+              {/* 🔥 CAMPO TÁTICO: DATA DA VENDA */}
+              <div>
+                <label className="block text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">Data da Venda</label>
+                <input 
+                  type="date" 
+                  required
+                  value={saleDate}
+                  onChange={(e) => setSaleDate(e.target.value)}
+                  className="w-full bg-zinc-950 border border-zinc-700 text-white rounded p-3 focus:outline-none focus:border-yellow-400 transition-colors"
+                />
+                <p className="text-[10px] text-zinc-600 mt-1 uppercase font-bold">* Use para registrar vendas retroativas</p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
