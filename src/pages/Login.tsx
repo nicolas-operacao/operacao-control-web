@@ -17,13 +17,25 @@ export function Login() {
       
       const { user, token } = response.data;
       
+      // 1. BLINDAGEM: Limpa qualquer fantasma do usuário anterior
+      localStorage.removeItem('user');
+      localStorage.removeItem('token');
+      
+      // 2. Salva o novo recruta
       localStorage.setItem('user', JSON.stringify(user));
       localStorage.setItem('token', token);
       
       api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
       alert(`Bem-vindo, ${user.name}! Identificação confirmada.`);
-      navigate('/dashboard');
+      
+      // 3. O GUARDA DE TRÂNSITO: Separa Admin de Vendedor
+      if (user.role === 'admin') {
+        navigate('/dashboard'); // Comandante vai para o painel de controle
+      } else {
+        navigate('/vendas'); // Soldado vai para a área de lançamento de vendas
+      }
+
     } catch (error: any) {
       if (error.response) {
         alert(error.response.data.error);
