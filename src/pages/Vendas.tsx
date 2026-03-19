@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
+import { GuerraEquipes } from './GuerraEquipes'; // 🔥 IMPORTANDO O PLACAR OFICIAL DO ADMIN! (Ajuste o caminho se necessário)
 
 type Produto = {
   id: number;
@@ -12,14 +13,9 @@ type Venda = {
   id: string;
   product_name: string;
   sale_value: number;
-  sale_date: string;
+  created_at: string; // 🔥 CORRIGIDO PARA O NOME REAL NO BANCO
   customer_name: string;
   status: string;
-};
-
-type Ranking = {
-  equipa_a: number;
-  equipa_b: number;
 };
 
 export function Vendas() {
@@ -30,7 +26,6 @@ export function Vendas() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [vendas, setVendas] = useState<Venda[]>([]);
-  const [ranking, setRanking] = useState<Ranking>({ equipa_a: 0, equipa_b: 0 });
   const [filtro, setFiltro] = useState<'dia' | 'semana' | 'mes'>('mes');
 
   const [productName, setProductName] = useState('');
@@ -42,18 +37,16 @@ export function Vendas() {
   const [saleDate, setSaleDate] = useState(new Date().toISOString().split('T')[0]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Busca dados iniciais (Produtos, Ranking e Vendas do Vendedor)
   useEffect(() => {
     async function fetchData() {
       try {
-        const [prodRes, rankRes, salesRes] = await Promise.all([
+        // Agora o placar se vira sozinho, só precisamos buscar produtos e vendas!
+        const [prodRes, salesRes] = await Promise.all([
           api.get('/products'),
-          api.get('/ranking'),
-          api.get('/sales') // O back-end já deve filtrar para retornar apenas as do usuário logado
+          api.get('/sales') 
         ]);
 
         setProdutos(prodRes.data);
-        setRanking(rankRes.data);
         setVendas(salesRes.data);
         
         if (prodRes.data.length > 0) {
@@ -61,7 +54,7 @@ export function Vendas() {
           setSaleValue(String(prodRes.data[0].valor));
         }
       } catch (error) {
-        console.error('Erro ao carregar Central de Vendas:', error);
+        console.error('Erro ao carregar dados:', error);
       }
     }
     fetchData();
@@ -73,9 +66,10 @@ export function Vendas() {
     navigate('/');
   }
 
-  // Lógica de Filtro no Front-end
   const vendasFiltradas = vendas.filter(venda => {
-    const dataVenda = new Date(venda.sale_date);
+    if (!venda.created_at) return false;
+    
+    const dataVenda = new Date(venda.created_at);
     const hoje = new Date();
     
     if (filtro === 'dia') {
@@ -86,7 +80,7 @@ export function Vendas() {
       umaSemanaAtras.setDate(hoje.getDate() - 7);
       return dataVenda >= umaSemanaAtras;
     }
-    return true; // Mês/Tudo
+    return true; 
   });
 
   async function handleRegisterSale(e: React.FormEvent) {
@@ -106,7 +100,7 @@ export function Vendas() {
       });
 
       alert('⚡ Venda registrada com sucesso!');
-      window.location.reload(); // Recarrega para atualizar o placar e a lista
+      window.location.reload(); 
     } catch (error: any) {
       alert('Erro ao registrar venda.');
     } finally {
@@ -118,7 +112,6 @@ export function Vendas() {
     <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans p-4 md:p-8 relative">
       <div className="max-w-6xl mx-auto">
         
-        {/* HEADER */}
         <div className="flex flex-col md:flex-row justify-between items-center mb-8 pb-4 border-b border-zinc-800 gap-4">
           <div>
             <h1 className="text-3xl font-black text-yellow-400 tracking-tight uppercase flex items-center gap-3">
@@ -131,23 +124,11 @@ export function Vendas() {
           </button>
         </div>
 
-        {/* 🏆 PLACAR DE BATALHA (IGUAL AO ADMIN) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
-          <div className="bg-gradient-to-br from-blue-900/40 to-zinc-900 border-2 border-blue-500/50 p-6 rounded-2xl text-center shadow-[0_0_20px_rgba(59,130,246,0.2)]">
-            <h2 className="text-blue-400 font-black uppercase tracking-widest mb-2">EQUIPA A</h2>
-            <p className="text-5xl font-black text-white">
-              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(ranking.equipa_a)}
-            </p>
-          </div>
-          <div className="bg-gradient-to-br from-red-900/40 to-zinc-900 border-2 border-red-500/50 p-6 rounded-2xl text-center shadow-[0_0_20px_rgba(239,68,68,0.2)]">
-            <h2 className="text-red-400 font-black uppercase tracking-widest mb-2">EQUIPA B</h2>
-            <p className="text-5xl font-black text-white">
-              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(ranking.equipa_b)}
-            </p>
-          </div>
+        {/* 🔥 AQUI ENTRA O PLACAR OFICIAL IGUAL AO DO ADMIN */}
+        <div className="mb-10">
+           <GuerraEquipes />
         </div>
 
-        {/* HISTÓRICO E FILTROS */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 shadow-2xl">
           <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
             <div className="flex gap-2">
@@ -178,13 +159,16 @@ export function Vendas() {
               <tbody className="text-sm">
                 {vendasFiltradas.length > 0 ? vendasFiltradas.map(venda => (
                   <tr key={venda.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors">
-                    <td className="py-4 text-zinc-400">{new Date(venda.sale_date).toLocaleDateString('pt-BR')}</td>
+                    <td className="py-4 text-zinc-400">
+                      {/* 🔥 BLINDAGEM CONTRA DATA INVÁLIDA */}
+                      {venda.created_at ? new Date(venda.created_at).toLocaleDateString('pt-BR') : '--/--/----'}
+                    </td>
                     <td className="py-4 font-bold">{venda.customer_name}</td>
                     <td className="py-4 text-zinc-300">{venda.product_name}</td>
-                    <td className="py-4 text-green-400 font-bold">R$ {venda.sale_value.toFixed(2)}</td>
+                    <td className="py-4 text-green-400 font-bold">R$ {(Number(venda.sale_value) || 0).toFixed(2)}</td>
                     <td className="py-4">
-                      <span className={`px-2 py-1 rounded-full text-[10px] font-black uppercase ${venda.status === 'approved' ? 'bg-green-500/10 text-green-500' : 'bg-yellow-500/10 text-yellow-500'}`}>
-                        {venda.status === 'approved' ? 'Aprovada' : 'Pendente'}
+                      <span className={`px-2 py-1 rounded-full text-[10px] font-black uppercase ${venda.status === 'aprovada' ? 'bg-green-500/10 text-green-500' : 'bg-yellow-500/10 text-yellow-500'}`}>
+                        {venda.status === 'aprovada' ? 'Aprovada' : 'Pendente'}
                       </span>
                     </td>
                   </tr>
@@ -201,7 +185,6 @@ export function Vendas() {
         </div>
       </div>
 
-      {/* MODAL DE REGISTRO (MANTIDO E MELHORADO) */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="bg-zinc-900 border border-zinc-700 rounded-2xl w-full max-w-xl shadow-2xl animate-in zoom-in duration-150">
@@ -213,22 +196,22 @@ export function Vendas() {
                 <div className="grid grid-cols-2 gap-4">
                     <div>
                         <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">Produto</label>
-                        <select value={productName} onChange={(e) => setProductName(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm">
+                        <select value={productName} onChange={(e) => setProductName(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm text-white">
                             {produtos.map(p => <option key={p.id} value={p.nome}>{p.nome}</option>)}
                         </select>
                     </div>
                     <div>
                         <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">Valor R$</label>
-                        <input type="number" value={saleValue} onChange={(e) => setSaleValue(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm text-yellow-400 font-bold" />
+                        <input type="number" step="0.01" value={saleValue} onChange={(e) => setSaleValue(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm text-yellow-400 font-bold" />
                     </div>
                 </div>
                 <div>
                     <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">Data</label>
-                    <input type="date" value={saleDate} onChange={(e) => setSaleDate(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm" />
+                    <input type="date" value={saleDate} onChange={(e) => setSaleDate(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm text-white" />
                 </div>
                 <div>
                     <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">Nome do Cliente</label>
-                    <input type="text" required value={customerName} onChange={(e) => setCustomerName(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm" />
+                    <input type="text" required value={customerName} onChange={(e) => setCustomerName(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm text-white" />
                 </div>
                 <button disabled={isLoading} className="w-full bg-yellow-400 hover:bg-yellow-500 text-black font-black py-4 rounded-xl mt-4 uppercase tracking-widest shadow-lg">
                     {isLoading ? 'ENVIANDO...' : 'CONFIRMAR LANÇAMENTO ⚡'}
