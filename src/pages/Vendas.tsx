@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
-import { GuerraEquipes } from './GuerraEquipes'; // 🔥 IMPORTANDO O PLACAR OFICIAL DO ADMIN! (Ajuste o caminho se necessário)
+// 🔥 Mudei aqui para procurar na pasta components. Se o seu projeto não tiver essa pasta, 
+// basta apagar o '../components/' e colocar o nome da pasta onde o GuerraEquipes está!
+import { GuerraEquipes } from '../components/GuerraEquipes'; 
 
 type Produto = {
   id: number;
@@ -13,7 +15,7 @@ type Venda = {
   id: string;
   product_name: string;
   sale_value: number;
-  created_at: string; // 🔥 CORRIGIDO PARA O NOME REAL NO BANCO
+  created_at: string; 
   customer_name: string;
   status: string;
 };
@@ -40,7 +42,6 @@ export function Vendas() {
   useEffect(() => {
     async function fetchData() {
       try {
-        // Agora o placar se vira sozinho, só precisamos buscar produtos e vendas!
         const [prodRes, salesRes] = await Promise.all([
           api.get('/products'),
           api.get('/sales') 
@@ -160,7 +161,6 @@ export function Vendas() {
                 {vendasFiltradas.length > 0 ? vendasFiltradas.map(venda => (
                   <tr key={venda.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors">
                     <td className="py-4 text-zinc-400">
-                      {/* 🔥 BLINDAGEM CONTRA DATA INVÁLIDA */}
                       {venda.created_at ? new Date(venda.created_at).toLocaleDateString('pt-BR') : '--/--/----'}
                     </td>
                     <td className="py-4 font-bold">{venda.customer_name}</td>
