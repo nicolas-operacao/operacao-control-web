@@ -16,7 +16,7 @@ type Venda = {
   created_at: string; 
   customer_name: string;
   status: string;
-  seller_id: string | number; // 🔥 NOVO: Adicionado para identificar o dono da venda
+  seller_id: string | number; 
 };
 
 export function Vendas() {
@@ -66,12 +66,9 @@ export function Vendas() {
     navigate('/');
   }
 
-  // 🔥 AQUI ESTÁ A MÁGICA DO FILTRO DE VENDEDOR!
   const vendasFiltradas = vendas.filter(venda => {
-    // 1. TRAVA DE SEGURANÇA: Se o ID do vendedor da venda for diferente do ID do usuário logado, esconde a venda!
     if (String(venda.seller_id) !== String(user.id)) return false;
 
-    // 2. FILTRO DE DATAS (Hoje, Semana, Mês)
     if (!venda.created_at) return false;
     
     const dataVenda = new Date(venda.created_at);
@@ -216,6 +213,29 @@ export function Vendas() {
                     <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">Nome do Cliente</label>
                     <input type="text" required value={customerName} onChange={(e) => setCustomerName(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm text-white" />
                 </div>
+                
+                {/* 🔥 NOVOS CAMPOS ADICIONADOS AQUI */}
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">WhatsApp / Telefone</label>
+                        <input type="text" required value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm text-white" placeholder="Ex: (11) 99999-9999" />
+                    </div>
+                    <div>
+                        <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">E-mail do Cliente</label>
+                        <input type="email" required value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm text-white" placeholder="Ex: email@cliente.com" />
+                    </div>
+                </div>
+                <div>
+                    <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">Método de Pagamento</label>
+                    <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm text-white">
+                        <option value="PIX">PIX</option>
+                        <option value="Cartão de Crédito (até 12x)">Cartão de Crédito (até 12x)</option>
+                        <option value="Crédito à vista">Crédito à vista</option>
+                        <option value="Débito à vista">Débito à vista</option>
+                        <option value="Boleto Parcelado">Boleto Parcelado</option>
+                    </select>
+                </div>
+
                 <button disabled={isLoading} className="w-full bg-yellow-400 hover:bg-yellow-500 text-black font-black py-4 rounded-xl mt-4 uppercase tracking-widest shadow-lg">
                     {isLoading ? 'ENVIANDO...' : 'CONFIRMAR LANÇAMENTO ⚡'}
                 </button>
