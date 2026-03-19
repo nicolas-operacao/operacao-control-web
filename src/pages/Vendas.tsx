@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
-// 🔥 Mudei aqui para procurar na pasta components. Se o seu projeto não tiver essa pasta, 
-// basta apagar o '../components/' e colocar o nome da pasta onde o GuerraEquipes está!
 import { GuerraEquipes } from '../components/GuerraEquipes'; 
 
 type Produto = {
@@ -18,6 +16,7 @@ type Venda = {
   created_at: string; 
   customer_name: string;
   status: string;
+  seller_id: string | number; // 🔥 NOVO: Adicionado para identificar o dono da venda
 };
 
 export function Vendas() {
@@ -67,7 +66,12 @@ export function Vendas() {
     navigate('/');
   }
 
+  // 🔥 AQUI ESTÁ A MÁGICA DO FILTRO DE VENDEDOR!
   const vendasFiltradas = vendas.filter(venda => {
+    // 1. TRAVA DE SEGURANÇA: Se o ID do vendedor da venda for diferente do ID do usuário logado, esconde a venda!
+    if (String(venda.seller_id) !== String(user.id)) return false;
+
+    // 2. FILTRO DE DATAS (Hoje, Semana, Mês)
     if (!venda.created_at) return false;
     
     const dataVenda = new Date(venda.created_at);
@@ -125,7 +129,6 @@ export function Vendas() {
           </button>
         </div>
 
-        {/* 🔥 AQUI ENTRA O PLACAR OFICIAL IGUAL AO DO ADMIN */}
         <div className="mb-10">
            <GuerraEquipes />
         </div>
@@ -175,7 +178,7 @@ export function Vendas() {
                 )) : (
                   <tr>
                     <td colSpan={5} className="py-10 text-center text-zinc-600 uppercase font-bold tracking-widest italic">
-                      Nenhuma venda encontrada neste período.
+                      Nenhuma venda sua foi encontrada neste período.
                     </td>
                   </tr>
                 )}
