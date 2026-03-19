@@ -3,12 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { GuerraEquipes } from '../components/GuerraEquipes'; 
 
-type User = {
-  id: string;
-  name: string;
-  email: string;
-  status: string;
-};
+
 
 type Produto = {
   id: number;
