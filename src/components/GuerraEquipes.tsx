@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { api } from '../services/api';
 
-// Atualizado com a foto_url
 type VendedorRank = {
   id: string;
   nome: string;
@@ -52,13 +51,29 @@ export function GuerraEquipes() {
   async function fetchRanking() {
     try {
       const response = await api.get('/ranking');
-      const rankingGeral: VendedorRank[] = response.data;
+      
+      // BLINDAGEM 1: Garante que é um array mesmo se a API mandar dentro de { data: [...] }
+      const rankingGeral: VendedorRank[] = Array.isArray(response.data) 
+        ? response.data 
+        : (response.data.data || []);
 
-      const timeA = rankingGeral.filter(v => v.equipe.toUpperCase() === 'A');
-      const timeB = rankingGeral.filter(v => v.equipe.toUpperCase() === 'B');
+      // 🔥 RADAR TÁTICO: Vai imprimir no seu F12 o que está chegando do Back-end!
+      console.log("🎯 RADAR DO PLACAR (DADOS RECEBIDOS):", rankingGeral);
 
-      const somaA = timeA.reduce((acc, v) => acc + v.total_vendido, 0);
-      const somaB = timeB.reduce((acc, v) => acc + v.total_vendido, 0);
+      // BLINDAGEM 2: Filtro hiperpoderoso (limpa espaços, aceita "A", "Equipe A", etc)
+      const timeA = rankingGeral.filter(v => {
+        const eq = String(v.equipe || '').trim().toUpperCase();
+        return eq === 'A' || eq === 'EQUIPA A' || eq === 'EQUIPE A';
+      });
+
+      const timeB = rankingGeral.filter(v => {
+        const eq = String(v.equipe || '').trim().toUpperCase();
+        return eq === 'B' || eq === 'EQUIPA B' || eq === 'EQUIPE B';
+      });
+
+      // BLINDAGEM 3: Força o número a ser lido como número matemático e evita "NaN"
+      const somaA = timeA.reduce((acc, v) => acc + (Number(v.total_vendido) || 0), 0);
+      const somaB = timeB.reduce((acc, v) => acc + (Number(v.total_vendido) || 0), 0);
 
       setEquipeA(timeA);
       setEquipeB(timeB);
@@ -71,7 +86,9 @@ export function GuerraEquipes() {
   }
 
   const totalGeralOperacao = totalA + totalB;
-  const progressoXP = Math.min((totalGeralOperacao / META_OPERACAO) * 100, 100);
+  const MathProgresso = (totalGeralOperacao / META_OPERACAO) * 100;
+  // Blinda para não dar erro se o progresso for infinito (divisão por zero) ou NaN
+  const progressoXP = isNaN(MathProgresso) ? 0 : Math.min(MathProgresso, 100);
 
   let liderEquipeA = false;
   let liderEquipeB = false;
@@ -85,7 +102,7 @@ export function GuerraEquipes() {
   }
 
   const formataBRL = (valor: number) => 
-    valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    (valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
   // PÓDIO COM FOTOS DOS RECRUTAS
   const renderPodioSombrio = (equipe: VendedorRank[]) => {
@@ -94,7 +111,7 @@ export function GuerraEquipes() {
       <div className="space-y-2 mt-3">
         {[1, 2, 3].map((posicao, index) => {
           const vendedor = equipe[index];
-          const temVenda = vendedor && vendedor.total_vendido > 0;
+          const temVenda = vendedor && Number(vendedor.total_vendido) > 0;
 
           return (
             <div key={posicao} className="flex justify-between items-center bg-zinc-950/80 p-2.5 rounded-lg border border-zinc-800/50 text-sm h-12 shadow-inner transition-all hover:bg-zinc-900">
@@ -103,7 +120,6 @@ export function GuerraEquipes() {
                 
                 {temVenda ? (
                   <div className="flex items-center gap-2.5">
-                    {/* A MÁGICA DA FOTO: Se tiver foto exibe, senão cria um círculo com a letra do nome */}
                     {vendedor.foto_url ? (
                       <img 
                         src={vendedor.foto_url} 
@@ -127,7 +143,7 @@ export function GuerraEquipes() {
               </div>
               
               <span className={temVenda ? "text-green-400 font-black tracking-wide" : "text-zinc-700"}>
-                {temVenda ? formataBRL(vendedor.total_vendido) : '-'}
+                {temVenda ? formataBRL(Number(vendedor.total_vendido)) : '-'}
               </span>
             </div>
           );
