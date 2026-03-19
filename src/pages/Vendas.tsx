@@ -8,6 +8,20 @@ type Produto = {
   valor: number;
 };
 
+type Venda = {
+  id: string;
+  product_name: string;
+  sale_value: number;
+  sale_date: string;
+  customer_name: string;
+  status: string;
+};
+
+type Ranking = {
+  equipa_a: number;
+  equipa_b: number;
+};
+
 export function Vendas() {
   const navigate = useNavigate();
   const userString = localStorage.getItem('user');
@@ -15,6 +29,9 @@ export function Vendas() {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [produtos, setProdutos] = useState<Produto[]>([]);
+  const [vendas, setVendas] = useState<Venda[]>([]);
+  const [ranking, setRanking] = useState<Ranking>({ equipa_a: 0, equipa_b: 0 });
+  const [filtro, setFiltro] = useState<'dia' | 'semana' | 'mes'>('mes');
 
   const [productName, setProductName] = useState('');
   const [customerName, setCustomerName] = useState('');
@@ -22,25 +39,32 @@ export function Vendas() {
   const [customerPhone, setCustomerPhone] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('PIX');
   const [saleValue, setSaleValue] = useState('');
-  // 🔥 NOVO: Estado para a data da venda (inicia com hoje)
   const [saleDate, setSaleDate] = useState(new Date().toISOString().split('T')[0]);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Busca dados iniciais (Produtos, Ranking e Vendas do Vendedor)
   useEffect(() => {
-    async function fetchProdutos() {
+    async function fetchData() {
       try {
-        const response = await api.get('/products');
-        setProdutos(response.data);
+        const [prodRes, rankRes, salesRes] = await Promise.all([
+          api.get('/products'),
+          api.get('/ranking'),
+          api.get('/sales') // O back-end já deve filtrar para retornar apenas as do usuário logado
+        ]);
+
+        setProdutos(prodRes.data);
+        setRanking(rankRes.data);
+        setVendas(salesRes.data);
         
-        if (response.data.length > 0) {
-          setProductName(response.data[0].nome);
-          setSaleValue(String(response.data[0].valor));
+        if (prodRes.data.length > 0) {
+          setProductName(prodRes.data[0].nome);
+          setSaleValue(String(prodRes.data[0].valor));
         }
       } catch (error) {
-        console.error('Erro ao buscar produtos:', error);
+        console.error('Erro ao carregar Central de Vendas:', error);
       }
     }
-    fetchProdutos();
+    fetchData();
   }, []);
 
   function handleLogout() {
@@ -49,15 +73,21 @@ export function Vendas() {
     navigate('/');
   }
 
-  function handleProductChange(e: React.ChangeEvent<HTMLSelectElement>) {
-    const nomeSelecionado = e.target.value;
-    setProductName(nomeSelecionado);
-
-    const produtoEscolhido = produtos.find(p => p.nome === nomeSelecionado);
-    if (produtoEscolhido) {
-      setSaleValue(String(produtoEscolhido.valor));
+  // Lógica de Filtro no Front-end
+  const vendasFiltradas = vendas.filter(venda => {
+    const dataVenda = new Date(venda.sale_date);
+    const hoje = new Date();
+    
+    if (filtro === 'dia') {
+      return dataVenda.toDateString() === hoje.toDateString();
     }
-  }
+    if (filtro === 'semana') {
+      const umaSemanaAtras = new Date();
+      umaSemanaAtras.setDate(hoje.getDate() - 7);
+      return dataVenda >= umaSemanaAtras;
+    }
+    return true; // Mês/Tudo
+  });
 
   async function handleRegisterSale(e: React.FormEvent) {
     e.preventDefault();
@@ -72,24 +102,13 @@ export function Vendas() {
         customer_phone: customerPhone,
         payment_method: paymentMethod,
         sale_value: Number(saleValue),
-        sale_date: saleDate // 🔥 ENVIANDO A DATA PARA O COMANDO CENTRAL
+        sale_date: saleDate
       });
 
       alert('⚡ Venda registrada com sucesso!');
-      
-      setCustomerName('');
-      setCustomerEmail('');
-      setCustomerPhone('');
-      // Reseta a data para hoje após salvar
-      setSaleDate(new Date().toISOString().split('T')[0]);
-      setIsModalOpen(false);
-      
+      window.location.reload(); // Recarrega para atualizar o placar e a lista
     } catch (error: any) {
-      if (error.response) {
-        alert('Erro ao registrar venda: ' + error.response.data.error);
-      } else {
-        alert('Erro ao conectar com o servidor.');
-      }
+      alert('Erro ao registrar venda.');
     } finally {
       setIsLoading(false);
     }
@@ -99,168 +118,121 @@ export function Vendas() {
     <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans p-4 md:p-8 relative">
       <div className="max-w-6xl mx-auto">
         
-        <div className="flex flex-col md:flex-row justify-between items-center mb-10 pb-4 border-b border-zinc-800 gap-4">
+        {/* HEADER */}
+        <div className="flex flex-col md:flex-row justify-between items-center mb-8 pb-4 border-b border-zinc-800 gap-4">
           <div>
-            <h1 className="text-4xl font-black text-yellow-400 tracking-tight uppercase flex items-center gap-3">
-              Operação Control <span className="text-2xl">⚡</span>
+            <h1 className="text-3xl font-black text-yellow-400 tracking-tight uppercase flex items-center gap-3">
+              CENTRAL DO VENDEDOR <span className="text-xl">⚡</span>
             </h1>
-            <p className="text-zinc-400 mt-1">Bem-vindo(a) de volta, <span className="text-white font-bold">{user.name}</span></p>
+            <p className="text-zinc-400">Soldado: <span className="text-white font-bold">{user.name}</span></p>
           </div>
-          <button 
-            onClick={handleLogout} 
-            className="border-2 border-zinc-700 text-zinc-300 hover:border-red-500 hover:text-red-500 px-6 py-2 rounded font-bold transition-all duration-300 uppercase text-sm tracking-wider"
-          >
-            Desconectar
+          <button onClick={handleLogout} className="border-2 border-zinc-700 text-zinc-300 hover:border-red-500 hover:text-red-500 px-6 py-2 rounded font-bold transition-all uppercase text-sm">
+            Sair da Operação
           </button>
         </div>
 
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 shadow-2xl mt-10">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="text-xl font-bold text-white uppercase tracking-wide">Minhas Vendas Recentes</h3>
-            
-            <button 
-              onClick={() => setIsModalOpen(true)}
-              className="bg-yellow-400 hover:bg-yellow-500 text-black font-black px-6 py-3 rounded-lg transition-transform hover:scale-105 active:scale-95 shadow-[0_0_15px_rgba(250,204,21,0.3)]"
-            >
-              + REGISTRAR VENDA
-            </button>
+        {/* 🏆 PLACAR DE BATALHA (IGUAL AO ADMIN) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+          <div className="bg-gradient-to-br from-blue-900/40 to-zinc-900 border-2 border-blue-500/50 p-6 rounded-2xl text-center shadow-[0_0_20px_rgba(59,130,246,0.2)]">
+            <h2 className="text-blue-400 font-black uppercase tracking-widest mb-2">EQUIPA A</h2>
+            <p className="text-5xl font-black text-white">
+              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(ranking.equipa_a)}
+            </p>
           </div>
-
-          <div className="border-2 border-dashed border-zinc-700 rounded-lg p-10 text-center">
-            <p className="text-zinc-500 text-lg">Você ainda não registrou nenhuma venda na sua lista.</p>
-            <p className="text-yellow-400/80 mt-2 font-medium">O jogo já começou. Lance sua primeira venda!</p>
+          <div className="bg-gradient-to-br from-red-900/40 to-zinc-900 border-2 border-red-500/50 p-6 rounded-2xl text-center shadow-[0_0_20px_rgba(239,68,68,0.2)]">
+            <h2 className="text-red-400 font-black uppercase tracking-widest mb-2">EQUIPA B</h2>
+            <p className="text-5xl font-black text-white">
+              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(ranking.equipa_b)}
+            </p>
           </div>
         </div>
 
+        {/* HISTÓRICO E FILTROS */}
+        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 shadow-2xl">
+          <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+            <div className="flex gap-2">
+              <button onClick={() => setFiltro('dia')} className={`px-4 py-2 rounded-lg font-bold text-xs uppercase transition-all ${filtro === 'dia' ? 'bg-yellow-400 text-black' : 'bg-zinc-800 text-zinc-400'}`}>Hoje</button>
+              <button onClick={() => setFiltro('semana')} className={`px-4 py-2 rounded-lg font-bold text-xs uppercase transition-all ${filtro === 'semana' ? 'bg-yellow-400 text-black' : 'bg-zinc-800 text-zinc-400'}`}>Semana</button>
+              <button onClick={() => setFiltro('mes')} className={`px-4 py-2 rounded-lg font-bold text-xs uppercase transition-all ${filtro === 'mes' ? 'bg-yellow-400 text-black' : 'bg-zinc-800 text-zinc-400'}`}>Mês</button>
+            </div>
+            
+            <button 
+              onClick={() => setIsModalOpen(true)}
+              className="w-full md:w-auto bg-green-500 hover:bg-green-600 text-black font-black px-8 py-3 rounded-lg shadow-lg transition-transform hover:scale-105"
+            >
+              + LANÇAR NOVA VENDA
+            </button>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="border-b border-zinc-800 text-zinc-500 text-xs uppercase tracking-widest">
+                  <th className="pb-4">Data</th>
+                  <th className="pb-4">Cliente</th>
+                  <th className="pb-4">Produto</th>
+                  <th className="pb-4">Valor</th>
+                  <th className="pb-4">Status</th>
+                </tr>
+              </thead>
+              <tbody className="text-sm">
+                {vendasFiltradas.length > 0 ? vendasFiltradas.map(venda => (
+                  <tr key={venda.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors">
+                    <td className="py-4 text-zinc-400">{new Date(venda.sale_date).toLocaleDateString('pt-BR')}</td>
+                    <td className="py-4 font-bold">{venda.customer_name}</td>
+                    <td className="py-4 text-zinc-300">{venda.product_name}</td>
+                    <td className="py-4 text-green-400 font-bold">R$ {venda.sale_value.toFixed(2)}</td>
+                    <td className="py-4">
+                      <span className={`px-2 py-1 rounded-full text-[10px] font-black uppercase ${venda.status === 'approved' ? 'bg-green-500/10 text-green-500' : 'bg-yellow-500/10 text-yellow-500'}`}>
+                        {venda.status === 'approved' ? 'Aprovada' : 'Pendente'}
+                      </span>
+                    </td>
+                  </tr>
+                )) : (
+                  <tr>
+                    <td colSpan={5} className="py-10 text-center text-zinc-600 uppercase font-bold tracking-widest italic">
+                      Nenhuma venda encontrada neste período.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
+      {/* MODAL DE REGISTRO (MANTIDO E MELHORADO) */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-            
-            <div className="bg-zinc-950 p-6 border-b border-zinc-800 flex justify-between items-center">
-              <h2 className="text-2xl font-black text-yellow-400 uppercase tracking-wider">🎯 Nova Venda</h2>
-              <button 
-                onClick={() => setIsModalOpen(false)}
-                className="text-zinc-500 hover:text-white text-2xl font-bold leading-none"
-              >
-                &times;
-              </button>
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-zinc-900 border border-zinc-700 rounded-2xl w-full max-w-xl shadow-2xl animate-in zoom-in duration-150">
+            <div className="p-6 border-b border-zinc-800 flex justify-between items-center">
+              <h2 className="text-xl font-black text-yellow-400 uppercase">🎯 Registrar Venda</h2>
+              <button onClick={() => setIsModalOpen(false)} className="text-zinc-500 hover:text-white text-2xl">&times;</button>
             </div>
-
             <form onSubmit={handleRegisterSale} className="p-6 space-y-4">
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">Produto Vendido</label>
-                  <select 
-                    value={productName}
-                    onChange={handleProductChange}
-                    className="w-full bg-zinc-950 border border-zinc-700 text-white rounded p-3 focus:outline-none focus:border-yellow-400 transition-colors cursor-pointer"
-                  >
-                    {produtos.map(produto => (
-                      <option key={produto.id} value={produto.nome}>
-                        {produto.nome}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">Valor da Venda (R$)</label>
-                  <input 
-                    type="number" 
-                    step="0.01"
-                    required
-                    value={saleValue}
-                    onChange={(e) => setSaleValue(e.target.value)}
-                    className="w-full bg-zinc-950 border border-zinc-700 text-yellow-400 font-bold rounded p-3 focus:outline-none focus:border-yellow-400 transition-colors placeholder:text-zinc-600"
-                  />
-                </div>
-              </div>
-
-              {/* 🔥 CAMPO TÁTICO: DATA DA VENDA */}
-              <div>
-                <label className="block text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">Data da Venda</label>
-                <input 
-                  type="date" 
-                  required
-                  value={saleDate}
-                  onChange={(e) => setSaleDate(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-700 text-white rounded p-3 focus:outline-none focus:border-yellow-400 transition-colors"
-                />
-                <p className="text-[10px] text-zinc-600 mt-1 uppercase font-bold">* Use para registrar vendas retroativas</p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">Nome do Cliente</label>
-                  <input 
-                    type="text" 
-                    required
-                    value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
-                    placeholder="Ex: João da Silva"
-                    className="w-full bg-zinc-950 border border-zinc-700 text-white rounded p-3 focus:outline-none focus:border-yellow-400 transition-colors placeholder:text-zinc-600"
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">Produto</label>
+                        <select value={productName} onChange={(e) => setProductName(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm">
+                            {produtos.map(p => <option key={p.id} value={p.nome}>{p.nome}</option>)}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">Valor R$</label>
+                        <input type="number" value={saleValue} onChange={(e) => setSaleValue(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm text-yellow-400 font-bold" />
+                    </div>
                 </div>
                 <div>
-                  <label className="block text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">WhatsApp / Telefone</label>
-                  <input 
-                    type="text" 
-                    required
-                    value={customerPhone}
-                    onChange={(e) => setCustomerPhone(e.target.value)}
-                    placeholder="Ex: (11) 99999-9999"
-                    className="w-full bg-zinc-950 border border-zinc-700 text-white rounded p-3 focus:outline-none focus:border-yellow-400 transition-colors placeholder:text-zinc-600"
-                  />
+                    <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">Data</label>
+                    <input type="date" value={saleDate} onChange={(e) => setSaleDate(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm" />
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">E-mail do Cliente</label>
-                <input 
-                  type="email" 
-                  required
-                  value={customerEmail}
-                  onChange={(e) => setCustomerEmail(e.target.value)}
-                  placeholder="Ex: joao@email.com"
-                  className="w-full bg-zinc-950 border border-zinc-700 text-white rounded p-3 focus:outline-none focus:border-yellow-400 transition-colors placeholder:text-zinc-600"
-                />
-              </div>
-
-              <div>
-                <label className="block text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">Método de Pagamento</label>
-                <select 
-                  value={paymentMethod}
-                  onChange={(e) => setPaymentMethod(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-700 text-white rounded p-3 focus:outline-none focus:border-yellow-400 transition-colors cursor-pointer"
-                >
-                  <option value="PIX">PIX</option>
-                  <option value="Cartão de Crédito (até 12x)">Cartão de Crédito (até 12x)</option>
-                  <option value="Crédito à vista">Crédito à vista</option>
-                  <option value="Débito à vista">Débito à vista</option>
-                  <option value="Boleto Parcelado">Boleto Parcelado (Requer Aprovação)</option>
-                </select>
-              </div>
-
-              <div className="pt-4 flex justify-end gap-3 border-t border-zinc-800 mt-6">
-                <button 
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-6 py-3 font-bold text-zinc-400 hover:text-white transition-colors"
-                >
-                  CANCELAR
+                <div>
+                    <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">Nome do Cliente</label>
+                    <input type="text" required value={customerName} onChange={(e) => setCustomerName(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm" />
+                </div>
+                <button disabled={isLoading} className="w-full bg-yellow-400 hover:bg-yellow-500 text-black font-black py-4 rounded-xl mt-4 uppercase tracking-widest shadow-lg">
+                    {isLoading ? 'ENVIANDO...' : 'CONFIRMAR LANÇAMENTO ⚡'}
                 </button>
-                <button 
-                  type="submit"
-                  disabled={isLoading}
-                  className="bg-yellow-400 hover:bg-yellow-500 text-black font-black px-8 py-3 rounded transition-transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100 uppercase tracking-wider"
-                >
-                  {isLoading ? 'ENVIANDO...' : 'SALVAR VENDA'}
-                </button>
-              </div>
-
             </form>
           </div>
         </div>
