@@ -156,7 +156,7 @@ export function GuerraEquipes() {
     <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 md:p-6 shadow-[0_0_30px_rgba(0,0,0,0.5)] flex flex-col w-full h-full relative overflow-hidden">
       
       <h2 className="text-xl md:text-2xl font-black text-white mb-5 uppercase tracking-widest flex items-center gap-3 border-b border-zinc-800 pb-3">
-        ⚔️ Guerra de Equipas <span className="text-zinc-600 text-sm font-bold">(Novembro)</span>
+        ⚔️ Guerra de Equipes <span className="text-zinc-600 text-sm font-bold">(Março)</span>
       </h2>
 
       {/* BARRA DE XP COLETIVA */}

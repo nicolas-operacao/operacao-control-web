@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { GuerraEquipes } from '../components/GuerraEquipes'; 
+import confetti from 'canvas-confetti'; // 🔥 ARSENAL VISUAL IMPORTADO
 
 type Produto = {
   id: number;
@@ -59,9 +60,27 @@ export function Dashboard() {
 
   const [todasVendas, setTodasVendas] = useState<Venda[]>([]);
   
-  // 🔥 ADICIONADO: Visão 'vendedor' e Estado do Vendedor Selecionado
   const [visaoAtiva, setVisaoAtiva] = useState<'hoje' | 'semana' | 'mes' | 'vendedor' | null>(null);
   const [vendedorSelecionado, setVendedorSelecionado] = useState<string>('');
+
+  // ==========================================
+  // 🎵 ARSENAL DE EFEITOS SONOROS E VISUAIS
+  // ==========================================
+ // ==========================================
+  // 🎵 ARSENAL DE EFEITOS SONOROS E VISUAIS (BLINDADO)
+  // ==========================================
+  const somDinheiro = () => new Audio('https://actions.google.com/sounds/v1/foley/cash_register.ogg').play().catch((e) => console.log('Bloqueio de som:', e));
+  const somAlerta = () => new Audio('https://actions.google.com/sounds/v1/alarms/buzzer_alarm.ogg').play().catch((e) => console.log('Bloqueio de som:', e));
+  const somSucesso = () => new Audio('https://actions.google.com/sounds/v1/cartoon/bell_ding.ogg').play().catch((e) => console.log('Bloqueio de som:', e));
+
+  const lancarConfetes = () => {
+    confetti({
+      particleCount: 150,
+      spread: 80,
+      origin: { y: 0.6 },
+      colors: ['#FACC15', '#22C55E', '#3B82F6'] // Amarelo, Verde, Azul
+    });
+  };
 
   useEffect(() => {
     fetchProdutos();
@@ -118,11 +137,11 @@ export function Dashboard() {
     }
   }
 
-  // 🔥 APROVAR OU REJEITAR EDIÇÃO DO VENDEDOR (ADMIN)
   async function handleAprovarEdicao(id: string) {
     if(!window.confirm("Deseja APROVAR esta correção? Os dados da venda serão alterados.")) return;
     try {
       await api.post(`/sales/${id}/approve-edit`);
+      somSucesso(); // 🎵 Som de Sucesso ao aprovar correção
       alert("✅ Edição aprovada e aplicada com sucesso!");
       fetchVendasPlacar();
     } catch (error) {
@@ -134,6 +153,7 @@ export function Dashboard() {
     if(!window.confirm("Deseja REJEITAR esta correção? O vendedor será notificado.")) return;
     try {
       await api.post(`/sales/${id}/reject-edit`);
+      somAlerta(); // 🚨 Som de Alerta ao rejeitar
       alert("❌ Edição rejeitada.");
       fetchVendasPlacar();
     } catch (error) {
@@ -141,11 +161,12 @@ export function Dashboard() {
     }
   }
 
-  // 🔥 LIBERAR VENDA PENDENTE (AMARELO)
   async function handleAprovarVenda(id: string) {
     if(!window.confirm("Deseja LIBERAR esta venda? Ela entrará imediatamente no placar do soldado.")) return;
     try {
       await api.post(`/sales/${id}/approve`);
+      somDinheiro(); // 💰 Som de Caixa Registradora!
+      lancarConfetes(); // 🎉 CHUVA DE CONFETES!
       alert("✅ Venda liberada com sucesso!");
       fetchVendasPlacar();
     } catch (error) {
@@ -158,6 +179,7 @@ export function Dashboard() {
     if (confirmacao) {
       try {
         await api.delete(`/sales/${id}`);
+        somAlerta(); // 🚨 Som de Alerta/Erro na exclusão
         alert('💥 Venda eliminada com sucesso!');
         fetchVendasPlacar();
       } catch (error) {
@@ -218,6 +240,8 @@ export function Dashboard() {
         customer_email: customerEmail, customer_phone: customerPhone, payment_method: paymentMethod,
         sale_value: Number(saleValue), sale_date: saleDate
       });
+      somSucesso(); // 🎵 Som de Missão Cumprida
+      lancarConfetes(); // 🎉 Confetes pro Admin também!
       alert('⚡ Venda registrada com sucesso!');
       setCustomerName(''); setCustomerEmail(''); setCustomerPhone(''); setSaleDate(hoje); setIsModalVendaOpen(false);
       fetchVendasPlacar(); 
@@ -228,11 +252,9 @@ export function Dashboard() {
     }
   }
 
-  // 🔥 LÓGICA DE FILTRAGEM DA TABELA (AGORA COM VISÃO DE VENDEDOR)
   const vendasTabela = todasVendas.filter(v => {
     if (!visaoAtiva || !v.created_at) return false;
 
-    // Se a visão for por Vendedor, ignora as datas e mostra TODAS as vendas dele
     if (visaoAtiva === 'vendedor') {
       return v.seller_name === vendedorSelecionado;
     }
@@ -250,16 +272,12 @@ export function Dashboard() {
     return false;
   }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-  // Separa os pedidos de edição para o Admin aprovar
   const edicoesPendentes = todasVendas.filter(v => v.edit_status === 'pendente');
-
-  // Vendas Aguardando Liberação
   const vendasPendentes = todasVendas.filter(v => v.status === 'pendente_liberacao' || v.status === 'pendente_boleto' || v.status === 'pendente');
 
   const progressoMeta = Math.min((vendasMes / META_MENSAL) * 100, 100);
   const formataBRL = (valor: number) => valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-  // 🔥 Cria a lista de vendedores únicos para o Select
   const vendedoresUnicos = Array.from(new Set(todasVendas.map(v => v.seller_name).filter(nome => nome && nome !== 'Desconhecido'))).sort();
 
   return (
@@ -289,10 +307,6 @@ export function Dashboard() {
             </button>
           </div>
         </div>
-
-        {/* ========================================================= */}
-        {/* 🔥 PAINEL DE AVISOS TÁTICOS (EDIÇÕES E LIBERAÇÕES)        */}
-        {/* ========================================================= */}
         
         <div className="space-y-4">
           
@@ -366,13 +380,10 @@ export function Dashboard() {
               </div>
             </div>
           )}
-
         </div>
 
-        {/* 🔥 AQUI ESTÁ A NOVA FUNCIONALIDADE! FILTROS TÁTICOS + BUSCA POR SOLDADO */}
+        {/* FILTROS TÁTICOS + BUSCA POR SOLDADO */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 shadow-xl flex flex-col lg:flex-row items-end gap-6">
-          
-          {/* O NOVO CAMPO DE SELECIONAR SOLDADO */}
           <div className="w-full lg:flex-1">
             <label className="block text-zinc-400 text-xs font-bold uppercase tracking-widest mb-2 text-yellow-400">
               🎯 Caçar Soldado (Ver Toda a Ficha)
@@ -438,7 +449,7 @@ export function Dashboard() {
           </div>
         </div>
 
-        {/* TABELA DETALHADA (AO CLICAR NO PLACAR OU SELECIONAR VENDEDOR) */}
+        {/* TABELA DETALHADA */}
         {visaoAtiva && (
           <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-6 shadow-2xl animate-in fade-in slide-in-from-top-4 duration-300">
             <div className="flex justify-between items-center mb-6 pb-4 border-b border-zinc-800">
