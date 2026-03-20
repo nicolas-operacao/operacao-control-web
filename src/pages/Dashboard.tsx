@@ -9,13 +9,14 @@ type Produto = {
   valor: number;
 };
 
+// 🔥 CRACHÁ BLINDADO CONTRA ERROS DO TYPESCRIPT
 type Venda = {
   id: string;
   product_name: string;
   customer_name: string;
-  customer_phone?: string; // 🔥 Adicionado para blindar o código
-  customer_email?: string; // 🔥 Adicionado para blindar o código
-  payment_method?: string; // 🔥 O SABOTADOR ESTAVA AQUI! (Faltava isso)
+  customer_phone?: string; 
+  customer_email?: string; 
+  payment_method?: string; 
   sale_value: number;
   status: string;
   created_at: string;
@@ -368,7 +369,7 @@ export function Dashboard() {
 
         </div>
 
-        {/* 🔥 FILTROS TÁTICOS + BUSCA POR SOLDADO */}
+        {/* 🔥 AQUI ESTÁ A NOVA FUNCIONALIDADE! FILTROS TÁTICOS + BUSCA POR SOLDADO */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 shadow-xl flex flex-col lg:flex-row items-end gap-6">
           
           {/* O NOVO CAMPO DE SELECIONAR SOLDADO */}
@@ -403,7 +404,7 @@ export function Dashboard() {
               <input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} className="w-full bg-zinc-950 border border-zinc-700 text-white rounded p-3 focus:outline-none focus:border-yellow-400 transition-colors [color-scheme:dark]" />
             </div>
             <button onClick={handleFiltrar} className="w-full md:w-auto bg-zinc-800 hover:bg-yellow-400 hover:text-black text-white font-black py-3 px-8 rounded transition-all duration-300 uppercase tracking-widest border border-zinc-700 hover:border-yellow-400">
-              Filtrar
+              Filtrar Batalha
             </button>
           </div>
         </div>
