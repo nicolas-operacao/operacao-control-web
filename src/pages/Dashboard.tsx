@@ -13,9 +13,9 @@ type Venda = {
   id: string;
   product_name: string;
   customer_name: string;
-  customer_phone?: string;
-  customer_email?: string;
-  payment_method?: string;
+  customer_phone?: string; // 🔥 Adicionado para blindar o código
+  customer_email?: string; // 🔥 Adicionado para blindar o código
+  payment_method?: string; // 🔥 O SABOTADOR ESTAVA AQUI! (Faltava isso)
   sale_value: number;
   status: string;
   created_at: string;
@@ -57,7 +57,10 @@ export function Dashboard() {
   const META_MENSAL = 400000;
 
   const [todasVendas, setTodasVendas] = useState<Venda[]>([]);
-  const [visaoAtiva, setVisaoAtiva] = useState<'hoje' | 'semana' | 'mes' | null>(null);
+  
+  // 🔥 ADICIONADO: Visão 'vendedor' e Estado do Vendedor Selecionado
+  const [visaoAtiva, setVisaoAtiva] = useState<'hoje' | 'semana' | 'mes' | 'vendedor' | null>(null);
+  const [vendedorSelecionado, setVendedorSelecionado] = useState<string>('');
 
   useEffect(() => {
     fetchProdutos();
@@ -114,7 +117,7 @@ export function Dashboard() {
     }
   }
 
-  // 🔥 1. APROVAR OU REJEITAR EDIÇÃO DO VENDEDOR (AZUL)
+  // 🔥 APROVAR OU REJEITAR EDIÇÃO DO VENDEDOR (ADMIN)
   async function handleAprovarEdicao(id: string) {
     if(!window.confirm("Deseja APROVAR esta correção? Os dados da venda serão alterados.")) return;
     try {
@@ -137,7 +140,7 @@ export function Dashboard() {
     }
   }
 
-  // 🔥 2. LIBERAR VENDA PENDENTE (AMARELO)
+  // 🔥 LIBERAR VENDA PENDENTE (AMARELO)
   async function handleAprovarVenda(id: string) {
     if(!window.confirm("Deseja LIBERAR esta venda? Ela entrará imediatamente no placar do soldado.")) return;
     try {
@@ -224,8 +227,15 @@ export function Dashboard() {
     }
   }
 
+  // 🔥 LÓGICA DE FILTRAGEM DA TABELA (AGORA COM VISÃO DE VENDEDOR)
   const vendasTabela = todasVendas.filter(v => {
     if (!visaoAtiva || !v.created_at) return false;
+
+    // Se a visão for por Vendedor, ignora as datas e mostra TODAS as vendas dele
+    if (visaoAtiva === 'vendedor') {
+      return v.seller_name === vendedorSelecionado;
+    }
+
     const dataVenda = new Date(v.created_at);
     const hojeData = new Date();
     hojeData.setHours(0, 0, 0, 0);
@@ -239,14 +249,17 @@ export function Dashboard() {
     return false;
   }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-  // 🔥 Filtro 1: Pedidos de Correção (Azul)
+  // Separa os pedidos de edição para o Admin aprovar
   const edicoesPendentes = todasVendas.filter(v => v.edit_status === 'pendente');
 
-  // 🔥 Filtro 2: Vendas Aguardando Liberação (Amarelo)
+  // Vendas Aguardando Liberação
   const vendasPendentes = todasVendas.filter(v => v.status === 'pendente_liberacao' || v.status === 'pendente_boleto' || v.status === 'pendente');
 
   const progressoMeta = Math.min((vendasMes / META_MENSAL) * 100, 100);
   const formataBRL = (valor: number) => valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+  // 🔥 Cria a lista de vendedores únicos para o Select
+  const vendedoresUnicos = Array.from(new Set(todasVendas.map(v => v.seller_name).filter(nome => nome && nome !== 'Desconhecido'))).sort();
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 p-4 md:p-8 font-sans relative">
@@ -355,34 +368,59 @@ export function Dashboard() {
 
         </div>
 
-        {/* FILTROS TÁTICOS */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 shadow-xl flex flex-col md:flex-row items-end gap-4">
-          <div className="w-full md:w-auto">
-            <label className="block text-zinc-400 text-xs font-bold uppercase tracking-widest mb-2">Data Inicial</label>
-            <input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} className="w-full bg-zinc-950 border border-zinc-700 text-white rounded p-3 focus:outline-none focus:border-yellow-400 transition-colors [color-scheme:dark]" />
+        {/* 🔥 FILTROS TÁTICOS + BUSCA POR SOLDADO */}
+        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 shadow-xl flex flex-col lg:flex-row items-end gap-6">
+          
+          {/* O NOVO CAMPO DE SELECIONAR SOLDADO */}
+          <div className="w-full lg:flex-1">
+            <label className="block text-zinc-400 text-xs font-bold uppercase tracking-widest mb-2 text-yellow-400">
+              🎯 Caçar Soldado (Ver Toda a Ficha)
+            </label>
+            <select 
+              value={vendedorSelecionado} 
+              onChange={(e) => {
+                const nome = e.target.value;
+                setVendedorSelecionado(nome);
+                if (nome) setVisaoAtiva('vendedor');
+                else setVisaoAtiva(null);
+              }}
+              className="w-full bg-zinc-950 border border-zinc-700 text-white rounded p-3 focus:outline-none focus:border-yellow-400 cursor-pointer transition-colors"
+            >
+              <option value="">Selecione um soldado...</option>
+              {vendedoresUnicos.map(nome => (
+                <option key={nome} value={nome}>{nome}</option>
+              ))}
+            </select>
           </div>
-          <div className="w-full md:w-auto">
-            <label className="block text-zinc-400 text-xs font-bold uppercase tracking-widest mb-2">Data Final</label>
-            <input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} className="w-full bg-zinc-950 border border-zinc-700 text-white rounded p-3 focus:outline-none focus:border-yellow-400 transition-colors [color-scheme:dark]" />
+
+          <div className="w-full lg:w-auto flex flex-col md:flex-row items-end gap-4 border-t lg:border-t-0 lg:border-l border-zinc-800 pt-4 lg:pt-0 lg:pl-6">
+            <div className="w-full md:w-auto">
+              <label className="block text-zinc-400 text-xs font-bold uppercase tracking-widest mb-2">Data Inicial</label>
+              <input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} className="w-full bg-zinc-950 border border-zinc-700 text-white rounded p-3 focus:outline-none focus:border-yellow-400 transition-colors [color-scheme:dark]" />
+            </div>
+            <div className="w-full md:w-auto">
+              <label className="block text-zinc-400 text-xs font-bold uppercase tracking-widest mb-2">Data Final</label>
+              <input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} className="w-full bg-zinc-950 border border-zinc-700 text-white rounded p-3 focus:outline-none focus:border-yellow-400 transition-colors [color-scheme:dark]" />
+            </div>
+            <button onClick={handleFiltrar} className="w-full md:w-auto bg-zinc-800 hover:bg-yellow-400 hover:text-black text-white font-black py-3 px-8 rounded transition-all duration-300 uppercase tracking-widest border border-zinc-700 hover:border-yellow-400">
+              Filtrar
+            </button>
           </div>
-          <button onClick={handleFiltrar} className="w-full md:w-auto bg-zinc-800 hover:bg-yellow-400 hover:text-black text-white font-black py-3 px-8 rounded transition-all duration-300 uppercase tracking-widest border border-zinc-700 hover:border-yellow-400">
-            Filtrar Batalha
-          </button>
         </div>
 
         {/* PLACAR GLOBAL GAMIFICADO */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div onClick={() => setVisaoAtiva('hoje')} className={`bg-zinc-900 border-l-4 p-6 rounded-lg shadow-2xl relative overflow-hidden cursor-pointer transform transition-all duration-200 hover:scale-[1.02] group ${visaoAtiva === 'hoje' ? 'border-yellow-400 ring-2 ring-yellow-400/50' : 'border-yellow-400 hover:border-yellow-300'}`}>
+          <div onClick={() => { setVisaoAtiva('hoje'); setVendedorSelecionado(''); }} className={`bg-zinc-900 border-l-4 p-6 rounded-lg shadow-2xl relative overflow-hidden cursor-pointer transform transition-all duration-200 hover:scale-[1.02] group ${visaoAtiva === 'hoje' ? 'border-yellow-400 ring-2 ring-yellow-400/50' : 'border-yellow-400 hover:border-yellow-300'}`}>
             <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-yellow-400 text-[10px] font-black uppercase tracking-widest">Ver Lista 👁️</div>
             <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">Vendas Hoje</p>
             <h2 className="text-3xl font-black text-white">{formataBRL(vendasHoje)}</h2>
           </div>
-          <div onClick={() => setVisaoAtiva('semana')} className={`bg-zinc-900 border-l-4 p-6 rounded-lg shadow-2xl relative overflow-hidden cursor-pointer transform transition-all duration-200 hover:scale-[1.02] group ${visaoAtiva === 'semana' ? 'border-yellow-400 ring-2 ring-yellow-400/50' : 'border-yellow-400 hover:border-yellow-300'}`}>
+          <div onClick={() => { setVisaoAtiva('semana'); setVendedorSelecionado(''); }} className={`bg-zinc-900 border-l-4 p-6 rounded-lg shadow-2xl relative overflow-hidden cursor-pointer transform transition-all duration-200 hover:scale-[1.02] group ${visaoAtiva === 'semana' ? 'border-yellow-400 ring-2 ring-yellow-400/50' : 'border-yellow-400 hover:border-yellow-300'}`}>
             <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-yellow-400 text-[10px] font-black uppercase tracking-widest">Ver Lista 👁️</div>
             <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">Esta Semana</p>
             <h2 className="text-3xl font-black text-white">{formataBRL(vendasSemana)}</h2>
           </div>
-          <div onClick={() => setVisaoAtiva('mes')} className={`bg-zinc-900 border-l-4 p-6 rounded-lg shadow-2xl relative overflow-hidden md:col-span-2 cursor-pointer transform transition-all duration-200 hover:scale-[1.02] group ${visaoAtiva === 'mes' ? 'border-yellow-400 ring-2 ring-yellow-400/50' : 'border-yellow-400 hover:border-yellow-300'}`}>
+          <div onClick={() => { setVisaoAtiva('mes'); setVendedorSelecionado(''); }} className={`bg-zinc-900 border-l-4 p-6 rounded-lg shadow-2xl relative overflow-hidden md:col-span-2 cursor-pointer transform transition-all duration-200 hover:scale-[1.02] group ${visaoAtiva === 'mes' ? 'border-yellow-400 ring-2 ring-yellow-400/50' : 'border-yellow-400 hover:border-yellow-300'}`}>
             <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-yellow-400 text-[10px] font-black uppercase tracking-widest">Ver Lista 👁️</div>
             <div className="absolute top-0 right-0 p-4 opacity-5 text-yellow-400 text-8xl">🎯</div>
             <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">Acumulado do Mês</p>
@@ -399,15 +437,18 @@ export function Dashboard() {
           </div>
         </div>
 
-        {/* TABELA DETALHADA (AO CLICAR NO PLACAR) */}
+        {/* TABELA DETALHADA (AO CLICAR NO PLACAR OU SELECIONAR VENDEDOR) */}
         {visaoAtiva && (
           <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-6 shadow-2xl animate-in fade-in slide-in-from-top-4 duration-300">
             <div className="flex justify-between items-center mb-6 pb-4 border-b border-zinc-800">
               <h3 className="text-xl font-black text-white uppercase tracking-wider flex items-center gap-2">
                 <span className="text-yellow-400">⚡</span> Detalhamento: 
-                {visaoAtiva === 'hoje' ? ' Vendas de Hoje' : visaoAtiva === 'semana' ? ' Vendas da Semana' : ' Acumulado do Mês'}
+                {visaoAtiva === 'hoje' ? ' Vendas de Hoje' : 
+                 visaoAtiva === 'semana' ? ' Vendas da Semana' : 
+                 visaoAtiva === 'mes' ? ' Acumulado do Mês' : 
+                 visaoAtiva === 'vendedor' ? ` Ficha Completa: ${vendedorSelecionado}` : ''}
               </h3>
-              <button onClick={() => setVisaoAtiva(null)} className="text-zinc-500 hover:text-red-500 font-bold uppercase text-xs transition-colors px-3 py-1 border border-zinc-800 rounded hover:border-red-500">
+              <button onClick={() => { setVisaoAtiva(null); setVendedorSelecionado(''); }} className="text-zinc-500 hover:text-red-500 font-bold uppercase text-xs transition-colors px-3 py-1 border border-zinc-800 rounded hover:border-red-500">
                 FECHAR X
               </button>
             </div>
