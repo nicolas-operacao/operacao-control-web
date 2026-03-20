@@ -20,7 +20,7 @@ type Venda = {
   payment_method?: string;
   status: string;
   seller_id: string | number; 
-  edit_status?: string; // 🔥 NOVO: Para saber se está aguardando o Admin
+  edit_status?: string; 
 };
 
 export function Vendas() {
@@ -28,15 +28,13 @@ export function Vendas() {
   const userString = localStorage.getItem('user');
   const user = userString ? JSON.parse(userString) : { name: 'Vendedor', id: '' };
 
-  // Estados dos Modais
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false); // 🔥 Modal de Edição
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false); 
 
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [vendas, setVendas] = useState<Venda[]>([]);
   const [filtro, setFiltro] = useState<'dia' | 'semana' | 'mes'>('mes');
 
-  // Estados do Formulário (Usado para Nova Venda e Edição)
   const [productName, setProductName] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
@@ -45,7 +43,6 @@ export function Vendas() {
   const [saleValue, setSaleValue] = useState('');
   const [saleDate, setSaleDate] = useState(new Date().toISOString().split('T')[0]);
   
-  // 🔥 Estados específicos da Edição
   const [editingSaleId, setEditingSaleId] = useState('');
   const [editReason, setEditReason] = useState('');
 
@@ -90,7 +87,6 @@ export function Vendas() {
     }
   }
 
-  // 🔥 PREPARA O MODAL DE EDIÇÃO COM OS DADOS DA VENDA
   function handleOpenEdit(venda: Venda) {
     setEditingSaleId(venda.id);
     setProductName(venda.product_name);
@@ -120,7 +116,6 @@ export function Vendas() {
     }
   }
 
-  // 🎯 ENVIA UMA NOVA VENDA (INALTERADO)
   async function handleRegisterSale(e: React.FormEvent) {
     e.preventDefault();
     setIsLoading(true);
@@ -143,19 +138,23 @@ export function Vendas() {
     }
   }
 
-  // 🎯 ENVIA O PEDIDO DE EDIÇÃO (NOVO)
+  // 🔥 ATUALIZADO: ENVIA A DATA JUNTO COM O PEDIDO DE EDIÇÃO
   async function handleRequestEdit(e: React.FormEvent) {
     e.preventDefault();
     setIsLoading(true);
 
     try {
+      // Ajusta a nova data para o formato exato que o banco de dados exige
+      const novaDataFormatada = new Date(`${saleDate}T12:00:00Z`).toISOString();
+
       const newData = {
         product_name: productName,
         sale_value: Number(saleValue),
         customer_name: customerName,
         customer_email: customerEmail,
         customer_phone: customerPhone,
-        payment_method: paymentMethod
+        payment_method: paymentMethod,
+        created_at: novaDataFormatada // 🔥 AQUI ESTÁ A DATA CORRIGIDA!
       };
 
       await api.post(`/sales/${editingSaleId}/request-edit`, {
@@ -253,7 +252,6 @@ export function Vendas() {
                       </span>
                     </td>
                     <td className="py-4 text-center">
-                      {/* 🔥 BOTÃO DE EDITAR COM STATUS */}
                       {venda.edit_status === 'pendente' ? (
                         <span className="text-[10px] font-black text-yellow-500 bg-yellow-500/10 px-2 py-1 rounded border border-yellow-500/30">
                           ⏳ EM ANÁLISE
@@ -281,9 +279,6 @@ export function Vendas() {
         </div>
       </div>
 
-      {/* ========================================= */}
-      {/* MODAL DE REGISTRAR NOVA VENDA (INALTERADO)*/}
-      {/* ========================================= */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="bg-zinc-900 border border-zinc-700 rounded-2xl w-full max-w-xl shadow-2xl animate-in zoom-in duration-150">
@@ -306,7 +301,7 @@ export function Vendas() {
                 </div>
                 <div>
                     <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">Data</label>
-                    <input type="date" value={saleDate} onChange={(e) => setSaleDate(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm text-white" />
+                    <input type="date" value={saleDate} onChange={(e) => setSaleDate(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm text-white [color-scheme:dark]" />
                 </div>
                 <div>
                     <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">Nome do Cliente</label>
@@ -332,7 +327,7 @@ export function Vendas() {
                         <option value="Boleto Parcelado">Boleto Parcelado</option>
                     </select>
                 </div>
-                <button disabled={isLoading} className="w-full bg-green-500 hover:bg-green-400 text-black font-black py-4 rounded-xl mt-4 uppercase tracking-widest shadow-lg">
+                <button disabled={isLoading} className="w-full bg-green-500 hover:bg-green-400 text-black font-black py-4 rounded-xl mt-4 uppercase tracking-widest shadow-lg transition-colors">
                     {isLoading ? 'ENVIANDO...' : 'CONFIRMAR LANÇAMENTO ⚡'}
                 </button>
             </form>
@@ -341,7 +336,7 @@ export function Vendas() {
       )}
 
       {/* ========================================= */}
-      {/* 🔥 NOVO: MODAL DE SOLICITAR EDIÇÃO        */}
+      {/* 🔥 MODAL DE SOLICITAR EDIÇÃO ATUALIZADO   */}
       {/* ========================================= */}
       {isEditModalOpen && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
@@ -353,7 +348,6 @@ export function Vendas() {
             
             <form onSubmit={handleRequestEdit} className="p-6 space-y-4">
                 
-                {/* CAMPO DE JUSTIFICATIVA OBRIGATÓRIO */}
                 <div className="bg-zinc-950 p-4 border border-zinc-800 rounded-lg mb-6">
                   <label className="block text-red-400 text-xs font-black uppercase mb-2 flex items-center gap-2">
                     ⚠️ JUSTIFICATIVA DO ERRO
@@ -380,9 +374,16 @@ export function Vendas() {
                     </div>
                 </div>
                 
-                <div>
-                    <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">Nome do Cliente Correto</label>
-                    <input type="text" required value={customerName} onChange={(e) => setCustomerName(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm text-white" />
+                {/* 🔥 AQUI ESTÁ O CAMPO DE DATA ADICIONADO! */}
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">Nome do Cliente</label>
+                        <input type="text" required value={customerName} onChange={(e) => setCustomerName(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm text-white" />
+                    </div>
+                    <div>
+                        <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">Data Correta</label>
+                        <input type="date" required value={saleDate} onChange={(e) => setSaleDate(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm text-white [color-scheme:dark]" />
+                    </div>
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4">

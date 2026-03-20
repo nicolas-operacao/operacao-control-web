@@ -6,12 +6,13 @@ type Venda = {
   id: string;
   product_name: string;
   customer_name: string;
-  customer_email: string;
-  customer_phone: string;
-  payment_method: string;
+  customer_email?: string;
+  customer_phone?: string;
+  payment_method?: string;
   sale_value: number;
   status: string;
   created_at: string;
+  seller_name?: string; 
 };
 
 export function Suporte() {
@@ -20,20 +21,21 @@ export function Suporte() {
   const user = userString ? JSON.parse(userString) : { name: 'Suporte', id: '' };
 
   const [vendas, setVendas] = useState<Venda[]>([]);
-  const [busca, setBusca] = useState('');
-  
-  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
-  const [vendaParaCancelar, setVendaParaCancelar] = useState<Venda | null>(null);
-  const [motivoCancelamento, setMotivoCancelamento] = useState('');
+  const [filtroDias, setFiltroDias] = useState<number>(7); 
+  const [searchTerm, setSearchTerm] = useState(''); // 🔥 NOVO: Estado da Busca
+  const [isLoading, setIsLoading] = useState(false);
+
+  const [isRefundModalOpen, setIsRefundModalOpen] = useState(false);
+  const [selectedSale, setSelectedSale] = useState<Venda | null>(null);
+  const [refundReason, setRefundReason] = useState('');
 
   useEffect(() => {
     fetchVendas();
   }, []);
 
-  // 1. BUSCA AS VENDAS REAIS NO BANCO
   async function fetchVendas() {
     try {
-      const response = await api.get('/sales'); 
+      const response = await api.get('/sales');
       setVendas(response.data);
     } catch (error) {
       console.error('Erro ao buscar vendas:', error);
@@ -46,220 +48,237 @@ export function Suporte() {
     navigate('/');
   }
 
-  // Filtro inteligente
-  const vendasFiltradas = vendas.filter(v => 
-    v.customer_name.toLowerCase().includes(busca.toLowerCase()) ||
-    v.customer_email.toLowerCase().includes(busca.toLowerCase()) ||
-    v.customer_phone.includes(busca)
-  );
-
-  const vendasPendentes = vendasFiltradas.filter(v => v.status.includes('pendente'));
-  const vendasAprovadas = vendasFiltradas.filter(v => v.status === 'aprovada');
-
-  // 2. APROVA A VENDA DE VERDADE
-  async function handleLiberarAcesso(id: string) {
-    try {
-      await api.patch(`/sales/${id}/approve`);
-      alert('Acesso liberado! O vendedor acaba de pontuar no placar! ⚡');
-      fetchVendas(); // Atualiza a tela
-    } catch (error) {
-      alert('Erro ao liberar acesso.');
-    }
+  function openRefundModal(venda: Venda) {
+    setSelectedSale(venda);
+    setRefundReason('');
+    setIsRefundModalOpen(true);
   }
 
-  function abrirModalCancelamento(venda: Venda) {
-    setVendaParaCancelar(venda);
-    setIsCancelModalOpen(true);
-  }
-
-  // 3. CANCELA A VENDA COM JUSTIFICATIVA
-  async function handleConfirmarCancelamento(e: React.FormEvent) {
+  async function handleConfirmRefund(e: React.FormEvent) {
     e.preventDefault();
-    if (!motivoCancelamento.trim()) {
-      alert('É obrigatório informar o motivo do cancelamento.');
-      return;
-    }
+    if (!selectedSale) return;
+    setIsLoading(true);
 
     try {
-      await api.post(`/sales/${vendaParaCancelar?.id}/cancel`, { reason: motivoCancelamento });
-      alert('Venda cancelada e reembolso registrado.');
-      setIsCancelModalOpen(false);
-      setMotivoCancelamento('');
-      fetchVendas(); // Atualiza a tela
-    } catch (error) {
-      alert('Erro ao registrar cancelamento.');
+      await api.post(`/sales/${selectedSale.id}/cancel`, {
+        reason: refundReason
+      });
+
+      alert('🔴 Reembolso efetuado! O valor foi removido do placar do vendedor.');
+      setIsRefundModalOpen(false);
+      setSelectedSale(null);
+      fetchVendas(); 
+    } catch (error: any) {
+      alert('Erro ao processar reembolso.');
+    } finally {
+      setIsLoading(false);
     }
   }
+
+  // 🔥 LÓGICA DE FILTRO (DATAS + CAMPO DE BUSCA)
+  const vendasFiltradas = vendas.filter(venda => {
+    if (!venda.created_at) return false;
+    
+    // 1. Filtro de Datas Matemático
+    const dataVenda = new Date(venda.created_at);
+    const limiteData = new Date();
+    limiteData.setDate(limiteData.getDate() - (filtroDias - 1));
+    limiteData.setHours(0, 0, 0, 0);
+    const dentroDaData = dataVenda >= limiteData;
+
+    // 2. Radar de Busca (Nome, Email ou Telefone)
+    const termo = searchTerm.toLowerCase();
+    const passouNaBusca = 
+      (venda.customer_name && venda.customer_name.toLowerCase().includes(termo)) ||
+      (venda.customer_email && venda.customer_email.toLowerCase().includes(termo)) ||
+      (venda.customer_phone && venda.customer_phone.toLowerCase().includes(termo));
+
+    // Se a busca estiver vazia, usa só a data. Se tiver busca, tem que bater com a data E com a busca.
+    if (searchTerm.trim() === '') {
+      return dentroDaData;
+    } else {
+      return dentroDaData && passouNaBusca;
+    }
+
+  }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+  const formataBRL = (valor: number) => 
+    valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 p-4 md:p-8 font-sans relative">
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans p-4 md:p-8">
       <div className="max-w-7xl mx-auto space-y-8">
         
         {/* CABEÇALHO */}
         <div className="flex flex-col md:flex-row justify-between items-center pb-4 border-b border-zinc-800 gap-4">
-          <h1 className="text-3xl md:text-4xl font-black text-purple-500 uppercase tracking-wider flex items-center gap-3">
-            Central de Resoluções <span className="text-zinc-500 text-lg md:text-xl ml-2 font-bold">(Suporte)</span>
-          </h1>
+          <div>
+            <h1 className="text-3xl md:text-4xl font-black text-purple-500 uppercase tracking-wider flex items-center gap-3">
+              🛡️ CENTRAL DE SUPORTE
+            </h1>
+            <p className="text-zinc-400 mt-1">Operador: <span className="text-white font-bold">{user.name}</span></p>
+          </div>
           <div className="flex gap-4">
-            {/* NOVO: Se for Admin, mostra botão para voltar pro Dashboard */}
-            {user.role === 'admin' && (
-              <button 
-                onClick={() => navigate('/dashboard')} 
-                className="bg-zinc-800 hover:bg-zinc-700 text-white px-6 py-2 rounded font-bold transition-all uppercase text-sm border border-zinc-700"
-              >
-                Voltar ao Comando
-              </button>
-            )}
+            <button 
+              onClick={() => navigate('/dashboard')} 
+              className="border border-zinc-700 hover:border-purple-500 hover:text-purple-400 text-zinc-400 font-bold px-6 py-2 rounded transition-colors text-sm uppercase tracking-wider"
+            >
+              Voltar
+            </button>
             <button 
               onClick={handleLogout} 
-              className="border-2 border-zinc-700 text-zinc-300 hover:border-red-500 hover:text-red-500 px-6 py-2 rounded font-bold transition-all duration-300 uppercase text-sm tracking-wider"
+              className="border-2 border-red-900 text-red-500 hover:bg-red-900 hover:text-white px-6 py-2 rounded font-bold transition-all text-sm uppercase tracking-wider"
             >
               Sair
             </button>
           </div>
         </div>
 
-        {/* BARRA DE BUSCA GLOBAL */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 shadow-xl">
-          <label className="block text-zinc-400 text-xs font-bold uppercase tracking-widest mb-2">🔍 Localizar Cliente (Nome, E-mail ou Telefone)</label>
-          <input 
-            type="text" 
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
-            placeholder="Digite para filtrar instantaneamente..."
-            className="w-full bg-zinc-950 border border-zinc-700 text-white rounded p-4 text-lg focus:outline-none focus:border-purple-500 transition-colors placeholder:text-zinc-600"
-          />
-        </div>
-
-        {/* ÁREA 1: ALERTAS DE LIBERAÇÃO (PRIORIDADE) */}
-        <div className="bg-zinc-900 border-l-4 border-orange-500 rounded-xl p-6 shadow-2xl flex flex-col">
-          <h2 className="text-xl font-bold text-white mb-6 uppercase flex items-center gap-2">
-            🚨 Requer Liberação Manual (Combos / Upgrades / Boletos)
-          </h2>
-          
-          {vendasPendentes.length === 0 ? (
-            <div className="border-2 border-dashed border-zinc-700 rounded-lg p-10 text-center">
-              <p className="text-zinc-500 font-medium">Nenhuma liberação pendente no momento.</p>
+        {/* ÁREA DE FILTROS E TABELA DE REEMBOLSOS */}
+        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 shadow-2xl">
+          <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4 border-b border-zinc-800 pb-6">
+            <div>
+              <h2 className="text-xl font-black text-white uppercase tracking-widest mb-1">Análise de Reembolsos</h2>
+              <p className="text-zinc-500 text-xs uppercase tracking-widest">Controle de qualidade e estornos</p>
             </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b-2 border-zinc-800 text-zinc-500 uppercase text-xs tracking-wider">
-                    <th className="p-4 font-bold">Cliente</th>
-                    <th className="p-4 font-bold">Produto</th>
-                    <th className="p-4 font-bold">Contato</th>
-                    <th className="p-4 font-bold text-right">Ação Tática</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {vendasPendentes.map(venda => (
-                    <tr key={venda.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors">
-                      <td className="p-4 font-bold text-white">{venda.customer_name}</td>
-                      <td className="p-4 text-orange-400 font-black uppercase text-sm">{venda.product_name}</td>
-                      <td className="p-4 text-zinc-400 text-sm">
-                        <div>{venda.customer_email}</div>
-                        <div>{venda.customer_phone}</div>
-                      </td>
-                      <td className="p-4 text-right">
-                        <button 
-                          onClick={() => handleLiberarAcesso(venda.id)} 
-                          className="bg-orange-500 hover:bg-orange-400 text-black font-black py-2 px-6 rounded shadow-[0_0_15px_rgba(249,115,22,0.2)] transition-transform hover:scale-105 uppercase text-xs tracking-wider"
-                        >
-                          ✔️ Liberar Acesso
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-
-        {/* ÁREA 2: HISTÓRICO GERAL (PARA CANCELAMENTOS) */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 shadow-2xl flex flex-col">
-          <h2 className="text-xl font-bold text-white mb-6 uppercase flex items-center gap-2">
-            ✅ Vendas Aprovadas (Gestão de Reembolso)
-          </h2>
-          
-          {vendasAprovadas.length === 0 ? (
-            <div className="p-6 text-center text-zinc-500">Nenhuma venda aprovada para exibir.</div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b-2 border-zinc-800 text-zinc-500 uppercase text-xs tracking-wider">
-                    <th className="p-4 font-bold">Cliente</th>
-                    <th className="p-4 font-bold">Produto</th>
-                    <th className="p-4 font-bold">Valor</th>
-                    <th className="p-4 font-bold text-right">Gerenciar</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {vendasAprovadas.map(venda => (
-                    <tr key={venda.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors">
-                      <td className="p-4 font-bold text-white">
-                        {venda.customer_name}
-                        <div className="text-zinc-500 font-normal text-xs">{venda.customer_email}</div>
-                      </td>
-                      <td className="p-4 text-zinc-300 font-medium">{venda.product_name}</td>
-                      <td className="p-4 text-green-400 font-bold">R$ {Number(venda.sale_value).toFixed(2)}</td>
-                      <td className="p-4 text-right">
-                        <button 
-                          onClick={() => abrirModalCancelamento(venda)} 
-                          className="border border-red-500/50 text-red-500 hover:bg-red-500 hover:text-white font-bold py-1 px-4 rounded transition-colors uppercase text-xs tracking-wider"
-                        >
-                          Reembolsar
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-
-      </div>
-
-      {/* MODAL DE JUSTIFICATIVA DE CANCELAMENTO */}
-      {isCancelModalOpen && (
-        <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-zinc-900 border border-red-900 rounded-2xl w-full max-w-lg shadow-[0_0_50px_rgba(220,38,38,0.1)] overflow-hidden animate-in fade-in zoom-in duration-200">
             
-            <div className="bg-red-950/50 p-6 border-b border-red-900/50 flex justify-between items-center">
-              <h2 className="text-xl font-black text-red-500 uppercase tracking-wider">⚠️ Solicitar Reembolso</h2>
-              <button onClick={() => setIsCancelModalOpen(false)} className="text-zinc-500 hover:text-white text-2xl font-bold leading-none">&times;</button>
-            </div>
-
-            <form onSubmit={handleConfirmarCancelamento} className="p-6 space-y-4">
-              <div className="bg-zinc-950 p-4 rounded border border-zinc-800">
-                <p className="text-zinc-400 text-sm">Cancelando venda de:</p>
-                <p className="text-white font-bold text-lg">{vendaParaCancelar?.customer_name}</p>
-                <p className="text-zinc-500 text-sm">{vendaParaCancelar?.product_name} - R$ {Number(vendaParaCancelar?.sale_value).toFixed(2)}</p>
-              </div>
-
-              <div>
-                <label className="block text-red-400 text-xs font-bold uppercase tracking-widest mb-2">Motivo do Reembolso (Obrigatório)</label>
-                <textarea 
-                  required rows={4} value={motivoCancelamento}
-                  onChange={(e) => setMotivoCancelamento(e.target.value)}
-                  placeholder="Ex: Cliente solicitou estorno no 3º dia pelo WhatsApp..."
-                  className="w-full bg-zinc-950 border border-zinc-700 text-white rounded p-3 focus:outline-none focus:border-red-500 transition-colors placeholder:text-zinc-700 resize-none"
+            <div className="flex flex-col md:flex-row items-center gap-3 w-full md:w-auto">
+              
+              {/* 🔥 NOVO: CAMPO DE BUSCA TÁTICA */}
+              <div className="w-full md:w-72">
+                <input 
+                  type="text"
+                  placeholder="Buscar por cliente, e-mail ou telefone..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full bg-zinc-950 border border-zinc-700 text-white rounded p-2.5 text-xs focus:outline-none focus:border-purple-500 transition-colors placeholder:text-zinc-600"
                 />
               </div>
 
-              <div className="pt-4 flex justify-end gap-3 border-t border-zinc-800 mt-6">
-                <button type="button" onClick={() => setIsCancelModalOpen(false)} className="px-6 py-3 font-bold text-zinc-400 hover:text-white">VOLTAR</button>
-                <button type="submit" className="bg-red-600 hover:bg-red-700 text-white font-black px-6 py-3 rounded uppercase tracking-wider transition-colors">
-                  CONFIRMAR CANCELAMENTO
-                </button>
+              <div className="flex items-center gap-2 bg-zinc-950 p-1.5 rounded-lg border border-zinc-800 w-full md:w-auto justify-center">
+                <span className="text-zinc-500 text-[10px] font-bold uppercase ml-2 hidden lg:block">Exibir:</span>
+                <button onClick={() => setFiltroDias(7)} className={`px-3 py-1.5 rounded text-[10px] font-bold uppercase transition-all ${filtroDias === 7 ? 'bg-purple-600 text-white' : 'text-zinc-400 hover:bg-zinc-800'}`}>7 dias</button>
+                <button onClick={() => setFiltroDias(15)} className={`px-3 py-1.5 rounded text-[10px] font-bold uppercase transition-all ${filtroDias === 15 ? 'bg-purple-600 text-white' : 'text-zinc-400 hover:bg-zinc-800'}`}>15 dias</button>
+                <button onClick={() => setFiltroDias(30)} className={`px-3 py-1.5 rounded text-[10px] font-bold uppercase transition-all ${filtroDias === 30 ? 'bg-purple-600 text-white' : 'text-zinc-400 hover:bg-zinc-800'}`}>30 dias</button>
               </div>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="border-b border-zinc-800 text-zinc-500 text-[10px] uppercase tracking-widest bg-zinc-950/50">
+                  <th className="p-4 font-black">Data</th>
+                  <th className="p-4 font-black">Soldado (Vendedor)</th>
+                  <th className="p-4 font-black">Cliente</th>
+                  <th className="p-4 font-black">Produto</th>
+                  <th className="p-4 font-black text-right">Valor</th>
+                  <th className="p-4 font-black text-center">Status</th>
+                  <th className="p-4 font-black text-center">Ação</th>
+                </tr>
+              </thead>
+              <tbody className="text-sm">
+                {vendasFiltradas.length > 0 ? vendasFiltradas.map(venda => (
+                  <tr key={venda.id} className={`border-b border-zinc-800/50 transition-colors ${venda.status === 'cancelada' ? 'bg-red-950/10 opacity-70' : 'hover:bg-zinc-800/40'}`}>
+                    <td className="p-4 text-zinc-400 whitespace-nowrap">
+                      {venda.created_at ? new Date(venda.created_at).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '--'}
+                    </td>
+                    <td className="p-4 font-black text-blue-400 uppercase tracking-wider">
+                      {venda.seller_name || 'Desconhecido'}
+                    </td>
+                    <td className="p-4 text-zinc-200 font-medium">
+                      {venda.customer_name}
+                      <div className="text-[10px] text-zinc-500 font-normal">{venda.customer_phone || venda.customer_email || 'Sem contato'}</div>
+                    </td>
+                    <td className="p-4 text-zinc-400 text-xs">{venda.product_name}</td>
+                    <td className="p-4 text-zinc-100 font-black text-right whitespace-nowrap">
+                      {formataBRL(Number(venda.sale_value))}
+                    </td>
+                    <td className="p-4 text-center">
+                      <span className={`px-2 py-1 rounded text-[9px] font-black uppercase tracking-wider 
+                        ${venda.status === 'aprovada' ? 'bg-green-500/10 text-green-500 border border-green-500/20' : 
+                          venda.status === 'cancelada' ? 'bg-red-500/10 text-red-500 border border-red-500/20' : 
+                          'bg-yellow-500/10 text-yellow-500 border border-yellow-500/20'}`}
+                      >
+                        {venda.status}
+                      </span>
+                    </td>
+                    <td className="p-4 text-center">
+                      {venda.status === 'cancelada' ? (
+                        <span className="text-red-500/50 text-[10px] font-bold uppercase">Reembolsado</span>
+                      ) : (
+                        <button 
+                          onClick={() => openRefundModal(venda)}
+                          className="bg-red-600/20 hover:bg-red-600 text-red-500 hover:text-white border border-red-600/50 px-3 py-1.5 rounded text-[10px] font-black uppercase tracking-widest transition-all"
+                        >
+                          Reembolsar
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                )) : (
+                  <tr>
+                    <td colSpan={7} className="py-12 text-center text-zinc-600 uppercase font-black tracking-widest italic">
+                      Nenhuma venda encontrada nos filtros atuais.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      {/* ========================================= */}
+      {/* MODAL DE JUSTIFICATIVA DE REEMBOLSO       */}
+      {/* ========================================= */}
+      {isRefundModalOpen && selectedSale && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-zinc-900 border border-red-500/30 rounded-2xl w-full max-w-md shadow-[0_0_30px_rgba(220,38,38,0.15)] animate-in zoom-in duration-150">
+            <div className="p-6 border-b border-zinc-800 flex justify-between items-center bg-red-950/30">
+              <h2 className="text-xl font-black text-red-500 uppercase flex items-center gap-2">
+                🔴 Confirmar Reembolso
+              </h2>
+              <button onClick={() => setIsRefundModalOpen(false)} className="text-zinc-500 hover:text-white text-2xl">&times;</button>
+            </div>
+            
+            <form onSubmit={handleConfirmRefund} className="p-6 space-y-6">
+                
+                <div className="bg-zinc-950 p-4 rounded border border-zinc-800">
+                  <p className="text-zinc-400 text-xs uppercase tracking-widest mb-1">Estornar venda de:</p>
+                  <p className="text-white font-black text-lg">{selectedSale.customer_name}</p>
+                  <p className="text-zinc-500 text-sm mt-1">Valor: <span className="text-red-400 font-bold">{formataBRL(Number(selectedSale.sale_value))}</span></p>
+                  <p className="text-zinc-500 text-xs mt-1">Vendedor: <span className="text-blue-400 font-bold">{selectedSale.seller_name}</span></p>
+                </div>
+
+                <div>
+                  <label className="block text-zinc-400 text-xs font-black uppercase tracking-widest mb-2">
+                    Motivo do Reembolso (Obrigatório)
+                  </label>
+                  <textarea 
+                    required 
+                    value={refundReason} 
+                    onChange={(e) => setRefundReason(e.target.value)} 
+                    placeholder="Ex: Cliente desistiu da compra no prazo de garantia..."
+                    className="w-full bg-zinc-950 border border-zinc-800 text-white rounded p-3 focus:outline-none focus:border-red-500 min-h-[100px]" 
+                  />
+                  <p className="text-red-500/70 text-[10px] mt-2 font-bold">
+                    Atenção: Esta ação removerá o valor do placar do vendedor.
+                  </p>
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button type="button" onClick={() => setIsRefundModalOpen(false)} className="w-1/3 border border-zinc-700 hover:bg-zinc-800 text-white font-bold py-3 rounded-lg uppercase tracking-widest transition-colors text-xs">
+                      Cancelar
+                  </button>
+                  <button disabled={isLoading} className="w-2/3 bg-red-600 hover:bg-red-500 text-white font-black py-3 rounded-lg uppercase tracking-widest shadow-[0_0_15px_rgba(220,38,38,0.3)] transition-all text-xs">
+                      {isLoading ? 'PROCESSANDO...' : 'CONFIRMAR ESTORNO'}
+                  </button>
+                </div>
             </form>
           </div>
         </div>
       )}
+
     </div>
   );
 }

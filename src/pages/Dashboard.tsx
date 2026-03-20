@@ -9,7 +9,6 @@ type Produto = {
   valor: number;
 };
 
-// 🔥 TIPO VENDA EXPANDIDO PARA A TABELA DETALHADA
 type Venda = {
   id: string;
   product_name: string;
@@ -17,7 +16,10 @@ type Venda = {
   sale_value: number;
   status: string;
   created_at: string;
-  seller_name?: string; // Informação que vem do Back-end (Admin)
+  seller_name?: string; 
+  edit_status?: string; 
+  edit_reason?: string;
+  edit_data?: any;
 };
 
 export function Dashboard() {
@@ -28,17 +30,13 @@ export function Dashboard() {
   const [dataInicio, setDataInicio] = useState('');
   const [dataFim, setDataFim] = useState('');
 
-  // Estados para os Produtos
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [isModalProdutoOpen, setIsModalProdutoOpen] = useState(false);
   const [editandoProdutoId, setEditandoProdutoId] = useState<number | null>(null);
   const [novoProdutoNome, setNovoProdutoNome] = useState('');
   const [novoProdutoValor, setNovoProdutoValor] = useState('');
 
-  // Estados para Venda do Admin
   const [isModalVendaOpen, setIsModalVendaOpen] = useState(false);
-  
-  // Data de hoje como padrão
   const hoje = new Date().toISOString().split('T')[0];
   const [saleDate, setSaleDate] = useState(hoje);
 
@@ -50,13 +48,11 @@ export function Dashboard() {
   const [saleValue, setSaleValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // Estados do Placar
   const [vendasHoje, setVendasHoje] = useState(0);
   const [vendasSemana, setVendasSemana] = useState(0);
   const [vendasMes, setVendasMes] = useState(0);
   const META_MENSAL = 400000;
 
-  // 🔥 NOVOS ESTADOS PARA O RELATÓRIO DETALHADO
   const [todasVendas, setTodasVendas] = useState<Venda[]>([]);
   const [visaoAtiva, setVisaoAtiva] = useState<'hoje' | 'semana' | 'mes' | null>(null);
 
@@ -81,8 +77,6 @@ export function Dashboard() {
   async function fetchVendasPlacar() {
     try {
       const response = await api.get('/sales');
-      
-      // Guarda a lista completa para podermos listar na tabela depois
       setTodasVendas(response.data);
 
       const vendasAprovadas = response.data.filter((v: Venda) => v.status === 'aprovada');
@@ -117,15 +111,35 @@ export function Dashboard() {
     }
   }
 
-  // 🔥 NOVA FUNÇÃO: DELETAR VENDA DO PAINEL
+  // 🔥 APROVAR OU REJEITAR EDIÇÃO DO VENDEDOR (ADMIN)
+  async function handleAprovarEdicao(id: string) {
+    if(!window.confirm("Deseja APROVAR esta correção? Os dados da venda serão alterados.")) return;
+    try {
+      await api.post(`/sales/${id}/approve-edit`);
+      alert("✅ Edição aprovada e aplicada com sucesso!");
+      fetchVendasPlacar();
+    } catch (error) {
+      alert("Erro ao aprovar edição.");
+    }
+  }
+
+  async function handleRejeitarEdicao(id: string) {
+    if(!window.confirm("Deseja REJEITAR esta correção? O vendedor será notificado.")) return;
+    try {
+      await api.post(`/sales/${id}/reject-edit`);
+      alert("❌ Edição rejeitada.");
+      fetchVendasPlacar();
+    } catch (error) {
+      alert("Erro ao rejeitar edição.");
+    }
+  }
+
   async function handleDeleteVenda(id: string) {
     const confirmacao = window.confirm("⚠️ ATENÇÃO COMANDANTE!\nTem certeza que deseja apagar esta venda permanentemente? Essa ação não pode ser desfeita.");
-    
     if (confirmacao) {
       try {
         await api.delete(`/sales/${id}`);
         alert('💥 Venda eliminada com sucesso!');
-        // Atualiza os dados na tela instantaneamente
         fetchVendasPlacar();
       } catch (error) {
         alert('🚨 Erro ao tentar excluir a venda. Verifique a conexão com o servidor.');
@@ -136,11 +150,8 @@ export function Dashboard() {
   function handleProductChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const nomeSelecionado = e.target.value;
     setProductName(nomeSelecionado);
-
     const produtoEscolhido = produtos.find(p => p.nome === nomeSelecionado);
-    if (produtoEscolhido) {
-      setSaleValue(String(produtoEscolhido.valor));
-    }
+    if (produtoEscolhido) setSaleValue(String(produtoEscolhido.valor));
   }
 
   function handleLogout() {
@@ -158,21 +169,13 @@ export function Dashboard() {
     e.preventDefault();
     try {
       if (editandoProdutoId) {
-        await api.put(`/products/${editandoProdutoId}`, {
-          nome: novoProdutoNome,
-          valor: Number(novoProdutoValor)
-        });
+        await api.put(`/products/${editandoProdutoId}`, { nome: novoProdutoNome, valor: Number(novoProdutoValor) });
         alert('Produto atualizado!');
       } else {
-        await api.post('/products', {
-          nome: novoProdutoNome,
-          valor: Number(novoProdutoValor)
-        });
+        await api.post('/products', { nome: novoProdutoNome, valor: Number(novoProdutoValor) });
         alert('Produto cadastrado!');
       }
-      setNovoProdutoNome('');
-      setNovoProdutoValor('');
-      setEditandoProdutoId(null);
+      setNovoProdutoNome(''); setNovoProdutoValor(''); setEditandoProdutoId(null);
       fetchProdutos();
     } catch (error) {
       alert('Erro ao salvar produto.');
@@ -180,41 +183,24 @@ export function Dashboard() {
   }
 
   function iniciarEdicaoProduto(produto: Produto) {
-    setEditandoProdutoId(produto.id);
-    setNovoProdutoNome(produto.nome);
-    setNovoProdutoValor(String(produto.valor));
+    setEditandoProdutoId(produto.id); setNovoProdutoNome(produto.nome); setNovoProdutoValor(String(produto.valor));
   }
 
   function cancelarEdicao() {
-    setEditandoProdutoId(null);
-    setNovoProdutoNome('');
-    setNovoProdutoValor('');
+    setEditandoProdutoId(null); setNovoProdutoNome(''); setNovoProdutoValor('');
   }
 
   async function handleRegisterSale(e: React.FormEvent) {
     e.preventDefault();
     setIsLoading(true);
-
     try {
       await api.post('/sales', {
-        seller_id: user.id,
-        product_name: productName,
-        customer_name: customerName,
-        customer_email: customerEmail,
-        customer_phone: customerPhone,
-        payment_method: paymentMethod,
-        sale_value: Number(saleValue),
-        sale_date: saleDate
+        seller_id: user.id, product_name: productName, customer_name: customerName,
+        customer_email: customerEmail, customer_phone: customerPhone, payment_method: paymentMethod,
+        sale_value: Number(saleValue), sale_date: saleDate
       });
-
       alert('⚡ Venda registrada com sucesso!');
-      
-      setCustomerName('');
-      setCustomerEmail('');
-      setCustomerPhone('');
-      setSaleDate(hoje);
-      setIsModalVendaOpen(false);
-      
+      setCustomerName(''); setCustomerEmail(''); setCustomerPhone(''); setSaleDate(hoje); setIsModalVendaOpen(false);
       fetchVendasPlacar(); 
     } catch (error: any) {
       alert('Erro ao registrar venda.');
@@ -223,30 +209,26 @@ export function Dashboard() {
     }
   }
 
-  // 🔥 LÓGICA DO FILTRO DA TABELA DETALHADA
   const vendasTabela = todasVendas.filter(v => {
     if (!visaoAtiva || !v.created_at) return false;
-
     const dataVenda = new Date(v.created_at);
     const hojeData = new Date();
     hojeData.setHours(0, 0, 0, 0);
-
     const inicioSemana = new Date(hojeData);
     inicioSemana.setDate(hojeData.getDate() - hojeData.getDay());
-
     const inicioMes = new Date(hojeData.getFullYear(), hojeData.getMonth(), 1);
 
     if (visaoAtiva === 'hoje') return dataVenda >= hojeData;
     if (visaoAtiva === 'semana') return dataVenda >= inicioSemana;
     if (visaoAtiva === 'mes') return dataVenda >= inicioMes;
-    
     return false;
-  }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()); // Mais recentes primeiro
+  }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+  // 🔥 Separa os pedidos de edição para o Admin aprovar
+  const edicoesPendentes = todasVendas.filter(v => v.edit_status === 'pendente');
 
   const progressoMeta = Math.min((vendasMes / META_MENSAL) * 100, 100);
-
-  const formataBRL = (valor: number) => 
-    valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const formataBRL = (valor: number) => valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 p-4 md:p-8 font-sans relative">
@@ -276,6 +258,48 @@ export function Dashboard() {
           </div>
         </div>
 
+        {/* 🔥 ÁREA DE AUDITORIA DE EDIÇÕES (ADMIN) */}
+        {edicoesPendentes.length > 0 && (
+          <div className="bg-blue-900/10 border border-blue-500/30 rounded-xl p-6 shadow-2xl animate-in fade-in">
+            <h2 className="text-xl font-black text-blue-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+              ⚠️ Solicitações de Correção Pendentes ({edicoesPendentes.length})
+            </h2>
+            
+            <div className="grid grid-cols-1 gap-4">
+              {edicoesPendentes.map(venda => (
+                <div key={venda.id} className="bg-zinc-950 border border-blue-500/20 rounded-lg p-4 flex flex-col md:flex-row justify-between items-center gap-4">
+                  <div className="flex-1">
+                    <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest">Vendedor: <span className="text-white">{venda.seller_name}</span></p>
+                    <p className="text-zinc-300 text-sm mt-1">
+                      Cliente: <span className="font-bold text-white">{venda.customer_name}</span> | 
+                      Valor Atual: <span className="text-green-400">{formataBRL(Number(venda.sale_value))}</span>
+                    </p>
+                    <div className="mt-3 bg-red-950/30 border border-red-500/20 p-3 rounded">
+                      <p className="text-red-400 text-[10px] font-black uppercase mb-1">Motivo do Erro:</p>
+                      <p className="text-zinc-300 text-sm italic">"{venda.edit_reason}"</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-2 w-full md:w-auto">
+                    <button 
+                      onClick={() => handleRejeitarEdicao(venda.id)}
+                      className="flex-1 md:flex-none border border-red-500/50 text-red-500 hover:bg-red-500 hover:text-white px-4 py-2 rounded font-bold text-xs uppercase tracking-widest transition-colors"
+                    >
+                      Rejeitar
+                    </button>
+                    <button 
+                      onClick={() => handleAprovarEdicao(venda.id)}
+                      className="flex-1 md:flex-none bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded font-black text-xs uppercase tracking-widest shadow-lg transition-colors"
+                    >
+                      Aprovar Correção
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* FILTROS TÁTICOS */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 shadow-xl flex flex-col md:flex-row items-end gap-4">
           <div className="w-full md:w-auto">
@@ -291,30 +315,19 @@ export function Dashboard() {
           </button>
         </div>
 
-        {/* PLACAR GLOBAL GAMIFICADO (AGORA COM CLIQUES) */}
+        {/* PLACAR GLOBAL GAMIFICADO */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div 
-            onClick={() => setVisaoAtiva('hoje')}
-            className={`bg-zinc-900 border-l-4 p-6 rounded-lg shadow-2xl relative overflow-hidden cursor-pointer transform transition-all duration-200 hover:scale-[1.02] group ${visaoAtiva === 'hoje' ? 'border-yellow-400 ring-2 ring-yellow-400/50' : 'border-yellow-400 hover:border-yellow-300'}`}
-          >
+          <div onClick={() => setVisaoAtiva('hoje')} className={`bg-zinc-900 border-l-4 p-6 rounded-lg shadow-2xl relative overflow-hidden cursor-pointer transform transition-all duration-200 hover:scale-[1.02] group ${visaoAtiva === 'hoje' ? 'border-yellow-400 ring-2 ring-yellow-400/50' : 'border-yellow-400 hover:border-yellow-300'}`}>
             <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-yellow-400 text-[10px] font-black uppercase tracking-widest">Ver Lista 👁️</div>
             <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">Vendas Hoje</p>
             <h2 className="text-3xl font-black text-white">{formataBRL(vendasHoje)}</h2>
           </div>
-          
-          <div 
-            onClick={() => setVisaoAtiva('semana')}
-            className={`bg-zinc-900 border-l-4 p-6 rounded-lg shadow-2xl relative overflow-hidden cursor-pointer transform transition-all duration-200 hover:scale-[1.02] group ${visaoAtiva === 'semana' ? 'border-yellow-400 ring-2 ring-yellow-400/50' : 'border-yellow-400 hover:border-yellow-300'}`}
-          >
+          <div onClick={() => setVisaoAtiva('semana')} className={`bg-zinc-900 border-l-4 p-6 rounded-lg shadow-2xl relative overflow-hidden cursor-pointer transform transition-all duration-200 hover:scale-[1.02] group ${visaoAtiva === 'semana' ? 'border-yellow-400 ring-2 ring-yellow-400/50' : 'border-yellow-400 hover:border-yellow-300'}`}>
             <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-yellow-400 text-[10px] font-black uppercase tracking-widest">Ver Lista 👁️</div>
             <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">Esta Semana</p>
             <h2 className="text-3xl font-black text-white">{formataBRL(vendasSemana)}</h2>
           </div>
-          
-          <div 
-            onClick={() => setVisaoAtiva('mes')}
-            className={`bg-zinc-900 border-l-4 p-6 rounded-lg shadow-2xl relative overflow-hidden md:col-span-2 cursor-pointer transform transition-all duration-200 hover:scale-[1.02] group ${visaoAtiva === 'mes' ? 'border-yellow-400 ring-2 ring-yellow-400/50' : 'border-yellow-400 hover:border-yellow-300'}`}
-          >
+          <div onClick={() => setVisaoAtiva('mes')} className={`bg-zinc-900 border-l-4 p-6 rounded-lg shadow-2xl relative overflow-hidden md:col-span-2 cursor-pointer transform transition-all duration-200 hover:scale-[1.02] group ${visaoAtiva === 'mes' ? 'border-yellow-400 ring-2 ring-yellow-400/50' : 'border-yellow-400 hover:border-yellow-300'}`}>
             <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-yellow-400 text-[10px] font-black uppercase tracking-widest">Ver Lista 👁️</div>
             <div className="absolute top-0 right-0 p-4 opacity-5 text-yellow-400 text-8xl">🎯</div>
             <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">Acumulado do Mês</p>
@@ -323,10 +336,7 @@ export function Dashboard() {
               <span className="text-zinc-500 text-sm font-bold mb-1">Meta: {formataBRL(META_MENSAL)}</span>
             </div>
             <div className="w-full bg-zinc-950 border border-zinc-800 rounded-full h-4 mt-4 overflow-hidden">
-              <div 
-                className="bg-yellow-400 h-4 rounded-full relative transition-all duration-1000 ease-out" 
-                style={{ width: `${progressoMeta}%` }}
-              >
+              <div className="bg-yellow-400 h-4 rounded-full relative transition-all duration-1000 ease-out" style={{ width: `${progressoMeta}%` }}>
                 <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
               </div>
             </div>
@@ -334,7 +344,7 @@ export function Dashboard() {
           </div>
         </div>
 
-        {/* 🔥 TABELA DETALHADA DE RELATÓRIO COM O BOTÃO DE EXCLUIR */}
+        {/* TABELA DETALHADA (AO CLICAR NO PLACAR) */}
         {visaoAtiva && (
           <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-6 shadow-2xl animate-in fade-in slide-in-from-top-4 duration-300">
             <div className="flex justify-between items-center mb-6 pb-4 border-b border-zinc-800">
@@ -342,10 +352,7 @@ export function Dashboard() {
                 <span className="text-yellow-400">⚡</span> Detalhamento: 
                 {visaoAtiva === 'hoje' ? ' Vendas de Hoje' : visaoAtiva === 'semana' ? ' Vendas da Semana' : ' Acumulado do Mês'}
               </h3>
-              <button 
-                onClick={() => setVisaoAtiva(null)}
-                className="text-zinc-500 hover:text-red-500 font-bold uppercase text-xs transition-colors px-3 py-1 border border-zinc-800 rounded hover:border-red-500"
-              >
+              <button onClick={() => setVisaoAtiva(null)} className="text-zinc-500 hover:text-red-500 font-bold uppercase text-xs transition-colors px-3 py-1 border border-zinc-800 rounded hover:border-red-500">
                 FECHAR X
               </button>
             </div>
@@ -355,41 +362,29 @@ export function Dashboard() {
                 <thead>
                   <tr className="border-b border-zinc-800 text-zinc-500 text-[10px] uppercase tracking-widest">
                     <th className="pb-4 font-black">Data</th>
-                    <th className="pb-4 font-black">Soldado (Vendedor)</th>
+                    <th className="pb-4 font-black">Soldado</th>
                     <th className="pb-4 font-black">Cliente</th>
                     <th className="pb-4 font-black">Produto</th>
                     <th className="pb-4 font-black text-right">Valor</th>
                     <th className="pb-4 font-black text-center">Status</th>
-                    {/* 🔥 NOVA COLUNA DE AÇÃO */}
                     <th className="pb-4 font-black text-center">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="text-sm">
                   {vendasTabela.length > 0 ? vendasTabela.map(venda => (
                     <tr key={venda.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/40 transition-colors">
-                      <td className="py-4 text-zinc-400 whitespace-nowrap">
-                        {venda.created_at ? new Date(venda.created_at).toLocaleDateString('pt-BR') : '--'}
-                      </td>
-                      <td className="py-4 font-black text-blue-400 uppercase tracking-wider">
-                        {venda.seller_name || 'Desconhecido'}
-                      </td>
+                      <td className="py-4 text-zinc-400 whitespace-nowrap">{venda.created_at ? new Date(venda.created_at).toLocaleDateString('pt-BR') : '--'}</td>
+                      <td className="py-4 font-black text-blue-400 uppercase tracking-wider">{venda.seller_name || 'Desconhecido'}</td>
                       <td className="py-4 text-zinc-200 font-medium">{venda.customer_name}</td>
                       <td className="py-4 text-zinc-400 text-xs">{venda.product_name}</td>
-                      <td className="py-4 text-green-400 font-black text-right whitespace-nowrap">
-                        {formataBRL(Number(venda.sale_value))}
-                      </td>
+                      <td className="py-4 text-green-400 font-black text-right whitespace-nowrap">{formataBRL(Number(venda.sale_value))}</td>
                       <td className="py-4 text-center">
                         <span className={`px-2 py-1 rounded text-[9px] font-black uppercase tracking-wider ${venda.status === 'aprovada' ? 'bg-green-500/10 text-green-500 border border-green-500/20' : 'bg-yellow-500/10 text-yellow-500 border border-yellow-500/20'}`}>
                           {venda.status === 'aprovada' ? 'Aprovada' : 'Pendente'}
                         </span>
                       </td>
                       <td className="py-4 text-center">
-                        {/* 🔥 O BOTÃO DE EXCLUIR VAI AQUI */}
-                        <button 
-                          onClick={() => handleDeleteVenda(venda.id)}
-                          className="text-zinc-500 hover:text-red-400 hover:bg-red-500/10 p-2 rounded transition-colors"
-                          title="Excluir Venda"
-                        >
+                        <button onClick={() => handleDeleteVenda(venda.id)} className="text-zinc-500 hover:text-red-400 hover:bg-red-500/10 p-2 rounded transition-colors" title="Excluir Venda">
                           🗑️
                         </button>
                       </td>
@@ -407,11 +402,9 @@ export function Dashboard() {
           </div>
         )}
 
-        {/* ÁREA DE RANKING DE EQUIPES */}
         <div className="w-full">
           <GuerraEquipes />
         </div>
-
       </div>
 
       {/* ========================================= */}
@@ -470,7 +463,7 @@ export function Dashboard() {
                  <option value="Cartão de Crédito (até 12x)">Cartão de Crédito (até 12x)</option>
                  <option value="Crédito à vista">Crédito à vista</option>
                  <option value="Débito à vista">Débito à vista</option>
-                 <option value="Boleto Parcelado">Boleto Parcelado (Requer Aprovação)</option>
+                 <option value="Boleto Parcelado">Boleto Parcelado</option>
                </select>
              </div>
 

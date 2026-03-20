@@ -29,9 +29,11 @@ export function Login() {
 
       alert(`Bem-vindo, ${user.name}! Identificação confirmada.`);
       
-      // 3. O GUARDA DE TRÂNSITO: Separa Admin de Vendedor
+      // 🔥 3. O NOVO GUARDA DE TRÂNSITO: Separa Admin, Suporte e Vendedor
       if (user.role === 'admin') {
         navigate('/dashboard'); // Comandante vai para o painel de controle
+      } else if (user.role === 'suporte') {
+        navigate('/liberacoes'); // Equipe de Suporte vai para a tela de aprovações/reembolsos
       } else {
         navigate('/vendas'); // Soldado vai para a área de lançamento de vendas
       }
