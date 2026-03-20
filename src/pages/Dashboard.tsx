@@ -3,19 +3,21 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { GuerraEquipes } from '../components/GuerraEquipes'; 
 
-
-
 type Produto = {
   id: number;
   nome: string;
   valor: number;
 };
 
+// 🔥 TIPO VENDA EXPANDIDO PARA A TABELA DETALHADA
 type Venda = {
   id: string;
+  product_name: string;
+  customer_name: string;
   sale_value: number;
   status: string;
   created_at: string;
+  seller_name?: string; // Informação que vem do Back-end (Admin)
 };
 
 export function Dashboard() {
@@ -54,7 +56,10 @@ export function Dashboard() {
   const [vendasMes, setVendasMes] = useState(0);
   const META_MENSAL = 400000;
 
-  // Carrega tudo quando a tela abre
+  // 🔥 NOVOS ESTADOS PARA O RELATÓRIO DETALHADO
+  const [todasVendas, setTodasVendas] = useState<Venda[]>([]);
+  const [visaoAtiva, setVisaoAtiva] = useState<'hoje' | 'semana' | 'mes' | null>(null);
+
   useEffect(() => {
     fetchProdutos();
     fetchVendasPlacar();
@@ -76,7 +81,10 @@ export function Dashboard() {
   async function fetchVendasPlacar() {
     try {
       const response = await api.get('/sales');
-      // Filtra apenas as vendas aprovadas (não conta boletos pendentes nem cancelamentos)
+      
+      // Guarda a lista completa para podermos listar na tabela depois
+      setTodasVendas(response.data);
+
       const vendasAprovadas = response.data.filter((v: Venda) => v.status === 'aprovada');
 
       const hojeData = new Date();
@@ -191,7 +199,6 @@ export function Dashboard() {
       setSaleDate(hoje);
       setIsModalVendaOpen(false);
       
-      // Atualiza o placar logo após vender
       fetchVendasPlacar(); 
     } catch (error: any) {
       alert('Erro ao registrar venda.');
@@ -199,6 +206,26 @@ export function Dashboard() {
       setIsLoading(false);
     }
   }
+
+  // 🔥 LÓGICA DO FILTRO DA TABELA DETALHADA
+  const vendasTabela = todasVendas.filter(v => {
+    if (!visaoAtiva || !v.created_at) return false;
+
+    const dataVenda = new Date(v.created_at);
+    const hojeData = new Date();
+    hojeData.setHours(0, 0, 0, 0);
+
+    const inicioSemana = new Date(hojeData);
+    inicioSemana.setDate(hojeData.getDate() - hojeData.getDay());
+
+    const inicioMes = new Date(hojeData.getFullYear(), hojeData.getMonth(), 1);
+
+    if (visaoAtiva === 'hoje') return dataVenda >= hojeData;
+    if (visaoAtiva === 'semana') return dataVenda >= inicioSemana;
+    if (visaoAtiva === 'mes') return dataVenda >= inicioMes;
+    
+    return false;
+  }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()); // Mais recentes primeiro
 
   const progressoMeta = Math.min((vendasMes / META_MENSAL) * 100, 100);
 
@@ -215,41 +242,19 @@ export function Dashboard() {
             Operação Control <span className="text-zinc-500 text-lg md:text-xl ml-2 font-bold">(Admin)</span>
           </h1>
           <div className="flex flex-wrap gap-4">
-            
-            {/* NOVO: BOTÃO DE ACESSO AO SUPORTE */}
-            <button 
-              onClick={() => navigate('/liberacoes')}
-              className="bg-purple-600 hover:bg-purple-700 text-white font-black px-4 py-2 rounded transition-all shadow-[0_0_10px_rgba(147,51,234,0.3)] uppercase text-xs tracking-wider border border-purple-500"
-            >
+            <button onClick={() => navigate('/liberacoes')} className="bg-purple-600 hover:bg-purple-700 text-white font-black px-4 py-2 rounded transition-all shadow-[0_0_10px_rgba(147,51,234,0.3)] uppercase text-xs tracking-wider border border-purple-500">
               🛡️ Suporte
             </button>
-
-            {/* NOVO: BOTÃO TÁTICO DE RECRUTAS */}
-            <button 
-              onClick={() => navigate('/admin/recrutas')}
-              className="border-2 border-purple-700 text-purple-300 hover:border-purple-500 hover:text-purple-500 px-4 py-2 rounded font-bold transition-all uppercase text-xs tracking-wider shadow-[0_0_10px_rgba(147,51,234,0.2)]"
-            >
+            <button onClick={() => navigate('/admin/recrutas')} className="border-2 border-purple-700 text-purple-300 hover:border-purple-500 hover:text-purple-500 px-4 py-2 rounded font-bold transition-all uppercase text-xs tracking-wider shadow-[0_0_10px_rgba(147,51,234,0.2)]">
               ⚠️ Recrutas Pendentes
             </button>
-
-            <button 
-              onClick={() => setIsModalProdutoOpen(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-black px-4 py-2 rounded transition-all shadow-[0_0_10px_rgba(37,99,235,0.3)] uppercase text-xs tracking-wider border border-blue-500"
-            >
+            <button onClick={() => setIsModalProdutoOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white font-black px-4 py-2 rounded transition-all shadow-[0_0_10px_rgba(37,99,235,0.3)] uppercase text-xs tracking-wider border border-blue-500">
               ⚙️ Produtos
             </button>
-
-            <button 
-              onClick={() => setIsModalVendaOpen(true)}
-              className="bg-yellow-400 hover:bg-yellow-500 text-black font-black px-6 py-2 rounded transition-transform hover:scale-105 active:scale-95 shadow-[0_0_15px_rgba(250,204,21,0.3)] uppercase text-sm tracking-wider"
-            >
+            <button onClick={() => setIsModalVendaOpen(true)} className="bg-yellow-400 hover:bg-yellow-500 text-black font-black px-6 py-2 rounded transition-transform hover:scale-105 active:scale-95 shadow-[0_0_15px_rgba(250,204,21,0.3)] uppercase text-sm tracking-wider">
               + REGISTRAR VENDA
             </button>
-            
-            <button 
-              onClick={handleLogout} 
-              className="border-2 border-zinc-700 text-zinc-300 hover:border-red-500 hover:text-red-500 px-6 py-2 rounded font-bold transition-all duration-300 uppercase text-sm tracking-wider"
-            >
+            <button onClick={handleLogout} className="border-2 border-zinc-700 text-zinc-300 hover:border-red-500 hover:text-red-500 px-6 py-2 rounded font-bold transition-all duration-300 uppercase text-sm tracking-wider">
               Sair
             </button>
           </div>
@@ -259,43 +264,42 @@ export function Dashboard() {
         <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 shadow-xl flex flex-col md:flex-row items-end gap-4">
           <div className="w-full md:w-auto">
             <label className="block text-zinc-400 text-xs font-bold uppercase tracking-widest mb-2">Data Inicial</label>
-            <input 
-              type="date" 
-              value={dataInicio}
-              onChange={(e) => setDataInicio(e.target.value)}
-              className="w-full bg-zinc-950 border border-zinc-700 text-white rounded p-3 focus:outline-none focus:border-yellow-400 transition-colors [color-scheme:dark]"
-            />
+            <input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} className="w-full bg-zinc-950 border border-zinc-700 text-white rounded p-3 focus:outline-none focus:border-yellow-400 transition-colors [color-scheme:dark]" />
           </div>
           <div className="w-full md:w-auto">
             <label className="block text-zinc-400 text-xs font-bold uppercase tracking-widest mb-2">Data Final</label>
-            <input 
-              type="date" 
-              value={dataFim}
-              onChange={(e) => setDataFim(e.target.value)}
-              className="w-full bg-zinc-950 border border-zinc-700 text-white rounded p-3 focus:outline-none focus:border-yellow-400 transition-colors [color-scheme:dark]"
-            />
+            <input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} className="w-full bg-zinc-950 border border-zinc-700 text-white rounded p-3 focus:outline-none focus:border-yellow-400 transition-colors [color-scheme:dark]" />
           </div>
-          <button 
-            onClick={handleFiltrar}
-            className="w-full md:w-auto bg-zinc-800 hover:bg-yellow-400 hover:text-black text-white font-black py-3 px-8 rounded transition-all duration-300 uppercase tracking-widest border border-zinc-700 hover:border-yellow-400"
-          >
+          <button onClick={handleFiltrar} className="w-full md:w-auto bg-zinc-800 hover:bg-yellow-400 hover:text-black text-white font-black py-3 px-8 rounded transition-all duration-300 uppercase tracking-widest border border-zinc-700 hover:border-yellow-400">
             Filtrar Batalha
           </button>
         </div>
 
-        {/* PLACAR GLOBAL GAMIFICADO */}
+        {/* PLACAR GLOBAL GAMIFICADO (AGORA COM CLIQUES) */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="bg-zinc-900 border-l-4 border-yellow-400 p-6 rounded-lg shadow-2xl relative overflow-hidden">
+          <div 
+            onClick={() => setVisaoAtiva('hoje')}
+            className={`bg-zinc-900 border-l-4 p-6 rounded-lg shadow-2xl relative overflow-hidden cursor-pointer transform transition-all duration-200 hover:scale-[1.02] group ${visaoAtiva === 'hoje' ? 'border-yellow-400 ring-2 ring-yellow-400/50' : 'border-yellow-400 hover:border-yellow-300'}`}
+          >
+            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-yellow-400 text-[10px] font-black uppercase tracking-widest">Ver Lista 👁️</div>
             <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">Vendas Hoje</p>
             <h2 className="text-3xl font-black text-white">{formataBRL(vendasHoje)}</h2>
           </div>
           
-          <div className="bg-zinc-900 border-l-4 border-yellow-400 p-6 rounded-lg shadow-2xl relative overflow-hidden">
+          <div 
+            onClick={() => setVisaoAtiva('semana')}
+            className={`bg-zinc-900 border-l-4 p-6 rounded-lg shadow-2xl relative overflow-hidden cursor-pointer transform transition-all duration-200 hover:scale-[1.02] group ${visaoAtiva === 'semana' ? 'border-yellow-400 ring-2 ring-yellow-400/50' : 'border-yellow-400 hover:border-yellow-300'}`}
+          >
+            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-yellow-400 text-[10px] font-black uppercase tracking-widest">Ver Lista 👁️</div>
             <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">Esta Semana</p>
             <h2 className="text-3xl font-black text-white">{formataBRL(vendasSemana)}</h2>
           </div>
           
-          <div className="bg-zinc-900 border-l-4 border-yellow-400 p-6 rounded-lg shadow-2xl relative overflow-hidden md:col-span-2">
+          <div 
+            onClick={() => setVisaoAtiva('mes')}
+            className={`bg-zinc-900 border-l-4 p-6 rounded-lg shadow-2xl relative overflow-hidden md:col-span-2 cursor-pointer transform transition-all duration-200 hover:scale-[1.02] group ${visaoAtiva === 'mes' ? 'border-yellow-400 ring-2 ring-yellow-400/50' : 'border-yellow-400 hover:border-yellow-300'}`}
+          >
+            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-yellow-400 text-[10px] font-black uppercase tracking-widest">Ver Lista 👁️</div>
             <div className="absolute top-0 right-0 p-4 opacity-5 text-yellow-400 text-8xl">🎯</div>
             <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">Acumulado do Mês</p>
             <div className="flex justify-between items-end">
@@ -303,10 +307,7 @@ export function Dashboard() {
               <span className="text-zinc-500 text-sm font-bold mb-1">Meta: {formataBRL(META_MENSAL)}</span>
             </div>
             <div className="w-full bg-zinc-950 border border-zinc-800 rounded-full h-4 mt-4 overflow-hidden">
-              <div 
-                className="bg-yellow-400 h-4 rounded-full relative transition-all duration-1000 ease-out" 
-                style={{ width: `${progressoMeta}%` }}
-              >
+              <div className="bg-yellow-400 h-4 rounded-full relative transition-all duration-1000 ease-out" style={{ width: `${progressoMeta}%` }}>
                 <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
               </div>
             </div>
@@ -314,7 +315,68 @@ export function Dashboard() {
           </div>
         </div>
 
-        {/* ÁREA DE RANKING DE EQUIPES - Ocupando a linha inteira taticamente */}
+        {/* 🔥 TABELA DETALHADA DE RELATÓRIO (SÓ APARECE QUANDO CLICA) */}
+        {visaoAtiva && (
+          <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-6 shadow-2xl animate-in fade-in slide-in-from-top-4 duration-300">
+            <div className="flex justify-between items-center mb-6 pb-4 border-b border-zinc-800">
+              <h3 className="text-xl font-black text-white uppercase tracking-wider flex items-center gap-2">
+                <span className="text-yellow-400">⚡</span> Detalhamento: 
+                {visaoAtiva === 'hoje' ? ' Vendas de Hoje' : visaoAtiva === 'semana' ? ' Vendas da Semana' : ' Acumulado do Mês'}
+              </h3>
+              <button 
+                onClick={() => setVisaoAtiva(null)}
+                className="text-zinc-500 hover:text-red-500 font-bold uppercase text-xs transition-colors px-3 py-1 border border-zinc-800 rounded hover:border-red-500"
+              >
+                FECHAR X
+              </button>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b border-zinc-800 text-zinc-500 text-[10px] uppercase tracking-widest">
+                    <th className="pb-4 font-black">Data</th>
+                    <th className="pb-4 font-black">Soldado (Vendedor)</th>
+                    <th className="pb-4 font-black">Cliente</th>
+                    <th className="pb-4 font-black">Produto</th>
+                    <th className="pb-4 font-black text-right">Valor</th>
+                    <th className="pb-4 font-black text-center">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="text-sm">
+                  {vendasTabela.length > 0 ? vendasTabela.map(venda => (
+                    <tr key={venda.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/40 transition-colors">
+                      <td className="py-4 text-zinc-400 whitespace-nowrap">
+                        {venda.created_at ? new Date(venda.created_at).toLocaleDateString('pt-BR') : '--'}
+                      </td>
+                      <td className="py-4 font-black text-blue-400 uppercase tracking-wider">
+                        {venda.seller_name || 'Desconhecido'}
+                      </td>
+                      <td className="py-4 text-zinc-200 font-medium">{venda.customer_name}</td>
+                      <td className="py-4 text-zinc-400 text-xs">{venda.product_name}</td>
+                      <td className="py-4 text-green-400 font-black text-right whitespace-nowrap">
+                        {formataBRL(Number(venda.sale_value))}
+                      </td>
+                      <td className="py-4 text-center">
+                        <span className={`px-2 py-1 rounded text-[9px] font-black uppercase tracking-wider ${venda.status === 'aprovada' ? 'bg-green-500/10 text-green-500 border border-green-500/20' : 'bg-yellow-500/10 text-yellow-500 border border-yellow-500/20'}`}>
+                          {venda.status === 'aprovada' ? 'Aprovada' : 'Pendente'}
+                        </span>
+                      </td>
+                    </tr>
+                  )) : (
+                    <tr>
+                      <td colSpan={6} className="py-12 text-center text-zinc-600 uppercase font-black tracking-widest italic">
+                        Nenhuma venda registrada neste período.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ÁREA DE RANKING DE EQUIPES */}
         <div className="w-full">
           <GuerraEquipes />
         </div>
@@ -330,109 +392,49 @@ export function Dashboard() {
            
            <div className="bg-zinc-950 p-6 border-b border-zinc-800 flex justify-between items-center">
              <h2 className="text-2xl font-black text-yellow-400 uppercase tracking-wider">🎯 Venda do Comando</h2>
-             <button 
-               onClick={() => setIsModalVendaOpen(false)} 
-               className="text-zinc-500 hover:text-white text-2xl font-bold leading-none"
-             >
-               &times;
-             </button>
+             <button onClick={() => setIsModalVendaOpen(false)} className="text-zinc-500 hover:text-white text-2xl font-bold leading-none">&times;</button>
            </div>
 
            <form onSubmit={handleRegisterSale} className="p-6 space-y-4">
              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                <div>
-                 <label className="block text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">
-                   Produto Vendido
-                 </label>
-                 <select 
-                   value={productName}
-                   onChange={handleProductChange}
-                   className="w-full bg-zinc-950 border border-zinc-700 text-white rounded p-3 focus:outline-none focus:border-yellow-400 cursor-pointer"
-                 >
-                   {produtos.map(p => (
-                     <option key={p.id} value={p.nome}>{p.nome}</option>
-                   ))}
+                 <label className="block text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">Produto Vendido</label>
+                 <select value={productName} onChange={handleProductChange} className="w-full bg-zinc-950 border border-zinc-700 text-white rounded p-3 focus:outline-none focus:border-yellow-400 cursor-pointer">
+                   {produtos.map(p => <option key={p.id} value={p.nome}>{p.nome}</option>)}
                    {produtos.length === 0 && <option value="">Cadastre produtos primeiro...</option>}
                  </select>
                </div>
                <div>
-                 <label className="block text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">
-                   Valor da Venda (R$)
-                 </label>
-                 <input 
-                   type="number" 
-                   step="0.01" 
-                   required
-                   value={saleValue}
-                   onChange={(e) => setSaleValue(e.target.value)}
-                   className="w-full bg-zinc-950 border border-zinc-700 text-yellow-400 font-bold rounded p-3 focus:outline-none focus:border-yellow-400"
-                 />
+                 <label className="block text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">Valor da Venda (R$)</label>
+                 <input type="number" step="0.01" required value={saleValue} onChange={(e) => setSaleValue(e.target.value)} className="w-full bg-zinc-950 border border-zinc-700 text-yellow-400 font-bold rounded p-3 focus:outline-none focus:border-yellow-400"/>
                </div>
              </div>
 
              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                <div>
-                 <label className="block text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">
-                   Nome do Cliente
-                 </label>
-                 <input 
-                   type="text" 
-                   required 
-                   value={customerName} 
-                   onChange={(e) => setCustomerName(e.target.value)} 
-                   className="w-full bg-zinc-950 border border-zinc-700 text-white rounded p-3 focus:outline-none focus:border-yellow-400" 
-                 />
+                 <label className="block text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">Nome do Cliente</label>
+                 <input type="text" required value={customerName} onChange={(e) => setCustomerName(e.target.value)} className="w-full bg-zinc-950 border border-zinc-700 text-white rounded p-3 focus:outline-none focus:border-yellow-400"/>
                </div>
                <div>
-                 <label className="block text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">
-                   Telefone
-                 </label>
-                 <input 
-                   type="text" 
-                   required 
-                   value={customerPhone} 
-                   onChange={(e) => setCustomerPhone(e.target.value)} 
-                   className="w-full bg-zinc-950 border border-zinc-700 text-white rounded p-3 focus:outline-none focus:border-yellow-400" 
-                 />
+                 <label className="block text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">Telefone</label>
+                 <input type="text" required value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} className="w-full bg-zinc-950 border border-zinc-700 text-white rounded p-3 focus:outline-none focus:border-yellow-400"/>
                </div>
              </div>
 
              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                <div>
-                 <label className="block text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">
-                   E-mail do Cliente
-                 </label>
-                 <input 
-                   type="email" 
-                   required 
-                   value={customerEmail} 
-                   onChange={(e) => setCustomerEmail(e.target.value)} 
-                   className="w-full bg-zinc-950 border border-zinc-700 text-white rounded p-3 focus:outline-none focus:border-yellow-400" 
-                 />
+                 <label className="block text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">E-mail do Cliente</label>
+                 <input type="email" required value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} className="w-full bg-zinc-950 border border-zinc-700 text-white rounded p-3 focus:outline-none focus:border-yellow-400"/>
                </div>
                <div>
-                 <label className="block text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">
-                   Data da Venda
-                 </label>
-                 <input 
-                   type="date" 
-                   required 
-                   value={saleDate} 
-                   onChange={(e) => setSaleDate(e.target.value)} 
-                   className="w-full bg-zinc-950 border border-zinc-700 text-white rounded p-3 focus:outline-none focus:border-yellow-400 cursor-pointer [color-scheme:dark]" 
-                 />
+                 <label className="block text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">Data da Venda</label>
+                 <input type="date" required value={saleDate} onChange={(e) => setSaleDate(e.target.value)} className="w-full bg-zinc-950 border border-zinc-700 text-white rounded p-3 focus:outline-none focus:border-yellow-400 cursor-pointer [color-scheme:dark]"/>
                </div>
              </div>
 
              <div>
-               <label className="block text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">
-                 Método de Pagamento
-               </label>
-               <select 
-                 value={paymentMethod} 
-                 onChange={(e) => setPaymentMethod(e.target.value)} 
-                 className="w-full bg-zinc-950 border border-zinc-700 text-white rounded p-3 focus:outline-none focus:border-yellow-400 cursor-pointer"
-               >
+               <label className="block text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">Método de Pagamento</label>
+               <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} className="w-full bg-zinc-950 border border-zinc-700 text-white rounded p-3 focus:outline-none focus:border-yellow-400 cursor-pointer">
                  <option value="PIX">PIX</option>
                  <option value="Cartão de Crédito (até 12x)">Cartão de Crédito (até 12x)</option>
                  <option value="Crédito à vista">Crédito à vista</option>
@@ -442,18 +444,8 @@ export function Dashboard() {
              </div>
 
              <div className="pt-4 flex justify-end gap-3 border-t border-zinc-800 mt-6">
-               <button 
-                 type="button" 
-                 onClick={() => setIsModalVendaOpen(false)} 
-                 className="px-6 py-3 font-bold text-zinc-400 hover:text-white transition-colors"
-               >
-                 CANCELAR
-               </button>
-               <button 
-                 type="submit" 
-                 disabled={isLoading} 
-                 className="bg-yellow-400 hover:bg-yellow-500 text-black font-black px-8 py-3 rounded uppercase tracking-wider transition-transform hover:scale-105 active:scale-95 disabled:opacity-50"
-               >
+               <button type="button" onClick={() => setIsModalVendaOpen(false)} className="px-6 py-3 font-bold text-zinc-400 hover:text-white transition-colors">CANCELAR</button>
+               <button type="submit" disabled={isLoading} className="bg-yellow-400 hover:bg-yellow-500 text-black font-black px-8 py-3 rounded uppercase tracking-wider transition-transform hover:scale-105 active:scale-95 disabled:opacity-50">
                  {isLoading ? 'ENVIANDO...' : 'SALVAR VENDA'}
                </button>
              </div>
@@ -471,69 +463,35 @@ export function Dashboard() {
             
             <div className="bg-zinc-950 p-6 border-b border-zinc-800 flex justify-between items-center">
               <h2 className="text-2xl font-black text-blue-400 uppercase tracking-wider">📦 Arsenal de Produtos</h2>
-              <button 
-                onClick={() => setIsModalProdutoOpen(false)} 
-                className="text-zinc-500 hover:text-white text-2xl font-bold leading-none"
-              >
-                &times;
-              </button>
+              <button onClick={() => setIsModalProdutoOpen(false)} className="text-zinc-500 hover:text-white text-2xl font-bold leading-none">&times;</button>
             </div>
 
             <div className="p-6 flex-1 overflow-y-auto">
-              
               <form onSubmit={handleSalvarProduto} className="bg-zinc-950 p-4 rounded-lg border border-zinc-800 mb-8">
                 <h3 className="text-zinc-400 font-bold mb-4 uppercase text-sm tracking-wider">
                   {editandoProdutoId ? '✏️ Editando Produto' : '➕ Adicionar Novo Produto'}
                 </h3>
                 <div className="flex flex-col md:flex-row gap-4 items-end">
                   <div className="flex-1">
-                    <label className="block text-zinc-500 text-xs font-bold uppercase mb-1">
-                      Nome do Produto
-                    </label>
-                    <input 
-                      type="text" 
-                      required 
-                      value={novoProdutoNome} 
-                      onChange={(e) => setNovoProdutoNome(e.target.value)} 
-                      className="w-full bg-zinc-900 border border-zinc-700 text-white rounded p-2 focus:outline-none focus:border-blue-500" 
-                    />
+                    <label className="block text-zinc-500 text-xs font-bold uppercase mb-1">Nome do Produto</label>
+                    <input type="text" required value={novoProdutoNome} onChange={(e) => setNovoProdutoNome(e.target.value)} className="w-full bg-zinc-900 border border-zinc-700 text-white rounded p-2 focus:outline-none focus:border-blue-500" />
                   </div>
                   <div className="w-full md:w-32">
-                    <label className="block text-zinc-500 text-xs font-bold uppercase mb-1">
-                      Valor (R$)
-                    </label>
-                    <input 
-                      type="number" 
-                      step="0.01" 
-                      required 
-                      value={novoProdutoValor} 
-                      onChange={(e) => setNovoProdutoValor(e.target.value)} 
-                      className="w-full bg-zinc-900 border border-zinc-700 text-white rounded p-2 focus:outline-none focus:border-blue-500" 
-                    />
+                    <label className="block text-zinc-500 text-xs font-bold uppercase mb-1">Valor (R$)</label>
+                    <input type="number" step="0.01" required value={novoProdutoValor} onChange={(e) => setNovoProdutoValor(e.target.value)} className="w-full bg-zinc-900 border border-zinc-700 text-white rounded p-2 focus:outline-none focus:border-blue-500" />
                   </div>
                   <div className="flex gap-2">
                     {editandoProdutoId && (
-                      <button 
-                        type="button" 
-                        onClick={cancelarEdicao} 
-                        className="px-4 py-2 border border-zinc-600 text-zinc-400 rounded hover:bg-zinc-800 transition-colors"
-                      >
-                        Cancelar
-                      </button>
+                      <button type="button" onClick={cancelarEdicao} className="px-4 py-2 border border-zinc-600 text-zinc-400 rounded hover:bg-zinc-800 transition-colors">Cancelar</button>
                     )}
-                    <button 
-                      type="submit" 
-                      className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-6 py-2 rounded whitespace-nowrap transition-colors"
-                    >
+                    <button type="submit" className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-6 py-2 rounded whitespace-nowrap transition-colors">
                       {editandoProdutoId ? 'Salvar Edição' : 'Cadastrar'}
                     </button>
                   </div>
                 </div>
               </form>
 
-              <h3 className="text-zinc-400 font-bold mb-4 uppercase text-sm tracking-wider">
-                Produtos Cadastrados ({produtos.length})
-              </h3>
+              <h3 className="text-zinc-400 font-bold mb-4 uppercase text-sm tracking-wider">Produtos Cadastrados ({produtos.length})</h3>
               
               <div className="bg-zinc-950 border border-zinc-800 rounded-lg overflow-hidden">
                 <table className="w-full text-left">
@@ -548,24 +506,15 @@ export function Dashboard() {
                     {produtos.map(p => (
                       <tr key={p.id} className="border-b border-zinc-800/50 hover:bg-zinc-900 transition-colors">
                         <td className="p-3 font-bold text-white">{p.nome}</td>
-                        <td className="p-3 text-right text-green-400 font-medium">
-                          {formataBRL(Number(p.valor))}
-                        </td>
+                        <td className="p-3 text-right text-green-400 font-medium">{formataBRL(Number(p.valor))}</td>
                         <td className="p-3 text-center">
-                          <button 
-                            onClick={() => iniciarEdicaoProduto(p)} 
-                            className="text-blue-400 hover:text-blue-300 text-sm font-bold underline"
-                          >
-                            Editar
-                          </button>
+                          <button onClick={() => iniciarEdicaoProduto(p)} className="text-blue-400 hover:text-blue-300 text-sm font-bold underline">Editar</button>
                         </td>
                       </tr>
                     ))}
                     {produtos.length === 0 && (
                       <tr>
-                        <td colSpan={3} className="p-6 text-center text-zinc-500">
-                          Nenhum produto cadastrado ainda.
-                        </td>
+                        <td colSpan={3} className="p-6 text-center text-zinc-500">Nenhum produto cadastrado ainda.</td>
                       </tr>
                     )}
                   </tbody>
