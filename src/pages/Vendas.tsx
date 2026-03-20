@@ -49,6 +49,7 @@ export function Vendas() {
         setProdutos(prodRes.data);
         setVendas(salesRes.data);
         
+        // Já deixa o primeiro produto e o valor dele selecionados por padrão
         if (prodRes.data.length > 0) {
           setProductName(prodRes.data[0].nome);
           setSaleValue(String(prodRes.data[0].valor));
@@ -64,6 +65,18 @@ export function Vendas() {
     localStorage.removeItem('user');
     localStorage.removeItem('token');
     navigate('/');
+  }
+
+  // 🔥 A MÁGICA VOLTOU: Atualiza o preço automaticamente quando muda o produto
+  function handleProductChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    const nomeSelecionado = e.target.value;
+    setProductName(nomeSelecionado);
+
+    // Procura o produto escolhido na lista e joga o valor dele no campo
+    const produtoEscolhido = produtos.find(p => p.nome === nomeSelecionado);
+    if (produtoEscolhido) {
+      setSaleValue(String(produtoEscolhido.valor));
+    }
   }
 
   const vendasFiltradas = vendas.filter(venda => {
@@ -196,7 +209,8 @@ export function Vendas() {
                 <div className="grid grid-cols-2 gap-4">
                     <div>
                         <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">Produto</label>
-                        <select value={productName} onChange={(e) => setProductName(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm text-white">
+                        {/* 🔥 AQUI ESTÁ A LIGAÇÃO COM A FUNÇÃO NOVA (handleProductChange) */}
+                        <select value={productName} onChange={handleProductChange} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm text-white cursor-pointer">
                             {produtos.map(p => <option key={p.id} value={p.nome}>{p.nome}</option>)}
                         </select>
                     </div>
@@ -214,7 +228,6 @@ export function Vendas() {
                     <input type="text" required value={customerName} onChange={(e) => setCustomerName(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm text-white" />
                 </div>
                 
-                {/* 🔥 NOVOS CAMPOS ADICIONADOS AQUI */}
                 <div className="grid grid-cols-2 gap-4">
                     <div>
                         <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">WhatsApp / Telefone</label>
