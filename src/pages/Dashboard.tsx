@@ -13,6 +13,9 @@ type Venda = {
   id: string;
   product_name: string;
   customer_name: string;
+  customer_phone?: string;
+  customer_email?: string;
+  payment_method?: string;
   sale_value: number;
   status: string;
   created_at: string;
@@ -111,7 +114,7 @@ export function Dashboard() {
     }
   }
 
-  // 🔥 APROVAR OU REJEITAR EDIÇÃO DO VENDEDOR (ADMIN)
+  // 🔥 1. APROVAR OU REJEITAR EDIÇÃO DO VENDEDOR (AZUL)
   async function handleAprovarEdicao(id: string) {
     if(!window.confirm("Deseja APROVAR esta correção? Os dados da venda serão alterados.")) return;
     try {
@@ -131,6 +134,18 @@ export function Dashboard() {
       fetchVendasPlacar();
     } catch (error) {
       alert("Erro ao rejeitar edição.");
+    }
+  }
+
+  // 🔥 2. LIBERAR VENDA PENDENTE (AMARELO)
+  async function handleAprovarVenda(id: string) {
+    if(!window.confirm("Deseja LIBERAR esta venda? Ela entrará imediatamente no placar do soldado.")) return;
+    try {
+      await api.post(`/sales/${id}/approve`);
+      alert("✅ Venda liberada com sucesso!");
+      fetchVendasPlacar();
+    } catch (error) {
+      alert("Erro ao liberar venda.");
     }
   }
 
@@ -224,8 +239,11 @@ export function Dashboard() {
     return false;
   }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-  // 🔥 Separa os pedidos de edição para o Admin aprovar
+  // 🔥 Filtro 1: Pedidos de Correção (Azul)
   const edicoesPendentes = todasVendas.filter(v => v.edit_status === 'pendente');
+
+  // 🔥 Filtro 2: Vendas Aguardando Liberação (Amarelo)
+  const vendasPendentes = todasVendas.filter(v => v.status === 'pendente_liberacao' || v.status === 'pendente_boleto' || v.status === 'pendente');
 
   const progressoMeta = Math.min((vendasMes / META_MENSAL) * 100, 100);
   const formataBRL = (valor: number) => valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -258,47 +276,84 @@ export function Dashboard() {
           </div>
         </div>
 
-        {/* 🔥 ÁREA DE AUDITORIA DE EDIÇÕES (ADMIN) */}
-        {edicoesPendentes.length > 0 && (
-          <div className="bg-blue-900/10 border border-blue-500/30 rounded-xl p-6 shadow-2xl animate-in fade-in">
-            <h2 className="text-xl font-black text-blue-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-              ⚠️ Solicitações de Correção Pendentes ({edicoesPendentes.length})
-            </h2>
-            
-            <div className="grid grid-cols-1 gap-4">
-              {edicoesPendentes.map(venda => (
-                <div key={venda.id} className="bg-zinc-950 border border-blue-500/20 rounded-lg p-4 flex flex-col md:flex-row justify-between items-center gap-4">
-                  <div className="flex-1">
-                    <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest">Vendedor: <span className="text-white">{venda.seller_name}</span></p>
-                    <p className="text-zinc-300 text-sm mt-1">
-                      Cliente: <span className="font-bold text-white">{venda.customer_name}</span> | 
-                      Valor Atual: <span className="text-green-400">{formataBRL(Number(venda.sale_value))}</span>
-                    </p>
-                    <div className="mt-3 bg-red-950/30 border border-red-500/20 p-3 rounded">
-                      <p className="text-red-400 text-[10px] font-black uppercase mb-1">Motivo do Erro:</p>
-                      <p className="text-zinc-300 text-sm italic">"{venda.edit_reason}"</p>
+        {/* ========================================================= */}
+        {/* 🔥 PAINEL DE AVISOS TÁTICOS (EDIÇÕES E LIBERAÇÕES)        */}
+        {/* ========================================================= */}
+        
+        <div className="space-y-4">
+          
+          {/* AVISO 1: EDIÇÕES PENDENTES (AZUL) */}
+          {edicoesPendentes.length > 0 && (
+            <div className="bg-blue-900/10 border border-blue-500/30 rounded-xl p-6 shadow-2xl animate-in fade-in">
+              <h2 className="text-xl font-black text-blue-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                🔄 Solicitações de Correção Pendentes ({edicoesPendentes.length})
+              </h2>
+              
+              <div className="grid grid-cols-1 gap-4">
+                {edicoesPendentes.map(venda => (
+                  <div key={venda.id} className="bg-zinc-950 border border-blue-500/20 rounded-lg p-4 flex flex-col md:flex-row justify-between items-center gap-4">
+                    <div className="flex-1">
+                      <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest">Vendedor: <span className="text-white">{venda.seller_name}</span></p>
+                      <p className="text-zinc-300 text-sm mt-1">
+                        Cliente: <span className="font-bold text-white">{venda.customer_name}</span> | 
+                        Valor Atual: <span className="text-green-400">{formataBRL(Number(venda.sale_value))}</span>
+                      </p>
+                      <div className="mt-3 bg-red-950/30 border border-red-500/20 p-3 rounded">
+                        <p className="text-red-400 text-[10px] font-black uppercase mb-1">Motivo do Erro:</p>
+                        <p className="text-zinc-300 text-sm italic">"{venda.edit_reason}"</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex gap-2 w-full md:w-auto">
+                      <button onClick={() => handleRejeitarEdicao(venda.id)} className="flex-1 md:flex-none border border-red-500/50 text-red-500 hover:bg-red-500 hover:text-white px-4 py-2 rounded font-bold text-xs uppercase tracking-widest transition-colors">
+                        Rejeitar
+                      </button>
+                      <button onClick={() => handleAprovarEdicao(venda.id)} className="flex-1 md:flex-none bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded font-black text-xs uppercase tracking-widest shadow-lg transition-colors">
+                        Aprovar Correção
+                      </button>
                     </div>
                   </div>
-                  
-                  <div className="flex gap-2 w-full md:w-auto">
-                    <button 
-                      onClick={() => handleRejeitarEdicao(venda.id)}
-                      className="flex-1 md:flex-none border border-red-500/50 text-red-500 hover:bg-red-500 hover:text-white px-4 py-2 rounded font-bold text-xs uppercase tracking-widest transition-colors"
-                    >
-                      Rejeitar
-                    </button>
-                    <button 
-                      onClick={() => handleAprovarEdicao(venda.id)}
-                      className="flex-1 md:flex-none bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded font-black text-xs uppercase tracking-widest shadow-lg transition-colors"
-                    >
-                      Aprovar Correção
-                    </button>
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
-        )}
+          )}
+
+          {/* AVISO 2: VENDAS AGUARDANDO LIBERAÇÃO (AMARELO) */}
+          {vendasPendentes.length > 0 && (
+            <div className="bg-yellow-900/10 border border-yellow-500/30 rounded-xl p-6 shadow-2xl animate-in fade-in">
+              <h2 className="text-xl font-black text-yellow-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                ⚠️ Vendas Aguardando Liberação ({vendasPendentes.length})
+              </h2>
+              
+              <div className="grid grid-cols-1 gap-4">
+                {vendasPendentes.map(venda => (
+                  <div key={venda.id} className="bg-zinc-950 border border-yellow-500/20 rounded-lg p-4 flex flex-col md:flex-row justify-between items-center gap-4">
+                    <div className="flex-1">
+                      <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest">Vendedor: <span className="text-white">{venda.seller_name}</span></p>
+                      <p className="text-zinc-300 text-sm mt-1">
+                        Cliente: <span className="font-bold text-white">{venda.customer_name}</span> | 
+                        Produto: <span className="font-bold text-yellow-400">{venda.product_name}</span>
+                      </p>
+                      <p className="text-zinc-500 text-xs mt-1 uppercase tracking-widest">
+                        Valor: {formataBRL(Number(venda.sale_value))} | Pagamento: {venda.payment_method}
+                      </p>
+                    </div>
+                    
+                    <div className="flex gap-2 w-full md:w-auto">
+                      <button onClick={() => handleDeleteVenda(venda.id)} className="flex-1 md:flex-none border border-red-500/50 text-red-500 hover:bg-red-500 hover:text-white px-4 py-2 rounded font-bold text-xs uppercase tracking-widest transition-colors">
+                        Excluir Venda
+                      </button>
+                      <button onClick={() => handleAprovarVenda(venda.id)} className="flex-1 md:flex-none bg-green-600 hover:bg-green-500 text-black px-6 py-2 rounded font-black text-xs uppercase tracking-widest shadow-lg transition-colors">
+                        Liberar Venda
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+        </div>
 
         {/* FILTROS TÁTICOS */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 shadow-xl flex flex-col md:flex-row items-end gap-4">
