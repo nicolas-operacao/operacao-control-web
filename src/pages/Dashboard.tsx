@@ -117,6 +117,22 @@ export function Dashboard() {
     }
   }
 
+  // 🔥 NOVA FUNÇÃO: DELETAR VENDA DO PAINEL
+  async function handleDeleteVenda(id: string) {
+    const confirmacao = window.confirm("⚠️ ATENÇÃO COMANDANTE!\nTem certeza que deseja apagar esta venda permanentemente? Essa ação não pode ser desfeita.");
+    
+    if (confirmacao) {
+      try {
+        await api.delete(`/sales/${id}`);
+        alert('💥 Venda eliminada com sucesso!');
+        // Atualiza os dados na tela instantaneamente
+        fetchVendasPlacar();
+      } catch (error) {
+        alert('🚨 Erro ao tentar excluir a venda. Verifique a conexão com o servidor.');
+      }
+    }
+  }
+
   function handleProductChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const nomeSelecionado = e.target.value;
     setProductName(nomeSelecionado);
@@ -307,7 +323,10 @@ export function Dashboard() {
               <span className="text-zinc-500 text-sm font-bold mb-1">Meta: {formataBRL(META_MENSAL)}</span>
             </div>
             <div className="w-full bg-zinc-950 border border-zinc-800 rounded-full h-4 mt-4 overflow-hidden">
-              <div className="bg-yellow-400 h-4 rounded-full relative transition-all duration-1000 ease-out" style={{ width: `${progressoMeta}%` }}>
+              <div 
+                className="bg-yellow-400 h-4 rounded-full relative transition-all duration-1000 ease-out" 
+                style={{ width: `${progressoMeta}%` }}
+              >
                 <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
               </div>
             </div>
@@ -315,7 +334,7 @@ export function Dashboard() {
           </div>
         </div>
 
-        {/* 🔥 TABELA DETALHADA DE RELATÓRIO (SÓ APARECE QUANDO CLICA) */}
+        {/* 🔥 TABELA DETALHADA DE RELATÓRIO COM O BOTÃO DE EXCLUIR */}
         {visaoAtiva && (
           <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-6 shadow-2xl animate-in fade-in slide-in-from-top-4 duration-300">
             <div className="flex justify-between items-center mb-6 pb-4 border-b border-zinc-800">
@@ -341,6 +360,8 @@ export function Dashboard() {
                     <th className="pb-4 font-black">Produto</th>
                     <th className="pb-4 font-black text-right">Valor</th>
                     <th className="pb-4 font-black text-center">Status</th>
+                    {/* 🔥 NOVA COLUNA DE AÇÃO */}
+                    <th className="pb-4 font-black text-center">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="text-sm">
@@ -362,10 +383,20 @@ export function Dashboard() {
                           {venda.status === 'aprovada' ? 'Aprovada' : 'Pendente'}
                         </span>
                       </td>
+                      <td className="py-4 text-center">
+                        {/* 🔥 O BOTÃO DE EXCLUIR VAI AQUI */}
+                        <button 
+                          onClick={() => handleDeleteVenda(venda.id)}
+                          className="text-zinc-500 hover:text-red-400 hover:bg-red-500/10 p-2 rounded transition-colors"
+                          title="Excluir Venda"
+                        >
+                          🗑️
+                        </button>
+                      </td>
                     </tr>
                   )) : (
                     <tr>
-                      <td colSpan={6} className="py-12 text-center text-zinc-600 uppercase font-black tracking-widest italic">
+                      <td colSpan={7} className="py-12 text-center text-zinc-600 uppercase font-black tracking-widest italic">
                         Nenhuma venda registrada neste período.
                       </td>
                     </tr>
