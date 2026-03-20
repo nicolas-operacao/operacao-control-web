@@ -15,8 +15,12 @@ type Venda = {
   sale_value: number;
   created_at: string; 
   customer_name: string;
+  customer_email?: string;
+  customer_phone?: string;
+  payment_method?: string;
   status: string;
   seller_id: string | number; 
+  edit_status?: string; // 🔥 NOVO: Para saber se está aguardando o Admin
 };
 
 export function Vendas() {
@@ -24,11 +28,15 @@ export function Vendas() {
   const userString = localStorage.getItem('user');
   const user = userString ? JSON.parse(userString) : { name: 'Vendedor', id: '' };
 
+  // Estados dos Modais
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false); // 🔥 Modal de Edição
+
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [vendas, setVendas] = useState<Venda[]>([]);
   const [filtro, setFiltro] = useState<'dia' | 'semana' | 'mes'>('mes');
 
+  // Estados do Formulário (Usado para Nova Venda e Edição)
   const [productName, setProductName] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
@@ -36,30 +44,35 @@ export function Vendas() {
   const [paymentMethod, setPaymentMethod] = useState('PIX');
   const [saleValue, setSaleValue] = useState('');
   const [saleDate, setSaleDate] = useState(new Date().toISOString().split('T')[0]);
+  
+  // 🔥 Estados específicos da Edição
+  const [editingSaleId, setEditingSaleId] = useState('');
+  const [editReason, setEditReason] = useState('');
+
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    async function fetchData() {
-      try {
-        const [prodRes, salesRes] = await Promise.all([
-          api.get('/products'),
-          api.get('/sales') 
-        ]);
-
-        setProdutos(prodRes.data);
-        setVendas(salesRes.data);
-        
-        // Já deixa o primeiro produto e o valor dele selecionados por padrão
-        if (prodRes.data.length > 0) {
-          setProductName(prodRes.data[0].nome);
-          setSaleValue(String(prodRes.data[0].valor));
-        }
-      } catch (error) {
-        console.error('Erro ao carregar dados:', error);
-      }
-    }
     fetchData();
   }, []);
+
+  async function fetchData() {
+    try {
+      const [prodRes, salesRes] = await Promise.all([
+        api.get('/products'),
+        api.get('/sales') 
+      ]);
+
+      setProdutos(prodRes.data);
+      setVendas(salesRes.data);
+      
+      if (prodRes.data.length > 0) {
+        setProductName(prodRes.data[0].nome);
+        setSaleValue(String(prodRes.data[0].valor));
+      }
+    } catch (error) {
+      console.error('Erro ao carregar dados:', error);
+    }
+  }
 
   function handleLogout() {
     localStorage.removeItem('user');
@@ -67,29 +80,108 @@ export function Vendas() {
     navigate('/');
   }
 
-  // 🔥 A MÁGICA VOLTOU: Atualiza o preço automaticamente quando muda o produto
   function handleProductChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const nomeSelecionado = e.target.value;
     setProductName(nomeSelecionado);
 
-    // Procura o produto escolhido na lista e joga o valor dele no campo
     const produtoEscolhido = produtos.find(p => p.nome === nomeSelecionado);
     if (produtoEscolhido) {
       setSaleValue(String(produtoEscolhido.valor));
     }
   }
 
+  // 🔥 PREPARA O MODAL DE EDIÇÃO COM OS DADOS DA VENDA
+  function handleOpenEdit(venda: Venda) {
+    setEditingSaleId(venda.id);
+    setProductName(venda.product_name);
+    setSaleValue(String(venda.sale_value));
+    setCustomerName(venda.customer_name);
+    setCustomerEmail(venda.customer_email || '');
+    setCustomerPhone(venda.customer_phone || '');
+    setPaymentMethod(venda.payment_method || 'PIX');
+    setEditReason('');
+    
+    if (venda.created_at) {
+      setSaleDate(new Date(venda.created_at).toISOString().split('T')[0]);
+    }
+
+    setIsEditModalOpen(true);
+  }
+
+  function resetForm() {
+    setCustomerName('');
+    setCustomerEmail('');
+    setCustomerPhone('');
+    setEditReason('');
+    setSaleDate(new Date().toISOString().split('T')[0]);
+    if (produtos.length > 0) {
+      setProductName(produtos[0].nome);
+      setSaleValue(String(produtos[0].valor));
+    }
+  }
+
+  // 🎯 ENVIA UMA NOVA VENDA (INALTERADO)
+  async function handleRegisterSale(e: React.FormEvent) {
+    e.preventDefault();
+    setIsLoading(true);
+
+    try {
+      await api.post('/sales', {
+        seller_id: user.id, product_name: productName, customer_name: customerName,
+        customer_email: customerEmail, customer_phone: customerPhone, payment_method: paymentMethod,
+        sale_value: Number(saleValue), sale_date: saleDate
+      });
+
+      alert('⚡ Venda registrada com sucesso!');
+      resetForm();
+      setIsModalOpen(false);
+      fetchData(); 
+    } catch (error: any) {
+      alert('Erro ao registrar venda.');
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  // 🎯 ENVIA O PEDIDO DE EDIÇÃO (NOVO)
+  async function handleRequestEdit(e: React.FormEvent) {
+    e.preventDefault();
+    setIsLoading(true);
+
+    try {
+      const newData = {
+        product_name: productName,
+        sale_value: Number(saleValue),
+        customer_name: customerName,
+        customer_email: customerEmail,
+        customer_phone: customerPhone,
+        payment_method: paymentMethod
+      };
+
+      await api.post(`/sales/${editingSaleId}/request-edit`, {
+        reason: editReason,
+        newData: newData
+      });
+
+      alert('🛡️ Solicitação de edição enviada ao Comando Militar! Aguarde aprovação.');
+      resetForm();
+      setIsEditModalOpen(false);
+      fetchData(); 
+    } catch (error: any) {
+      alert('Erro ao solicitar edição. Fale com o suporte.');
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
   const vendasFiltradas = vendas.filter(venda => {
     if (String(venda.seller_id) !== String(user.id)) return false;
-
     if (!venda.created_at) return false;
     
     const dataVenda = new Date(venda.created_at);
     const hoje = new Date();
     
-    if (filtro === 'dia') {
-      return dataVenda.toDateString() === hoje.toDateString();
-    }
+    if (filtro === 'dia') return dataVenda.toDateString() === hoje.toDateString();
     if (filtro === 'semana') {
       const umaSemanaAtras = new Date();
       umaSemanaAtras.setDate(hoje.getDate() - 7);
@@ -97,31 +189,6 @@ export function Vendas() {
     }
     return true; 
   });
-
-  async function handleRegisterSale(e: React.FormEvent) {
-    e.preventDefault();
-    setIsLoading(true);
-
-    try {
-      await api.post('/sales', {
-        seller_id: user.id,
-        product_name: productName,
-        customer_name: customerName,
-        customer_email: customerEmail,
-        customer_phone: customerPhone,
-        payment_method: paymentMethod,
-        sale_value: Number(saleValue),
-        sale_date: saleDate
-      });
-
-      alert('⚡ Venda registrada com sucesso!');
-      window.location.reload(); 
-    } catch (error: any) {
-      alert('Erro ao registrar venda.');
-    } finally {
-      setIsLoading(false);
-    }
-  }
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans p-4 md:p-8 relative">
@@ -152,7 +219,7 @@ export function Vendas() {
             </div>
             
             <button 
-              onClick={() => setIsModalOpen(true)}
+              onClick={() => { resetForm(); setIsModalOpen(true); }}
               className="w-full md:w-auto bg-green-500 hover:bg-green-600 text-black font-black px-8 py-3 rounded-lg shadow-lg transition-transform hover:scale-105"
             >
               + LANÇAR NOVA VENDA
@@ -168,6 +235,7 @@ export function Vendas() {
                   <th className="pb-4">Produto</th>
                   <th className="pb-4">Valor</th>
                   <th className="pb-4">Status</th>
+                  <th className="pb-4 text-center">Ação</th>
                 </tr>
               </thead>
               <tbody className="text-sm">
@@ -184,10 +252,25 @@ export function Vendas() {
                         {venda.status === 'aprovada' ? 'Aprovada' : 'Pendente'}
                       </span>
                     </td>
+                    <td className="py-4 text-center">
+                      {/* 🔥 BOTÃO DE EDITAR COM STATUS */}
+                      {venda.edit_status === 'pendente' ? (
+                        <span className="text-[10px] font-black text-yellow-500 bg-yellow-500/10 px-2 py-1 rounded border border-yellow-500/30">
+                          ⏳ EM ANÁLISE
+                        </span>
+                      ) : (
+                        <button 
+                          onClick={() => handleOpenEdit(venda)}
+                          className="text-blue-400 hover:text-blue-300 text-xs font-bold underline transition-colors"
+                        >
+                          Corrigir Erro
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 )) : (
                   <tr>
-                    <td colSpan={5} className="py-10 text-center text-zinc-600 uppercase font-bold tracking-widest italic">
+                    <td colSpan={6} className="py-10 text-center text-zinc-600 uppercase font-bold tracking-widest italic">
                       Nenhuma venda sua foi encontrada neste período.
                     </td>
                   </tr>
@@ -198,18 +281,20 @@ export function Vendas() {
         </div>
       </div>
 
+      {/* ========================================= */}
+      {/* MODAL DE REGISTRAR NOVA VENDA (INALTERADO)*/}
+      {/* ========================================= */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="bg-zinc-900 border border-zinc-700 rounded-2xl w-full max-w-xl shadow-2xl animate-in zoom-in duration-150">
             <div className="p-6 border-b border-zinc-800 flex justify-between items-center">
-              <h2 className="text-xl font-black text-yellow-400 uppercase">🎯 Registrar Venda</h2>
+              <h2 className="text-xl font-black text-green-500 uppercase">🎯 Registrar Venda</h2>
               <button onClick={() => setIsModalOpen(false)} className="text-zinc-500 hover:text-white text-2xl">&times;</button>
             </div>
             <form onSubmit={handleRegisterSale} className="p-6 space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                     <div>
                         <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">Produto</label>
-                        {/* 🔥 AQUI ESTÁ A LIGAÇÃO COM A FUNÇÃO NOVA (handleProductChange) */}
                         <select value={productName} onChange={handleProductChange} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm text-white cursor-pointer">
                             {produtos.map(p => <option key={p.id} value={p.nome}>{p.nome}</option>)}
                         </select>
@@ -227,7 +312,6 @@ export function Vendas() {
                     <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">Nome do Cliente</label>
                     <input type="text" required value={customerName} onChange={(e) => setCustomerName(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm text-white" />
                 </div>
-                
                 <div className="grid grid-cols-2 gap-4">
                     <div>
                         <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">WhatsApp / Telefone</label>
@@ -248,14 +332,93 @@ export function Vendas() {
                         <option value="Boleto Parcelado">Boleto Parcelado</option>
                     </select>
                 </div>
-
-                <button disabled={isLoading} className="w-full bg-yellow-400 hover:bg-yellow-500 text-black font-black py-4 rounded-xl mt-4 uppercase tracking-widest shadow-lg">
+                <button disabled={isLoading} className="w-full bg-green-500 hover:bg-green-400 text-black font-black py-4 rounded-xl mt-4 uppercase tracking-widest shadow-lg">
                     {isLoading ? 'ENVIANDO...' : 'CONFIRMAR LANÇAMENTO ⚡'}
                 </button>
             </form>
           </div>
         </div>
       )}
+
+      {/* ========================================= */}
+      {/* 🔥 NOVO: MODAL DE SOLICITAR EDIÇÃO        */}
+      {/* ========================================= */}
+      {isEditModalOpen && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-zinc-900 border border-blue-500/30 rounded-2xl w-full max-w-xl shadow-[0_0_30px_rgba(59,130,246,0.15)] animate-in zoom-in duration-150">
+            <div className="p-6 border-b border-zinc-800 flex justify-between items-center bg-blue-900/10">
+              <h2 className="text-xl font-black text-blue-400 uppercase">🛡️ Solicitar Correção</h2>
+              <button onClick={() => setIsEditModalOpen(false)} className="text-zinc-500 hover:text-white text-2xl">&times;</button>
+            </div>
+            
+            <form onSubmit={handleRequestEdit} className="p-6 space-y-4">
+                
+                {/* CAMPO DE JUSTIFICATIVA OBRIGATÓRIO */}
+                <div className="bg-zinc-950 p-4 border border-zinc-800 rounded-lg mb-6">
+                  <label className="block text-red-400 text-xs font-black uppercase mb-2 flex items-center gap-2">
+                    ⚠️ JUSTIFICATIVA DO ERRO
+                  </label>
+                  <textarea 
+                    required 
+                    value={editReason} 
+                    onChange={(e) => setEditReason(e.target.value)} 
+                    placeholder="Explique detalhadamente por que você está alterando esta venda..."
+                    className="w-full bg-zinc-900 border border-zinc-700 text-white rounded p-3 focus:outline-none focus:border-blue-500 min-h-[80px]" 
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">Produto Correto</label>
+                        <select value={productName} onChange={handleProductChange} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm text-white cursor-pointer">
+                            {produtos.map(p => <option key={p.id} value={p.nome}>{p.nome}</option>)}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">Valor Correto R$</label>
+                        <input type="number" step="0.01" value={saleValue} onChange={(e) => setSaleValue(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm text-yellow-400 font-bold" />
+                    </div>
+                </div>
+                
+                <div>
+                    <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">Nome do Cliente Correto</label>
+                    <input type="text" required value={customerName} onChange={(e) => setCustomerName(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm text-white" />
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">Telefone Correto</label>
+                        <input type="text" required value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm text-white" />
+                    </div>
+                    <div>
+                        <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">E-mail Correto</label>
+                        <input type="email" required value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm text-white" />
+                    </div>
+                </div>
+                <div>
+                    <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">Método de Pagamento</label>
+                    <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm text-white">
+                        <option value="PIX">PIX</option>
+                        <option value="Cartão de Crédito (até 12x)">Cartão de Crédito (até 12x)</option>
+                        <option value="Crédito à vista">Crédito à vista</option>
+                        <option value="Débito à vista">Débito à vista</option>
+                        <option value="Boleto Parcelado">Boleto Parcelado</option>
+                    </select>
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <button type="button" onClick={() => setIsEditModalOpen(false)} className="w-1/3 border border-zinc-700 hover:bg-zinc-800 text-white font-bold py-4 rounded-xl uppercase tracking-widest transition-colors">
+                      CANCELAR
+                  </button>
+                  <button disabled={isLoading} className="w-2/3 bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-xl uppercase tracking-widest shadow-[0_0_15px_rgba(37,99,235,0.3)] transition-all">
+                      {isLoading ? 'ENVIANDO...' : 'ENVIAR PARA APROVAÇÃO'}
+                  </button>
+                </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
