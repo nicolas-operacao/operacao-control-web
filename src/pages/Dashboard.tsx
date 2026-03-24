@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { GuerraEquipes } from '../components/GuerraEquipes'; 
-import confetti from 'canvas-confetti'; // 🔥 ARSENAL VISUAL IMPORTADO
+import confetti from 'canvas-confetti'; 
 
 type Produto = {
   id: number;
@@ -10,7 +10,6 @@ type Produto = {
   valor: number;
 };
 
-// 🔥 CRACHÁ BLINDADO CONTRA ERROS DO TYPESCRIPT
 type Venda = {
   id: string;
   product_name: string;
@@ -60,15 +59,9 @@ export function Dashboard() {
 
   const [todasVendas, setTodasVendas] = useState<Venda[]>([]);
   
-  const [visaoAtiva, setVisaoAtiva] = useState<'hoje' | 'semana' | 'mes' | 'vendedor' | null>(null);
+  const [visaoAtiva, setVisaoAtiva] = useState<'hoje' | 'semana' | 'mes' | 'vendedor' | 'periodo' | null>(null);
   const [vendedorSelecionado, setVendedorSelecionado] = useState<string>('');
 
-  // ==========================================
-  // 🎵 ARSENAL DE EFEITOS SONOROS E VISUAIS
-  // ==========================================
- // ==========================================
-  // 🎵 ARSENAL DE EFEITOS SONOROS E VISUAIS (BLINDADO)
-  // ==========================================
   const somDinheiro = () => new Audio('https://actions.google.com/sounds/v1/foley/cash_register.ogg').play().catch((e) => console.log('Bloqueio de som:', e));
   const somAlerta = () => new Audio('https://actions.google.com/sounds/v1/alarms/buzzer_alarm.ogg').play().catch((e) => console.log('Bloqueio de som:', e));
   const somSucesso = () => new Audio('https://actions.google.com/sounds/v1/cartoon/bell_ding.ogg').play().catch((e) => console.log('Bloqueio de som:', e));
@@ -78,7 +71,7 @@ export function Dashboard() {
       particleCount: 150,
       spread: 80,
       origin: { y: 0.6 },
-      colors: ['#FACC15', '#22C55E', '#3B82F6'] // Amarelo, Verde, Azul
+      colors: ['#FACC15', '#22C55E', '#3B82F6']
     });
   };
 
@@ -141,7 +134,7 @@ export function Dashboard() {
     if(!window.confirm("Deseja APROVAR esta correção? Os dados da venda serão alterados.")) return;
     try {
       await api.post(`/sales/${id}/approve-edit`);
-      somSucesso(); // 🎵 Som de Sucesso ao aprovar correção
+      somSucesso();
       alert("✅ Edição aprovada e aplicada com sucesso!");
       fetchVendasPlacar();
     } catch (error) {
@@ -153,7 +146,7 @@ export function Dashboard() {
     if(!window.confirm("Deseja REJEITAR esta correção? O vendedor será notificado.")) return;
     try {
       await api.post(`/sales/${id}/reject-edit`);
-      somAlerta(); // 🚨 Som de Alerta ao rejeitar
+      somAlerta();
       alert("❌ Edição rejeitada.");
       fetchVendasPlacar();
     } catch (error) {
@@ -165,8 +158,8 @@ export function Dashboard() {
     if(!window.confirm("Deseja LIBERAR esta venda? Ela entrará imediatamente no placar do soldado.")) return;
     try {
       await api.post(`/sales/${id}/approve`);
-      somDinheiro(); // 💰 Som de Caixa Registradora!
-      lancarConfetes(); // 🎉 CHUVA DE CONFETES!
+      somDinheiro();
+      lancarConfetes();
       alert("✅ Venda liberada com sucesso!");
       fetchVendasPlacar();
     } catch (error) {
@@ -179,7 +172,7 @@ export function Dashboard() {
     if (confirmacao) {
       try {
         await api.delete(`/sales/${id}`);
-        somAlerta(); // 🚨 Som de Alerta/Erro na exclusão
+        somAlerta();
         alert('💥 Venda eliminada com sucesso!');
         fetchVendasPlacar();
       } catch (error) {
@@ -203,7 +196,13 @@ export function Dashboard() {
 
   function handleFiltrar(e: React.FormEvent) {
     e.preventDefault();
-    alert(`Buscando vendas de ${dataInicio} até ${dataFim}!`);
+    if (!dataInicio || !dataFim) {
+      alert("⚠️ Comandante, insira a Data Inicial e Final no radar antes de filtrar!");
+      return;
+    }
+    setVendedorSelecionado(''); 
+    setVisaoAtiva('periodo'); 
+    somSucesso(); 
   }
 
   async function handleSalvarProduto(e: React.FormEvent) {
@@ -240,8 +239,8 @@ export function Dashboard() {
         customer_email: customerEmail, customer_phone: customerPhone, payment_method: paymentMethod,
         sale_value: Number(saleValue), sale_date: saleDate
       });
-      somSucesso(); // 🎵 Som de Missão Cumprida
-      lancarConfetes(); // 🎉 Confetes pro Admin também!
+      somSucesso(); 
+      lancarConfetes();
       alert('⚡ Venda registrada com sucesso!');
       setCustomerName(''); setCustomerEmail(''); setCustomerPhone(''); setSaleDate(hoje); setIsModalVendaOpen(false);
       fetchVendasPlacar(); 
@@ -259,6 +258,11 @@ export function Dashboard() {
       return v.seller_name === vendedorSelecionado;
     }
 
+    if (visaoAtiva === 'periodo') {
+      const dataString = v.created_at.split('T')[0]; 
+      return dataString >= dataInicio && dataString <= dataFim;
+    }
+
     const dataVenda = new Date(v.created_at);
     const hojeData = new Date();
     hojeData.setHours(0, 0, 0, 0);
@@ -271,6 +275,32 @@ export function Dashboard() {
     if (visaoAtiva === 'mes') return dataVenda >= inicioMes;
     return false;
   }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+  let relatorioAgrupado: any[] = [];
+  if (visaoAtiva === 'periodo') {
+    const mapaVendedores = vendasTabela.reduce((acc: any, venda) => {
+      const nome = venda.seller_name || 'Desconhecido';
+      
+      if (!acc[nome]) {
+        acc[nome] = {
+          nome: nome,
+          totalVendas: 0,
+          valorTotal: 0,
+          produtos: {} as Record<string, number>
+        };
+      }
+      
+      acc[nome].totalVendas += 1;
+      acc[nome].valorTotal += Number(venda.sale_value);
+      
+      const prodNome = venda.product_name;
+      acc[nome].produtos[prodNome] = (acc[nome].produtos[prodNome] || 0) + 1;
+      
+      return acc;
+    }, {});
+
+    relatorioAgrupado = Object.values(mapaVendedores).sort((a: any, b: any) => b.valorTotal - a.valorTotal);
+  }
 
   const edicoesPendentes = todasVendas.filter(v => v.edit_status === 'pendente');
   const vendasPendentes = todasVendas.filter(v => v.status === 'pendente_liberacao' || v.status === 'pendente_boleto' || v.status === 'pendente');
@@ -346,7 +376,7 @@ export function Dashboard() {
             </div>
           )}
 
-          {/* AVISO 2: VENDAS AGUARDANDO LIBERAÇÃO (AMARELO) */}
+         {/* AVISO 2: VENDAS AGUARDANDO LIBERAÇÃO (AMARELO) */}
           {vendasPendentes.length > 0 && (
             <div className="bg-yellow-900/10 border border-yellow-500/30 rounded-xl p-6 shadow-2xl animate-in fade-in">
               <h2 className="text-xl font-black text-yellow-400 uppercase tracking-widest mb-4 flex items-center gap-2">
@@ -360,6 +390,7 @@ export function Dashboard() {
                       <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest">Vendedor: <span className="text-white">{venda.seller_name}</span></p>
                       <p className="text-zinc-300 text-sm mt-1">
                         Cliente: <span className="font-bold text-white">{venda.customer_name}</span> | 
+                        E-mail: <span className="font-bold text-blue-300 select-all cursor-pointer" title="Clique para selecionar e copiar">{venda.customer_email || 'Não informado'}</span> | 
                         Produto: <span className="font-bold text-yellow-400">{venda.product_name}</span>
                       </p>
                       <p className="text-zinc-500 text-xs mt-1 uppercase tracking-widest">
@@ -393,8 +424,13 @@ export function Dashboard() {
               onChange={(e) => {
                 const nome = e.target.value;
                 setVendedorSelecionado(nome);
-                if (nome) setVisaoAtiva('vendedor');
-                else setVisaoAtiva(null);
+                if (nome) {
+                  setVisaoAtiva('vendedor');
+                  setDataInicio(''); 
+                  setDataFim('');
+                } else {
+                  setVisaoAtiva(null);
+                }
               }}
               className="w-full bg-zinc-950 border border-zinc-700 text-white rounded p-3 focus:outline-none focus:border-yellow-400 cursor-pointer transition-colors"
             >
@@ -422,17 +458,17 @@ export function Dashboard() {
 
         {/* PLACAR GLOBAL GAMIFICADO */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div onClick={() => { setVisaoAtiva('hoje'); setVendedorSelecionado(''); }} className={`bg-zinc-900 border-l-4 p-6 rounded-lg shadow-2xl relative overflow-hidden cursor-pointer transform transition-all duration-200 hover:scale-[1.02] group ${visaoAtiva === 'hoje' ? 'border-yellow-400 ring-2 ring-yellow-400/50' : 'border-yellow-400 hover:border-yellow-300'}`}>
+          <div onClick={() => { setVisaoAtiva('hoje'); setVendedorSelecionado(''); setDataInicio(''); setDataFim(''); }} className={`bg-zinc-900 border-l-4 p-6 rounded-lg shadow-2xl relative overflow-hidden cursor-pointer transform transition-all duration-200 hover:scale-[1.02] group ${visaoAtiva === 'hoje' ? 'border-yellow-400 ring-2 ring-yellow-400/50' : 'border-yellow-400 hover:border-yellow-300'}`}>
             <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-yellow-400 text-[10px] font-black uppercase tracking-widest">Ver Lista 👁️</div>
             <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">Vendas Hoje</p>
             <h2 className="text-3xl font-black text-white">{formataBRL(vendasHoje)}</h2>
           </div>
-          <div onClick={() => { setVisaoAtiva('semana'); setVendedorSelecionado(''); }} className={`bg-zinc-900 border-l-4 p-6 rounded-lg shadow-2xl relative overflow-hidden cursor-pointer transform transition-all duration-200 hover:scale-[1.02] group ${visaoAtiva === 'semana' ? 'border-yellow-400 ring-2 ring-yellow-400/50' : 'border-yellow-400 hover:border-yellow-300'}`}>
+          <div onClick={() => { setVisaoAtiva('semana'); setVendedorSelecionado(''); setDataInicio(''); setDataFim(''); }} className={`bg-zinc-900 border-l-4 p-6 rounded-lg shadow-2xl relative overflow-hidden cursor-pointer transform transition-all duration-200 hover:scale-[1.02] group ${visaoAtiva === 'semana' ? 'border-yellow-400 ring-2 ring-yellow-400/50' : 'border-yellow-400 hover:border-yellow-300'}`}>
             <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-yellow-400 text-[10px] font-black uppercase tracking-widest">Ver Lista 👁️</div>
             <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">Esta Semana</p>
             <h2 className="text-3xl font-black text-white">{formataBRL(vendasSemana)}</h2>
           </div>
-          <div onClick={() => { setVisaoAtiva('mes'); setVendedorSelecionado(''); }} className={`bg-zinc-900 border-l-4 p-6 rounded-lg shadow-2xl relative overflow-hidden md:col-span-2 cursor-pointer transform transition-all duration-200 hover:scale-[1.02] group ${visaoAtiva === 'mes' ? 'border-yellow-400 ring-2 ring-yellow-400/50' : 'border-yellow-400 hover:border-yellow-300'}`}>
+          <div onClick={() => { setVisaoAtiva('mes'); setVendedorSelecionado(''); setDataInicio(''); setDataFim(''); }} className={`bg-zinc-900 border-l-4 p-6 rounded-lg shadow-2xl relative overflow-hidden md:col-span-2 cursor-pointer transform transition-all duration-200 hover:scale-[1.02] group ${visaoAtiva === 'mes' ? 'border-yellow-400 ring-2 ring-yellow-400/50' : 'border-yellow-400 hover:border-yellow-300'}`}>
             <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-yellow-400 text-[10px] font-black uppercase tracking-widest">Ver Lista 👁️</div>
             <div className="absolute top-0 right-0 p-4 opacity-5 text-yellow-400 text-8xl">🎯</div>
             <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">Acumulado do Mês</p>
@@ -449,7 +485,7 @@ export function Dashboard() {
           </div>
         </div>
 
-        {/* TABELA DETALHADA */}
+        {/* TABELAS E RELATÓRIOS */}
         {visaoAtiva && (
           <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-6 shadow-2xl animate-in fade-in slide-in-from-top-4 duration-300">
             <div className="flex justify-between items-center mb-6 pb-4 border-b border-zinc-800">
@@ -458,54 +494,111 @@ export function Dashboard() {
                 {visaoAtiva === 'hoje' ? ' Vendas de Hoje' : 
                  visaoAtiva === 'semana' ? ' Vendas da Semana' : 
                  visaoAtiva === 'mes' ? ' Acumulado do Mês' : 
-                 visaoAtiva === 'vendedor' ? ` Ficha Completa: ${vendedorSelecionado}` : ''}
+                 visaoAtiva === 'vendedor' ? ` Ficha Completa: ${vendedorSelecionado}` : 
+                 visaoAtiva === 'periodo' ? ' Relatório de Batalha' : ''}
               </h3>
-              <button onClick={() => { setVisaoAtiva(null); setVendedorSelecionado(''); }} className="text-zinc-500 hover:text-red-500 font-bold uppercase text-xs transition-colors px-3 py-1 border border-zinc-800 rounded hover:border-red-500">
+              <button onClick={() => { setVisaoAtiva(null); setVendedorSelecionado(''); setDataInicio(''); setDataFim(''); }} className="text-zinc-500 hover:text-red-500 font-bold uppercase text-xs transition-colors px-3 py-1 border border-zinc-800 rounded hover:border-red-500">
                 FECHAR X
               </button>
             </div>
 
+            {/* PAINEL DE RESUMO DO RELATÓRIO DE PERÍODO */}
+            {visaoAtiva === 'periodo' && (
+              <div className="bg-yellow-400/10 border border-yellow-400/30 p-4 rounded-lg mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
+                <div>
+                  <p className="text-zinc-400 text-[10px] font-black uppercase tracking-widest mb-1">Período Analisado</p>
+                  <p className="text-white text-sm font-bold">{dataInicio.split('-').reverse().join('/')} <span className="text-yellow-400 mx-2">até</span> {dataFim.split('-').reverse().join('/')}</p>
+                </div>
+                <div className="md:border-l md:border-r border-yellow-400/20 md:px-8 text-center">
+                  <p className="text-zinc-400 text-[10px] font-black uppercase tracking-widest mb-1">Quantidade Total</p>
+                  <p className="text-white text-2xl font-black">{vendasTabela.length}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-zinc-400 text-[10px] font-black uppercase tracking-widest mb-1">Total Movimentado</p>
+                  <p className="text-green-400 text-2xl font-black">{formataBRL(vendasTabela.reduce((acc, curr) => acc + Number(curr.sale_value), 0))}</p>
+                </div>
+              </div>
+            )}
+
             <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="border-b border-zinc-800 text-zinc-500 text-[10px] uppercase tracking-widest">
-                    <th className="pb-4 font-black">Data</th>
-                    <th className="pb-4 font-black">Soldado</th>
-                    <th className="pb-4 font-black">Cliente</th>
-                    <th className="pb-4 font-black">Produto</th>
-                    <th className="pb-4 font-black text-right">Valor</th>
-                    <th className="pb-4 font-black text-center">Status</th>
-                    <th className="pb-4 font-black text-center">Ações</th>
-                  </tr>
-                </thead>
-                <tbody className="text-sm">
-                  {vendasTabela.length > 0 ? vendasTabela.map(venda => (
-                    <tr key={venda.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/40 transition-colors">
-                      <td className="py-4 text-zinc-400 whitespace-nowrap">{venda.created_at ? new Date(venda.created_at).toLocaleDateString('pt-BR') : '--'}</td>
-                      <td className="py-4 font-black text-blue-400 uppercase tracking-wider">{venda.seller_name || 'Desconhecido'}</td>
-                      <td className="py-4 text-zinc-200 font-medium">{venda.customer_name}</td>
-                      <td className="py-4 text-zinc-400 text-xs">{venda.product_name}</td>
-                      <td className="py-4 text-green-400 font-black text-right whitespace-nowrap">{formataBRL(Number(venda.sale_value))}</td>
-                      <td className="py-4 text-center">
-                        <span className={`px-2 py-1 rounded text-[9px] font-black uppercase tracking-wider ${venda.status === 'aprovada' ? 'bg-green-500/10 text-green-500 border border-green-500/20' : 'bg-yellow-500/10 text-yellow-500 border border-yellow-500/20'}`}>
-                          {venda.status === 'aprovada' ? 'Aprovada' : 'Pendente'}
-                        </span>
-                      </td>
-                      <td className="py-4 text-center">
-                        <button onClick={() => handleDeleteVenda(venda.id)} className="text-zinc-500 hover:text-red-400 hover:bg-red-500/10 p-2 rounded transition-colors" title="Excluir Venda">
-                          🗑️
-                        </button>
-                      </td>
+              {/* 🔥 SE FOR RELATÓRIO DE PERÍODO, MOSTRA A TABELA AGRUPADA. SE NÃO, MOSTRA A TABELA DETALHADA. */}
+              {visaoAtiva === 'periodo' ? (
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="border-b border-zinc-800 text-zinc-500 text-[10px] uppercase tracking-widest">
+                      <th className="pb-4 font-black">Soldado</th>
+                      <th className="pb-4 font-black text-center">Qtd Vendas</th>
+                      <th className="pb-4 font-black">Produtos Vendidos</th>
+                      <th className="pb-4 font-black text-right">Total Arrecadado</th>
                     </tr>
-                  )) : (
-                    <tr>
-                      <td colSpan={7} className="py-12 text-center text-zinc-600 uppercase font-black tracking-widest italic">
-                        Nenhuma venda registrada neste período.
-                      </td>
+                  </thead>
+                  <tbody className="text-sm">
+                    {relatorioAgrupado.length > 0 ? relatorioAgrupado.map((item, index) => (
+                      <tr key={index} className="border-b border-zinc-800/50 hover:bg-zinc-800/40 transition-colors">
+                        <td className="py-4 font-black text-blue-400 uppercase tracking-wider">{item.nome}</td>
+                        <td className="py-4 text-center font-bold text-white bg-zinc-950/50 rounded-lg">{item.totalVendas}</td>
+                        <td className="py-4 text-zinc-300 text-xs">
+                          <div className="flex flex-wrap gap-2">
+                            {Object.entries(item.produtos).map(([nomeProduto, qtd]) => (
+                              <span key={nomeProduto} className="bg-zinc-800 px-2 py-1 rounded text-[10px] uppercase font-bold border border-zinc-700">
+                                <span className="text-yellow-400">{String(qtd)}x</span> {nomeProduto}
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="py-4 text-green-400 font-black text-right whitespace-nowrap">{formataBRL(item.valorTotal)}</td>
+                      </tr>
+                    )) : (
+                      <tr>
+                        <td colSpan={4} className="py-12 text-center text-zinc-600 uppercase font-black tracking-widest italic">
+                          Nenhuma movimentação neste período.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              ) : (
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="border-b border-zinc-800 text-zinc-500 text-[10px] uppercase tracking-widest">
+                      <th className="pb-4 font-black">Data</th>
+                      <th className="pb-4 font-black">Soldado</th>
+                      <th className="pb-4 font-black">Cliente</th>
+                      <th className="pb-4 font-black">Produto</th>
+                      <th className="pb-4 font-black text-right">Valor</th>
+                      <th className="pb-4 font-black text-center">Status</th>
+                      <th className="pb-4 font-black text-center">Ações</th>
                     </tr>
-                  )}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="text-sm">
+                    {vendasTabela.length > 0 ? vendasTabela.map(venda => (
+                      <tr key={venda.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/40 transition-colors">
+                        <td className="py-4 text-zinc-400 whitespace-nowrap">{venda.created_at ? new Date(venda.created_at).toLocaleDateString('pt-BR') : '--'}</td>
+                        <td className="py-4 font-black text-blue-400 uppercase tracking-wider">{venda.seller_name || 'Desconhecido'}</td>
+                        <td className="py-4 text-zinc-200 font-medium">{venda.customer_name}</td>
+                        <td className="py-4 text-zinc-400 text-xs">{venda.product_name}</td>
+                        <td className="py-4 text-green-400 font-black text-right whitespace-nowrap">{formataBRL(Number(venda.sale_value))}</td>
+                        <td className="py-4 text-center">
+                          <span className={`px-2 py-1 rounded text-[9px] font-black uppercase tracking-wider ${venda.status === 'aprovada' ? 'bg-green-500/10 text-green-500 border border-green-500/20' : 'bg-yellow-500/10 text-yellow-500 border border-yellow-500/20'}`}>
+                            {venda.status === 'aprovada' ? 'Aprovada' : 'Pendente'}
+                          </span>
+                        </td>
+                        <td className="py-4 text-center">
+                          <button onClick={() => handleDeleteVenda(venda.id)} className="text-zinc-500 hover:text-red-400 hover:bg-red-500/10 p-2 rounded transition-colors" title="Excluir Venda">
+                            🗑️
+                          </button>
+                        </td>
+                      </tr>
+                    )) : (
+                      <tr>
+                        <td colSpan={7} className="py-12 text-center text-zinc-600 uppercase font-black tracking-widest italic">
+                          Nenhuma venda encontrada.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              )}
             </div>
           </div>
         )}

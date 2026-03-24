@@ -54,7 +54,7 @@ export function Suporte() {
     setIsRefundModalOpen(true);
   }
 
-  async function handleConfirmRefund(e: React.FormEvent) {
+ async function handleConfirmRefund(e: React.FormEvent) {
     e.preventDefault();
     if (!selectedSale) return;
     setIsLoading(true);
@@ -64,12 +64,17 @@ export function Suporte() {
         reason: refundReason
       });
 
+      // 🚨 ALARME DE ESTORNO
+      new Audio('https://actions.google.com/sounds/v1/alarms/buzzer_alarm.ogg').play().catch(()=>{});
+      
       alert('🔴 Reembolso efetuado! O valor foi removido do placar do vendedor.');
       setIsRefundModalOpen(false);
       setSelectedSale(null);
       fetchVendas(); 
     } catch (error: any) {
-      alert('Erro ao processar reembolso.');
+      // 🔥 MIRA SNIPER: CAPTURANDO O ERRO EXATO DO BACK-END
+      const mensagemReal = error.response?.data?.error || error.message;
+      alert(`🚨 ERRO DO SERVIDOR: ${mensagemReal}`);
     } finally {
       setIsLoading(false);
     }
