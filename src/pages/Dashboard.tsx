@@ -4,7 +4,8 @@ import { api } from '../services/api';
 import { GuerraEquipes } from '../components/GuerraEquipes'; 
 import { RelatorioBatalha } from '../components/RelatorioBatalha'; 
 import { ModalGerenciarProdutos } from '../components/ModalGerenciarProdutos'; 
-import { ModalRegistrarVenda } from '../components/ModalRegistrarVenda'; // 🔥 NOVO COMPONENTE IMPORTADO
+import { ModalRegistrarVenda } from '../components/ModalRegistrarVenda'; 
+import { ModalGerenciarDesafios } from '../components/ModalGerenciarDesafios'; 
 import confetti from 'canvas-confetti'; 
 
 type Produto = {
@@ -40,6 +41,7 @@ export function Dashboard() {
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [isModalProdutoOpen, setIsModalProdutoOpen] = useState(false);
   const [isModalVendaOpen, setIsModalVendaOpen] = useState(false);
+  const [isModalDesafioOpen, setIsModalDesafioOpen] = useState(false); // 🔥 2. CONTROLE DA TELA DE TEMPORADAS
 
   // 🔥 VALORES FINANCEIROS
   const [vendasHoje, setVendasHoje] = useState(0);
@@ -51,7 +53,9 @@ export function Dashboard() {
   const [qtdSemana, setQtdSemana] = useState(0);
   const [qtdMes, setQtdMes] = useState(0);
 
-  const META_MENSAL = 400000;
+  // 🔥 3. META DINÂMICA (SUBSTITUI OS 400.000 FIXOS)
+  const [desafioAtivo, setDesafioAtivo] = useState<any>(null);
+  const META_MENSAL = desafioAtivo ? Number(desafioAtivo.goal_amount) : 400000;
 
   const [todasVendas, setTodasVendas] = useState<Venda[]>([]);
   
@@ -74,7 +78,19 @@ export function Dashboard() {
   useEffect(() => {
     fetchProdutos();
     fetchVendasPlacar();
+    fetchDesafioAtivo(); // 🔥 4. BUSCA A TEMPORADA AO CARREGAR A TELA
   }, []);
+
+  // 🔥 5. FUNÇÃO QUE BUSCA A TEMPORADA ATIVA
+  async function fetchDesafioAtivo() {
+    try {
+      const response = await api.get('/challenges');
+      const ativo = response.data.find((c: any) => c.is_active);
+      setDesafioAtivo(ativo || null);
+    } catch (error) {
+      console.error('Erro ao buscar desafio ativo:', error);
+    }
+  }
 
   async function fetchProdutos() {
     try {
@@ -225,7 +241,6 @@ export function Dashboard() {
 
   const vendedoresUnicos = Array.from(new Set(todasVendas.map(v => v.seller_name).filter(nome => nome && nome !== 'Desconhecido'))).sort();
 
-  // 🔥 Define os títulos do componente de relatório Agrupado
   let tituloRelatorio = '';
   let subTituloRelatorio = '';
   if (visaoAtiva === 'hoje') tituloRelatorio = 'Vendas de Hoje';
@@ -253,6 +268,11 @@ export function Dashboard() {
           </div>
 
           <div className="flex flex-wrap justify-center xl:justify-end gap-3 w-full xl:w-auto">
+            {/* 🔥 6. O BOTÃO DE TEMPORADAS INSERIDO AQUI */}
+            <button onClick={() => setIsModalDesafioOpen(true)} className="border border-red-500 text-red-400 hover:bg-red-500 hover:text-white px-4 py-2.5 rounded font-bold shadow-[0_0_10px_rgba(220,38,38,0.1)] uppercase text-[10px] tracking-widest transition-all">
+              ⚔️ Temporadas
+            </button>
+
             <button onClick={() => navigate('/liberacoes')} className="bg-purple-600 hover:bg-purple-500 text-white font-bold px-4 py-2.5 rounded shadow-[0_0_15px_rgba(147,51,234,0.3)] uppercase text-[10px] tracking-widest transition-all">
               🛡️ Suporte
             </button>
@@ -273,7 +293,6 @@ export function Dashboard() {
         
         <div className="space-y-4">
           
-          {/* AVISO 1: EDIÇÕES PENDENTES (AZUL) */}
           {edicoesPendentes.length > 0 && (
             <div className="bg-blue-900/10 border border-blue-500/30 rounded-xl p-6 shadow-2xl animate-in fade-in">
               <h2 className="text-xl font-black text-blue-400 uppercase tracking-widest mb-4 flex items-center gap-2">
@@ -310,7 +329,6 @@ export function Dashboard() {
             </div>
           )}
 
-          {/* AVISO 2: VENDAS AGUARDANDO LIBERAÇÃO (AMARELO) */}
           {vendasPendentes.length > 0 && (
             <div className="bg-yellow-900/10 border border-yellow-500/30 rounded-xl p-6 shadow-2xl animate-in fade-in">
               <h2 className="text-xl font-black text-yellow-400 uppercase tracking-widest mb-4 flex items-center gap-2">
@@ -347,7 +365,6 @@ export function Dashboard() {
           )}
         </div>
 
-        {/* FILTROS TÁTICOS + BUSCA POR SOLDADO */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 shadow-xl flex flex-col lg:flex-row items-end gap-6">
           <div className="w-full lg:flex-1">
             <label className="block text-zinc-400 text-xs font-bold uppercase tracking-widest mb-2 text-yellow-400">
@@ -390,7 +407,6 @@ export function Dashboard() {
           </div>
         </div>
 
-        {/* PLACAR GLOBAL GAMIFICADO */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div onClick={() => { setVisaoAtiva('hoje'); setVendedorSelecionado(''); setDataInicio(''); setDataFim(''); }} className={`bg-zinc-900 border-l-4 p-6 rounded-lg shadow-2xl relative overflow-hidden cursor-pointer transform transition-all duration-200 hover:scale-[1.02] group ${visaoAtiva === 'hoje' ? 'border-yellow-400 ring-2 ring-yellow-400/50' : 'border-yellow-400 hover:border-yellow-300'}`}>
             <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-yellow-400 text-[10px] font-black uppercase tracking-widest">Ver Lista 👁️</div>
@@ -407,7 +423,12 @@ export function Dashboard() {
           <div onClick={() => { setVisaoAtiva('mes'); setVendedorSelecionado(''); setDataInicio(''); setDataFim(''); }} className={`bg-zinc-900 border-l-4 p-6 rounded-lg shadow-2xl relative overflow-hidden md:col-span-2 cursor-pointer transform transition-all duration-200 hover:scale-[1.02] group ${visaoAtiva === 'mes' ? 'border-yellow-400 ring-2 ring-yellow-400/50' : 'border-yellow-400 hover:border-yellow-300'}`}>
             <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-yellow-400 text-[10px] font-black uppercase tracking-widest">Ver Lista 👁️</div>
             <div className="absolute top-0 right-0 p-4 opacity-5 text-yellow-400 text-8xl">🎯</div>
-            <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">Acumulado do Mês</p>
+            
+            {/* 🔥 7. NOME DO DESAFIO NO CARD AMARELO */}
+            <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">
+              Acumulado ({desafioAtivo ? desafioAtivo.name : 'Geral'})
+            </p>
+            
             <div className="flex justify-between items-end">
               <h2 className="text-4xl font-black text-white">{formataBRL(vendasMes)}</h2>
               <span className="text-zinc-500 text-sm font-bold mb-1">Meta: {formataBRL(META_MENSAL)}</span>
@@ -424,7 +445,6 @@ export function Dashboard() {
           </div>
         </div>
 
-        {/* 🔥 RENDERIZAÇÃO DO RELATÓRIO AGRUPADO (HOJE, SEMANA, MÊS, PERÍODO) */}
         {visaoAtiva && visaoAtiva !== 'vendedor' && (
           <RelatorioBatalha 
             vendas={vendasTabela} 
@@ -434,7 +454,6 @@ export function Dashboard() {
           />
         )}
 
-        {/* 🔥 TABELA DETALHADA APENAS PARA CAÇAR UM SOLDADO ESPECÍFICO (PARA DELETAR VENDAS ERRADAS) */}
         {visaoAtiva === 'vendedor' && (
           <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-6 shadow-2xl animate-in fade-in slide-in-from-top-4 duration-300">
             <div className="flex justify-between items-center mb-6 pb-4 border-b border-zinc-800">
@@ -496,7 +515,12 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* 🔥 CHAMANDO OS NOSSOS COMPONENTES MODAIS AQUI! */}
+      {/* 🔥 8. CHAMANDO O MODAL DE TEMPORADAS AQUI NO FUNDO */}
+      <ModalGerenciarDesafios 
+        isOpen={isModalDesafioOpen} 
+        onClose={() => setIsModalDesafioOpen(false)} 
+        onAtualizar={fetchDesafioAtivo} 
+      />
       
       <ModalGerenciarProdutos 
         isOpen={isModalProdutoOpen} 

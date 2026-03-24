@@ -10,21 +10,33 @@ type VendedorRank = {
 };
 
 export function GuerraEquipes() {
-  const META_OPERACAO = 400000;
-  
   const [equipeA, setEquipeA] = useState<VendedorRank[]>([]);
   const [equipeB, setEquipeB] = useState<VendedorRank[]>([]);
   const [totalA, setTotalA] = useState(0);
   const [totalB, setTotalB] = useState(0);
 
+  // 🔥 ESTADO DA OPERAÇÃO TÁTICA ATIVA
+  const [desafioAtivo, setDesafioAtivo] = useState<any>(null);
+  const META_OPERACAO = desafioAtivo ? Number(desafioAtivo.goal_amount) : 400000;
+
   const [tempoRestante, setTempoRestante] = useState('');
 
+  // Busca inicial
   useEffect(() => {
-    fetchRanking();
-    
+    fetchRankingEDesafio();
+  }, []);
+
+  // Relógio Tático sincronizado com a Operação
+  useEffect(() => {
     function calcularTempoTatico() {
       const agora = new Date();
-      const deadline = new Date(agora.getFullYear(), agora.getMonth(), 31, 23, 59, 59, 999);
+      let deadline = new Date(agora.getFullYear(), agora.getMonth() + 1, 0, 23, 59, 59, 999);
+
+      if (desafioAtivo && desafioAtivo.end_date) {
+        const [ano, mes, dia] = desafioAtivo.end_date.split('-');
+        deadline = new Date(Number(ano), Number(mes) - 1, Number(dia), 23, 59, 59, 999);
+      }
+
       const diferenca = deadline.getTime() - agora.getTime();
 
       if (diferenca > 0) {
@@ -46,21 +58,25 @@ export function GuerraEquipes() {
     calcularTempoTatico();
     const timer = setInterval(calcularTempoTatico, 60000);
     return () => clearInterval(timer);
-  }, []);
+  }, [desafioAtivo]);
 
-  async function fetchRanking() {
+  async function fetchRankingEDesafio() {
+    // 🔥 BLINDAGEM 1: Busca a operação separadamente
+    try {
+      const resChallenge = await api.get('/challenges');
+      // Garante que é um array antes de tentar usar o .find()
+      const listaDesafios = Array.isArray(resChallenge.data) ? resChallenge.data : [];
+      const ativo = listaDesafios.find((c: any) => c.is_active);
+      if (ativo) setDesafioAtivo(ativo);
+    } catch (error) {
+      console.error('Radar sem sinal para Desafios (Nenhum ativo ou erro):', error);
+    }
+
+    // 🔥 BLINDAGEM 2: O Placar carrega de qualquer jeito, independente do desafio!
     try {
       const response = await api.get('/ranking');
-      
-      // BLINDAGEM 1: Garante que é um array mesmo se a API mandar dentro de { data: [...] }
-      const rankingGeral: VendedorRank[] = Array.isArray(response.data) 
-        ? response.data 
-        : (response.data.data || []);
+      const rankingGeral: VendedorRank[] = Array.isArray(response.data) ? response.data : (response.data.data || []);
 
-      // 🔥 RADAR TÁTICO: Vai imprimir no seu F12 o que está chegando do Back-end!
-      console.log("🎯 RADAR DO PLACAR (DADOS RECEBIDOS):", rankingGeral);
-
-      // BLINDAGEM 2: Filtro hiperpoderoso (limpa espaços, aceita "A", "Equipe A", etc)
       const timeA = rankingGeral.filter(v => {
         const eq = String(v.equipe || '').trim().toUpperCase();
         return eq === 'A' || eq === 'EQUIPA A' || eq === 'EQUIPE A';
@@ -71,7 +87,6 @@ export function GuerraEquipes() {
         return eq === 'B' || eq === 'EQUIPA B' || eq === 'EQUIPE B';
       });
 
-      // BLINDAGEM 3: Força o número a ser lido como número matemático e evita "NaN"
       const somaA = timeA.reduce((acc, v) => acc + (Number(v.total_vendido) || 0), 0);
       const somaB = timeB.reduce((acc, v) => acc + (Number(v.total_vendido) || 0), 0);
 
@@ -81,30 +96,24 @@ export function GuerraEquipes() {
       setTotalB(somaB);
 
     } catch (error) {
-      console.error('Erro ao buscar o ranking das equipas:', error);
+      console.error('Erro ao buscar dados da guerra de equipes:', error);
     }
   }
 
   const totalGeralOperacao = totalA + totalB;
   const MathProgresso = (totalGeralOperacao / META_OPERACAO) * 100;
-  // Blinda para não dar erro se o progresso for infinito (divisão por zero) ou NaN
   const progressoXP = isNaN(MathProgresso) ? 0 : Math.min(MathProgresso, 100);
 
   let liderEquipeA = false;
   let liderEquipeB = false;
 
   if (totalA > 0 || totalB > 0) {
-    if (totalA > totalB) {
-      liderEquipeA = true;
-    } else if (totalB > totalA) {
-      liderEquipeB = true;
-    }
+    if (totalA > totalB) { liderEquipeA = true; } 
+    else if (totalB > totalA) { liderEquipeB = true; }
   }
 
-  const formataBRL = (valor: number) => 
-    (valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const formataBRL = (valor: number) => (valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-  // PÓDIO COM FOTOS DOS RECRUTAS
   const renderPodioSombrio = (equipe: VendedorRank[]) => {
     const medalhas = ['🥇', '🥈', '🥉'];
     return (
@@ -121,21 +130,13 @@ export function GuerraEquipes() {
                 {temVenda ? (
                   <div className="flex items-center gap-2.5">
                     {vendedor.foto_url ? (
-                      <img 
-                        src={vendedor.foto_url} 
-                        alt={vendedor.nome} 
-                        className="w-7 h-7 rounded-full object-cover border border-zinc-700 shadow-sm"
-                      />
+                      <img src={vendedor.foto_url} alt={vendedor.nome} className="w-7 h-7 rounded-full object-cover border border-zinc-700 shadow-sm"/>
                     ) : (
                       <div className="w-7 h-7 rounded-full bg-zinc-800 flex items-center justify-center border border-zinc-700 shadow-sm">
-                        <span className="text-[10px] font-black text-zinc-400 uppercase">
-                          {vendedor.nome.charAt(0)}
-                        </span>
+                        <span className="text-[10px] font-black text-zinc-400 uppercase">{vendedor.nome.charAt(0)}</span>
                       </div>
                     )}
-                    <span className="text-zinc-100 font-bold truncate max-w-[120px] md:max-w-[150px]">
-                      {vendedor.nome}
-                    </span>
+                    <span className="text-zinc-100 font-bold truncate max-w-[120px] md:max-w-[150px]">{vendedor.nome}</span>
                   </div>
                 ) : (
                   <span className="text-zinc-600 italic text-xs ml-1">Aguardando recruta...</span>
@@ -156,7 +157,7 @@ export function GuerraEquipes() {
     <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 md:p-6 shadow-[0_0_30px_rgba(0,0,0,0.5)] flex flex-col w-full h-full relative overflow-hidden">
       
       <h2 className="text-xl md:text-2xl font-black text-white mb-5 uppercase tracking-widest flex items-center gap-3 border-b border-zinc-800 pb-3">
-        ⚔️ Guerra de Equipes <span className="text-zinc-600 text-sm font-bold">(Março)</span>
+        ⚔️ Guerra de Equipes <span className="text-zinc-600 text-sm font-bold">({desafioAtivo ? desafioAtivo.name : 'Geral'})</span>
       </h2>
 
       {/* BARRA DE XP COLETIVA */}
@@ -175,10 +176,7 @@ export function GuerraEquipes() {
         </div>
         
         <div className="w-full bg-zinc-900 rounded-full h-4 mb-1 border-2 border-zinc-800 overflow-hidden relative">
-          <div 
-            className="bg-yellow-400 h-full rounded-full transition-all duration-1000 ease-out shadow-[0_0_20px_rgba(250,204,21,0.6)] relative" 
-            style={{ width: `${progressoXP}%` }}
-          >
+          <div className="bg-yellow-400 h-full rounded-full transition-all duration-1000 ease-out shadow-[0_0_20px_rgba(250,204,21,0.6)] relative" style={{ width: `${progressoXP}%` }}>
             <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
           </div>
         </div>
@@ -190,16 +188,11 @@ export function GuerraEquipes() {
         
         {/* EQUIPA A (AZUL) */}
         <div className="w-full md:flex-1 bg-blue-950/10 border border-blue-900/30 rounded-lg p-4 relative group">
-          {liderEquipeA && (
-            <div className="absolute -top-6 -left-3 text-5xl animate-pulse drop-shadow-[0_0_15px_rgba(250,204,21,0.5)] z-20">🏆</div>
-          )}
+          {liderEquipeA && <div className="absolute -top-6 -left-3 text-5xl animate-pulse drop-shadow-[0_0_15px_rgba(250,204,21,0.5)] z-20">🏆</div>}
           <div className="flex justify-between items-end mb-2">
             <span className="font-black text-blue-400 text-lg uppercase tracking-wider">Equipe A</span>
-            <span className="text-white font-bold text-2xl drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]">
-              {formataBRL(totalA)}
-            </span>
+            <span className="text-white font-bold text-2xl drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]">{formataBRL(totalA)}</span>
           </div>
-          
           <div className="w-full bg-zinc-950 rounded-full h-2 mb-3 border border-zinc-800">
             <div className="bg-blue-500 h-2 rounded-full transition-all duration-1000 shadow-[0_0_10px_rgba(59,130,246,0.3)]" style={{ width: totalA > 0 ? `${(totalA/META_OPERACAO)*100}%` : '0%' }}></div>
           </div>
@@ -217,16 +210,11 @@ export function GuerraEquipes() {
 
         {/* EQUIPA B (VERMELHA) */}
         <div className="w-full md:flex-1 bg-red-950/10 border border-red-900/30 rounded-lg p-4 relative group">
-          {liderEquipeB && (
-            <div className="absolute -top-6 -right-3 text-5xl animate-pulse drop-shadow-[0_0_15px_rgba(250,204,21,0.5)] z-20">🏆</div>
-          )}
+          {liderEquipeB && <div className="absolute -top-6 -right-3 text-5xl animate-pulse drop-shadow-[0_0_15px_rgba(250,204,21,0.5)] z-20">🏆</div>}
           <div className="flex justify-between items-end mb-2 text-right">
-            <span className="text-white font-bold text-2xl drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]">
-              {formataBRL(totalB)}
-            </span>
+            <span className="text-white font-bold text-2xl drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]">{formataBRL(totalB)}</span>
             <span className="font-black text-red-400 text-lg uppercase tracking-wider">Equipe B</span>
           </div>
-          
           <div className="w-full bg-zinc-950 rounded-full h-2 mb-3 border border-zinc-800">
             <div className="bg-red-500 h-2 rounded-full transition-all duration-1000 shadow-[0_0_10px_rgba(239,68,68,0.3)]" style={{ width: totalB > 0 ? `${(totalB/META_OPERACAO)*100}%` : '0%' }}></div>
           </div>

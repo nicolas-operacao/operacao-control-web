@@ -17,7 +17,6 @@ interface RelatorioBatalhaProps {
   onClose: () => void;
 }
 
-// 🔥 NOVO: Explicando para o TypeScript o formato exato da nossa linha agrupada
 type ItemRelatorio = {
   nome: string;
   totalVendas: number;
@@ -28,7 +27,7 @@ type ItemRelatorio = {
 export function RelatorioBatalha({ vendas, titulo, subtitulo, onClose }: RelatorioBatalhaProps) {
   const formataBRL = (valor: number) => valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-  // 🔥 Agrupa todas as vendas pelo nome do soldado usando o tipo que criamos
+  // 🔥 1. Agrupa as vendas por SOLDADO
   const mapaVendedores = vendas.reduce((acc: Record<string, ItemRelatorio>, venda) => {
     const nome = venda.seller_name || 'Desconhecido';
     if (!acc[nome]) {
@@ -42,8 +41,17 @@ export function RelatorioBatalha({ vendas, titulo, subtitulo, onClose }: Relator
     return acc;
   }, {});
 
-  // Ordena do que vendeu mais R$ para o que vendeu menos
+  // 🔥 2. NOVO: Agrupa a quantidade geral por PRODUTO
+  const totaisPorProduto = vendas.reduce((acc: Record<string, number>, venda) => {
+    const prodNome = venda.product_name;
+    acc[prodNome] = (acc[prodNome] || 0) + 1;
+    return acc;
+  }, {});
+
+  // Ordena os soldados do que vendeu mais R$ para o que vendeu menos
   const relatorioAgrupado = Object.values(mapaVendedores).sort((a, b) => b.valorTotal - a.valorTotal);
+  
+  // Soma o valor de tudo
   const valorTotalGeral = vendas.reduce((acc, curr) => acc + Number(curr.sale_value), 0);
 
   return (
@@ -60,15 +68,32 @@ export function RelatorioBatalha({ vendas, titulo, subtitulo, onClose }: Relator
         </button>
       </div>
 
+      {/* 🔥 PAINEL DE RESUMO ATUALIZADO */}
       <div className="bg-yellow-400/10 border border-yellow-400/30 p-4 rounded-lg mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
-        <div className="text-center md:text-left">
+        
+        <div className="text-center md:text-left flex-shrink-0">
           <p className="text-zinc-400 text-[10px] font-black uppercase tracking-widest mb-1">Quantidade Total</p>
           <p className="text-white text-2xl font-black">{vendas.length} vendas</p>
         </div>
-        <div className="text-center md:text-right">
+
+        {/* 🔥 NOVO: RESUMO DO ARSENAL (PRODUTOS VENDIDOS) */}
+        <div className="flex-1 w-full md:border-l md:border-r border-yellow-400/20 md:px-6 flex flex-wrap gap-2 justify-center md:justify-start">
+          {Object.entries(totaisPorProduto).map(([nomeProduto, qtd]) => (
+            <div key={nomeProduto} className="bg-zinc-950/80 border border-yellow-400/30 px-3 py-1.5 rounded-lg flex items-center gap-2 shadow-sm">
+              <span className="text-yellow-400 font-black text-sm">{qtd}x</span>
+              <span className="text-zinc-300 text-[10px] uppercase font-bold">{nomeProduto}</span>
+            </div>
+          ))}
+          {Object.keys(totaisPorProduto).length === 0 && (
+            <span className="text-zinc-500 text-[10px] uppercase font-bold">Nenhum produto</span>
+          )}
+        </div>
+
+        <div className="text-center md:text-right flex-shrink-0 w-full md:w-auto">
           <p className="text-zinc-400 text-[10px] font-black uppercase tracking-widest mb-1">Total Movimentado</p>
           <p className="text-green-400 text-2xl font-black">{formataBRL(valorTotalGeral)}</p>
         </div>
+        
       </div>
 
       <div className="overflow-x-auto">
