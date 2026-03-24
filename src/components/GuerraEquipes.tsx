@@ -182,7 +182,7 @@ export function GuerraEquipes() {
             <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
           </div>
         </div>
-        <p className="text-center text-xs text-zinc-600 font-medium uppercase tracking-wider">Acumulado das Equipas A & B</p>
+        <p className="text-center text-xs text-zinc-600 font-medium uppercase tracking-wider">Acumulado das Equipes A & B</p>
       </div>
 
       {/* ÁREA DE CONFRONTO */}
@@ -194,7 +194,7 @@ export function GuerraEquipes() {
             <div className="absolute -top-6 -left-3 text-5xl animate-pulse drop-shadow-[0_0_15px_rgba(250,204,21,0.5)] z-20">🏆</div>
           )}
           <div className="flex justify-between items-end mb-2">
-            <span className="font-black text-blue-400 text-lg uppercase tracking-wider">Equipa A</span>
+            <span className="font-black text-blue-400 text-lg uppercase tracking-wider">Equipe A</span>
             <span className="text-white font-bold text-2xl drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]">
               {formataBRL(totalA)}
             </span>
@@ -224,7 +224,7 @@ export function GuerraEquipes() {
             <span className="text-white font-bold text-2xl drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]">
               {formataBRL(totalB)}
             </span>
-            <span className="font-black text-red-400 text-lg uppercase tracking-wider">Equipa B</span>
+            <span className="font-black text-red-400 text-lg uppercase tracking-wider">Equipe B</span>
           </div>
           
           <div className="w-full bg-zinc-950 rounded-full h-2 mb-3 border border-zinc-800">

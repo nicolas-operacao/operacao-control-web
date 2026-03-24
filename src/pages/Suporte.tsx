@@ -22,7 +22,7 @@ export function Suporte() {
 
   const [vendas, setVendas] = useState<Venda[]>([]);
   const [filtroDias, setFiltroDias] = useState<number>(7); 
-  const [searchTerm, setSearchTerm] = useState(''); // 🔥 NOVO: Estado da Busca
+  const [searchTerm, setSearchTerm] = useState(''); 
   const [isLoading, setIsLoading] = useState(false);
 
   const [isRefundModalOpen, setIsRefundModalOpen] = useState(false);
@@ -54,7 +54,14 @@ export function Suporte() {
     setIsRefundModalOpen(true);
   }
 
- async function handleConfirmRefund(e: React.FormEvent) {
+  // 🔥 GATILHO RÁPIDO PARA COPIAR E-MAIL
+  function copiarEmail(email?: string) {
+    if (!email) return;
+    navigator.clipboard.writeText(email);
+    alert(`📧 E-mail copiado para a área de transferência:\n${email}`);
+  }
+
+  async function handleConfirmRefund(e: React.FormEvent) {
     e.preventDefault();
     if (!selectedSale) return;
     setIsLoading(true);
@@ -64,7 +71,6 @@ export function Suporte() {
         reason: refundReason
       });
 
-      // 🚨 ALARME DE ESTORNO
       new Audio('https://actions.google.com/sounds/v1/alarms/buzzer_alarm.ogg').play().catch(()=>{});
       
       alert('🔴 Reembolso efetuado! O valor foi removido do placar do vendedor.');
@@ -72,7 +78,6 @@ export function Suporte() {
       setSelectedSale(null);
       fetchVendas(); 
     } catch (error: any) {
-      // 🔥 MIRA SNIPER: CAPTURANDO O ERRO EXATO DO BACK-END
       const mensagemReal = error.response?.data?.error || error.message;
       alert(`🚨 ERRO DO SERVIDOR: ${mensagemReal}`);
     } finally {
@@ -80,25 +85,21 @@ export function Suporte() {
     }
   }
 
-  // 🔥 LÓGICA DE FILTRO (DATAS + CAMPO DE BUSCA)
   const vendasFiltradas = vendas.filter(venda => {
     if (!venda.created_at) return false;
     
-    // 1. Filtro de Datas Matemático
     const dataVenda = new Date(venda.created_at);
     const limiteData = new Date();
     limiteData.setDate(limiteData.getDate() - (filtroDias - 1));
     limiteData.setHours(0, 0, 0, 0);
     const dentroDaData = dataVenda >= limiteData;
 
-    // 2. Radar de Busca (Nome, Email ou Telefone)
     const termo = searchTerm.toLowerCase();
     const passouNaBusca = 
       (venda.customer_name && venda.customer_name.toLowerCase().includes(termo)) ||
       (venda.customer_email && venda.customer_email.toLowerCase().includes(termo)) ||
       (venda.customer_phone && venda.customer_phone.toLowerCase().includes(termo));
 
-    // Se a busca estiver vazia, usa só a data. Se tiver busca, tem que bater com a data E com a busca.
     if (searchTerm.trim() === '') {
       return dentroDaData;
     } else {
@@ -147,8 +148,6 @@ export function Suporte() {
             </div>
             
             <div className="flex flex-col md:flex-row items-center gap-3 w-full md:w-auto">
-              
-              {/* 🔥 NOVO: CAMPO DE BUSCA TÁTICA */}
               <div className="w-full md:w-72">
                 <input 
                   type="text"
@@ -174,7 +173,7 @@ export function Suporte() {
                 <tr className="border-b border-zinc-800 text-zinc-500 text-[10px] uppercase tracking-widest bg-zinc-950/50">
                   <th className="p-4 font-black">Data</th>
                   <th className="p-4 font-black">Soldado (Vendedor)</th>
-                  <th className="p-4 font-black">Cliente</th>
+                  <th className="p-4 font-black">Cliente & Contato</th>
                   <th className="p-4 font-black">Produto</th>
                   <th className="p-4 font-black text-right">Valor</th>
                   <th className="p-4 font-black text-center">Status</th>
@@ -192,7 +191,17 @@ export function Suporte() {
                     </td>
                     <td className="p-4 text-zinc-200 font-medium">
                       {venda.customer_name}
-                      <div className="text-[10px] text-zinc-500 font-normal">{venda.customer_phone || venda.customer_email || 'Sem contato'}</div>
+                      <div className="text-[10px] text-zinc-500 font-normal mt-1">
+                        📞 {venda.customer_phone || 'Sem telefone'}
+                      </div>
+                      {/* 🔥 AÇÃO DE COPIAR EMBUTIDA NO E-MAIL */}
+                      <div 
+                        onClick={() => copiarEmail(venda.customer_email)}
+                        className="text-[10px] text-blue-400 font-bold cursor-pointer mt-0.5 hover:text-blue-300 transition-colors" 
+                        title="Clique para copiar o e-mail"
+                      >
+                        📧 {venda.customer_email || 'Sem e-mail'}
+                      </div>
                     </td>
                     <td className="p-4 text-zinc-400 text-xs">{venda.product_name}</td>
                     <td className="p-4 text-zinc-100 font-black text-right whitespace-nowrap">

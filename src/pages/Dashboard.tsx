@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { GuerraEquipes } from '../components/GuerraEquipes'; 
+import { RelatorioBatalha } from '../components/RelatorioBatalha'; 
+import { ModalGerenciarProdutos } from '../components/ModalGerenciarProdutos'; 
+import { ModalRegistrarVenda } from '../components/ModalRegistrarVenda'; // 🔥 NOVO COMPONENTE IMPORTADO
 import confetti from 'canvas-confetti'; 
 
 type Produto = {
@@ -36,25 +39,18 @@ export function Dashboard() {
 
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [isModalProdutoOpen, setIsModalProdutoOpen] = useState(false);
-  const [editandoProdutoId, setEditandoProdutoId] = useState<number | null>(null);
-  const [novoProdutoNome, setNovoProdutoNome] = useState('');
-  const [novoProdutoValor, setNovoProdutoValor] = useState('');
-
   const [isModalVendaOpen, setIsModalVendaOpen] = useState(false);
-  const hoje = new Date().toISOString().split('T')[0];
-  const [saleDate, setSaleDate] = useState(hoje);
 
-  const [productName, setProductName] = useState('');
-  const [customerName, setCustomerName] = useState('');
-  const [customerEmail, setCustomerEmail] = useState('');
-  const [customerPhone, setCustomerPhone] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('PIX');
-  const [saleValue, setSaleValue] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-
+  // 🔥 VALORES FINANCEIROS
   const [vendasHoje, setVendasHoje] = useState(0);
   const [vendasSemana, setVendasSemana] = useState(0);
   const [vendasMes, setVendasMes] = useState(0);
+
+  // 🔥 QUANTIDADES DE VENDAS
+  const [qtdHoje, setQtdHoje] = useState(0);
+  const [qtdSemana, setQtdSemana] = useState(0);
+  const [qtdMes, setQtdMes] = useState(0);
+
   const META_MENSAL = 400000;
 
   const [todasVendas, setTodasVendas] = useState<Venda[]>([]);
@@ -84,10 +80,6 @@ export function Dashboard() {
     try {
       const response = await api.get('/products');
       setProdutos(response.data);
-      if (response.data.length > 0) {
-        setProductName(response.data[0].nome);
-        setSaleValue(String(response.data[0].valor));
-      }
     } catch (error) {
       console.error('Erro ao buscar produtos:', error);
     }
@@ -108,22 +100,24 @@ export function Dashboard() {
 
       const inicioMes = new Date(hojeData.getFullYear(), hojeData.getMonth(), 1); 
 
-      let totalHoje = 0;
-      let totalSemana = 0;
-      let totalMes = 0;
+      let tHoje = 0, tSemana = 0, tMes = 0;
+      let qHoje = 0, qSemana = 0, qMes = 0;
 
       vendasAprovadas.forEach((v: Venda) => {
         const dataVenda = new Date(v.created_at);
         const valor = Number(v.sale_value);
 
-        if (dataVenda >= inicioMes) totalMes += valor;
-        if (dataVenda >= inicioSemana) totalSemana += valor;
-        if (dataVenda >= hojeData) totalHoje += valor;
+        if (dataVenda >= inicioMes) { tMes += valor; qMes++; }
+        if (dataVenda >= inicioSemana) { tSemana += valor; qSemana++; }
+        if (dataVenda >= hojeData) { tHoje += valor; qHoje++; }
       });
 
-      setVendasHoje(totalHoje);
-      setVendasSemana(totalSemana);
-      setVendasMes(totalMes);
+      setVendasHoje(tHoje);
+      setVendasSemana(tSemana);
+      setVendasMes(tMes);
+      setQtdHoje(qHoje);
+      setQtdSemana(qSemana);
+      setQtdMes(qMes);
 
     } catch (error) {
       console.error('Erro ao calcular placar:', error);
@@ -181,13 +175,6 @@ export function Dashboard() {
     }
   }
 
-  function handleProductChange(e: React.ChangeEvent<HTMLSelectElement>) {
-    const nomeSelecionado = e.target.value;
-    setProductName(nomeSelecionado);
-    const produtoEscolhido = produtos.find(p => p.nome === nomeSelecionado);
-    if (produtoEscolhido) setSaleValue(String(produtoEscolhido.valor));
-  }
-
   function handleLogout() {
     localStorage.removeItem('user');
     localStorage.removeItem('token');
@@ -203,52 +190,6 @@ export function Dashboard() {
     setVendedorSelecionado(''); 
     setVisaoAtiva('periodo'); 
     somSucesso(); 
-  }
-
-  async function handleSalvarProduto(e: React.FormEvent) {
-    e.preventDefault();
-    try {
-      if (editandoProdutoId) {
-        await api.put(`/products/${editandoProdutoId}`, { nome: novoProdutoNome, valor: Number(novoProdutoValor) });
-        alert('Produto atualizado!');
-      } else {
-        await api.post('/products', { nome: novoProdutoNome, valor: Number(novoProdutoValor) });
-        alert('Produto cadastrado!');
-      }
-      setNovoProdutoNome(''); setNovoProdutoValor(''); setEditandoProdutoId(null);
-      fetchProdutos();
-    } catch (error) {
-      alert('Erro ao salvar produto.');
-    }
-  }
-
-  function iniciarEdicaoProduto(produto: Produto) {
-    setEditandoProdutoId(produto.id); setNovoProdutoNome(produto.nome); setNovoProdutoValor(String(produto.valor));
-  }
-
-  function cancelarEdicao() {
-    setEditandoProdutoId(null); setNovoProdutoNome(''); setNovoProdutoValor('');
-  }
-
-  async function handleRegisterSale(e: React.FormEvent) {
-    e.preventDefault();
-    setIsLoading(true);
-    try {
-      await api.post('/sales', {
-        seller_id: user.id, product_name: productName, customer_name: customerName,
-        customer_email: customerEmail, customer_phone: customerPhone, payment_method: paymentMethod,
-        sale_value: Number(saleValue), sale_date: saleDate
-      });
-      somSucesso(); 
-      lancarConfetes();
-      alert('⚡ Venda registrada com sucesso!');
-      setCustomerName(''); setCustomerEmail(''); setCustomerPhone(''); setSaleDate(hoje); setIsModalVendaOpen(false);
-      fetchVendasPlacar(); 
-    } catch (error: any) {
-      alert('Erro ao registrar venda.');
-    } finally {
-      setIsLoading(false);
-    }
   }
 
   const vendasTabela = todasVendas.filter(v => {
@@ -276,32 +217,6 @@ export function Dashboard() {
     return false;
   }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-  let relatorioAgrupado: any[] = [];
-  if (visaoAtiva === 'periodo') {
-    const mapaVendedores = vendasTabela.reduce((acc: any, venda) => {
-      const nome = venda.seller_name || 'Desconhecido';
-      
-      if (!acc[nome]) {
-        acc[nome] = {
-          nome: nome,
-          totalVendas: 0,
-          valorTotal: 0,
-          produtos: {} as Record<string, number>
-        };
-      }
-      
-      acc[nome].totalVendas += 1;
-      acc[nome].valorTotal += Number(venda.sale_value);
-      
-      const prodNome = venda.product_name;
-      acc[nome].produtos[prodNome] = (acc[nome].produtos[prodNome] || 0) + 1;
-      
-      return acc;
-    }, {});
-
-    relatorioAgrupado = Object.values(mapaVendedores).sort((a: any, b: any) => b.valorTotal - a.valorTotal);
-  }
-
   const edicoesPendentes = todasVendas.filter(v => v.edit_status === 'pendente');
   const vendasPendentes = todasVendas.filter(v => v.status === 'pendente_liberacao' || v.status === 'pendente_boleto' || v.status === 'pendente');
 
@@ -310,29 +225,47 @@ export function Dashboard() {
 
   const vendedoresUnicos = Array.from(new Set(todasVendas.map(v => v.seller_name).filter(nome => nome && nome !== 'Desconhecido'))).sort();
 
+  // 🔥 Define os títulos do componente de relatório Agrupado
+  let tituloRelatorio = '';
+  let subTituloRelatorio = '';
+  if (visaoAtiva === 'hoje') tituloRelatorio = 'Vendas de Hoje';
+  if (visaoAtiva === 'semana') tituloRelatorio = 'Vendas da Semana';
+  if (visaoAtiva === 'mes') tituloRelatorio = 'Acumulado do Mês';
+  if (visaoAtiva === 'periodo') {
+    tituloRelatorio = 'Relatório de Batalha';
+    subTituloRelatorio = `${dataInicio.split('-').reverse().join('/')} até ${dataFim.split('-').reverse().join('/')}`;
+  }
+
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 p-4 md:p-8 font-sans relative">
       <div className="max-w-7xl mx-auto space-y-8">
         
-        {/* CABEÇALHO */}
-        <div className="flex flex-col md:flex-row justify-between items-center pb-4 border-b border-zinc-800 gap-4">
-          <h1 className="text-3xl md:text-4xl font-black text-yellow-400 uppercase tracking-wider flex items-center gap-3">
-            Operação Control <span className="text-zinc-500 text-lg md:text-xl ml-2 font-bold">(Admin)</span>
-          </h1>
-          <div className="flex flex-wrap gap-4">
-            <button onClick={() => navigate('/liberacoes')} className="bg-purple-600 hover:bg-purple-700 text-white font-black px-4 py-2 rounded transition-all shadow-[0_0_10px_rgba(147,51,234,0.3)] uppercase text-xs tracking-wider border border-purple-500">
+        {/* CABEÇALHO TÁTICO REFORMULADO */}
+        <div className="flex flex-col xl:flex-row justify-between items-center pb-6 border-b border-zinc-800 gap-6">
+          
+          <div className="flex items-center gap-4">
+            <h1 className="text-3xl md:text-4xl font-black text-yellow-400 uppercase tracking-wider leading-none text-center xl:text-left">
+              Operação Control
+            </h1>
+            <span className="bg-zinc-800 text-zinc-400 border border-zinc-700 text-[10px] px-3 py-1.5 rounded-md font-black uppercase tracking-widest hidden md:block">
+              Admin
+            </span>
+          </div>
+
+          <div className="flex flex-wrap justify-center xl:justify-end gap-3 w-full xl:w-auto">
+            <button onClick={() => navigate('/liberacoes')} className="bg-purple-600 hover:bg-purple-500 text-white font-bold px-4 py-2.5 rounded shadow-[0_0_15px_rgba(147,51,234,0.3)] uppercase text-[10px] tracking-widest transition-all">
               🛡️ Suporte
             </button>
-            <button onClick={() => navigate('/admin/recrutas')} className="border-2 border-purple-700 text-purple-300 hover:border-purple-500 hover:text-purple-500 px-4 py-2 rounded font-bold transition-all uppercase text-xs tracking-wider shadow-[0_0_10px_rgba(147,51,234,0.2)]">
-              ⚠️ Recrutas Pendentes
+            <button onClick={() => navigate('/admin/recrutas')} className="border border-purple-500 text-purple-400 hover:bg-purple-500 hover:text-white px-4 py-2.5 rounded font-bold shadow-[0_0_10px_rgba(147,51,234,0.1)] uppercase text-[10px] tracking-widest transition-all">
+              ⚠️ Recrutas
             </button>
-            <button onClick={() => setIsModalProdutoOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white font-black px-4 py-2 rounded transition-all shadow-[0_0_10px_rgba(37,99,235,0.3)] uppercase text-xs tracking-wider border border-blue-500">
+            <button onClick={() => setIsModalProdutoOpen(true)} className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-4 py-2.5 rounded shadow-[0_0_15px_rgba(37,99,235,0.3)] uppercase text-[10px] tracking-widest transition-all">
               ⚙️ Produtos
             </button>
-            <button onClick={() => setIsModalVendaOpen(true)} className="bg-yellow-400 hover:bg-yellow-500 text-black font-black px-6 py-2 rounded transition-transform hover:scale-105 active:scale-95 shadow-[0_0_15px_rgba(250,204,21,0.3)] uppercase text-sm tracking-wider">
-              + REGISTRAR VENDA
+            <button onClick={() => setIsModalVendaOpen(true)} className="bg-yellow-400 hover:bg-yellow-300 text-black font-black px-6 py-2.5 rounded shadow-[0_0_15px_rgba(250,204,21,0.4)] uppercase text-xs tracking-widest transition-transform hover:scale-105 active:scale-95">
+              + Registrar Venda
             </button>
-            <button onClick={handleLogout} className="border-2 border-zinc-700 text-zinc-300 hover:border-red-500 hover:text-red-500 px-6 py-2 rounded font-bold transition-all duration-300 uppercase text-sm tracking-wider">
+            <button onClick={handleLogout} className="bg-zinc-900 border border-zinc-700 hover:bg-red-600 hover:border-red-500 text-zinc-400 hover:text-white px-5 py-2.5 rounded font-bold uppercase text-[10px] tracking-widest transition-all">
               Sair
             </button>
           </div>
@@ -354,6 +287,7 @@ export function Dashboard() {
                       <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest">Vendedor: <span className="text-white">{venda.seller_name}</span></p>
                       <p className="text-zinc-300 text-sm mt-1">
                         Cliente: <span className="font-bold text-white">{venda.customer_name}</span> | 
+                        <span className="text-zinc-400 mx-1">E-mail:</span> <span className="font-bold text-blue-300 select-all cursor-pointer bg-blue-900/20 px-1 rounded">{venda.customer_email || 'Não informado'}</span> | 
                         Valor Atual: <span className="text-green-400">{formataBRL(Number(venda.sale_value))}</span>
                       </p>
                       <div className="mt-3 bg-red-950/30 border border-red-500/20 p-3 rounded">
@@ -376,7 +310,7 @@ export function Dashboard() {
             </div>
           )}
 
-         {/* AVISO 2: VENDAS AGUARDANDO LIBERAÇÃO (AMARELO) */}
+          {/* AVISO 2: VENDAS AGUARDANDO LIBERAÇÃO (AMARELO) */}
           {vendasPendentes.length > 0 && (
             <div className="bg-yellow-900/10 border border-yellow-500/30 rounded-xl p-6 shadow-2xl animate-in fade-in">
               <h2 className="text-xl font-black text-yellow-400 uppercase tracking-widest mb-4 flex items-center gap-2">
@@ -390,7 +324,7 @@ export function Dashboard() {
                       <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest">Vendedor: <span className="text-white">{venda.seller_name}</span></p>
                       <p className="text-zinc-300 text-sm mt-1">
                         Cliente: <span className="font-bold text-white">{venda.customer_name}</span> | 
-                        E-mail: <span className="font-bold text-blue-300 select-all cursor-pointer" title="Clique para selecionar e copiar">{venda.customer_email || 'Não informado'}</span> | 
+                        <span className="text-zinc-400 mx-1">E-mail:</span> <span className="font-bold text-blue-300 select-all cursor-pointer bg-blue-900/20 px-1 rounded">{venda.customer_email || 'Não informado'}</span> | 
                         Produto: <span className="font-bold text-yellow-400">{venda.product_name}</span>
                       </p>
                       <p className="text-zinc-500 text-xs mt-1 uppercase tracking-widest">
@@ -462,11 +396,13 @@ export function Dashboard() {
             <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-yellow-400 text-[10px] font-black uppercase tracking-widest">Ver Lista 👁️</div>
             <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">Vendas Hoje</p>
             <h2 className="text-3xl font-black text-white">{formataBRL(vendasHoje)}</h2>
+            <p className="text-zinc-400 text-xs font-bold mt-2 text-yellow-400/80">🔥 {qtdHoje} vendas confirmadas</p>
           </div>
           <div onClick={() => { setVisaoAtiva('semana'); setVendedorSelecionado(''); setDataInicio(''); setDataFim(''); }} className={`bg-zinc-900 border-l-4 p-6 rounded-lg shadow-2xl relative overflow-hidden cursor-pointer transform transition-all duration-200 hover:scale-[1.02] group ${visaoAtiva === 'semana' ? 'border-yellow-400 ring-2 ring-yellow-400/50' : 'border-yellow-400 hover:border-yellow-300'}`}>
             <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-yellow-400 text-[10px] font-black uppercase tracking-widest">Ver Lista 👁️</div>
             <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">Esta Semana</p>
             <h2 className="text-3xl font-black text-white">{formataBRL(vendasSemana)}</h2>
+            <p className="text-zinc-400 text-xs font-bold mt-2 text-yellow-400/80">🔥 {qtdSemana} vendas confirmadas</p>
           </div>
           <div onClick={() => { setVisaoAtiva('mes'); setVendedorSelecionado(''); setDataInicio(''); setDataFim(''); }} className={`bg-zinc-900 border-l-4 p-6 rounded-lg shadow-2xl relative overflow-hidden md:col-span-2 cursor-pointer transform transition-all duration-200 hover:scale-[1.02] group ${visaoAtiva === 'mes' ? 'border-yellow-400 ring-2 ring-yellow-400/50' : 'border-yellow-400 hover:border-yellow-300'}`}>
             <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-yellow-400 text-[10px] font-black uppercase tracking-widest">Ver Lista 👁️</div>
@@ -481,124 +417,76 @@ export function Dashboard() {
                 <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
               </div>
             </div>
-            <p className="text-right text-yellow-400/50 text-xs mt-1 font-bold">{progressoMeta.toFixed(1)}% alcançado</p>
+            <div className="flex justify-between mt-2">
+              <p className="text-zinc-400 text-xs font-bold text-yellow-400/80">🔥 {qtdMes} vendas confirmadas</p>
+              <p className="text-right text-yellow-400/50 text-xs font-bold">{progressoMeta.toFixed(1)}% alcançado</p>
+            </div>
           </div>
         </div>
 
-        {/* TABELAS E RELATÓRIOS */}
-        {visaoAtiva && (
+        {/* 🔥 RENDERIZAÇÃO DO RELATÓRIO AGRUPADO (HOJE, SEMANA, MÊS, PERÍODO) */}
+        {visaoAtiva && visaoAtiva !== 'vendedor' && (
+          <RelatorioBatalha 
+            vendas={vendasTabela} 
+            titulo={tituloRelatorio} 
+            subtitulo={subTituloRelatorio} 
+            onClose={() => { setVisaoAtiva(null); setVendedorSelecionado(''); setDataInicio(''); setDataFim(''); }} 
+          />
+        )}
+
+        {/* 🔥 TABELA DETALHADA APENAS PARA CAÇAR UM SOLDADO ESPECÍFICO (PARA DELETAR VENDAS ERRADAS) */}
+        {visaoAtiva === 'vendedor' && (
           <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-6 shadow-2xl animate-in fade-in slide-in-from-top-4 duration-300">
             <div className="flex justify-between items-center mb-6 pb-4 border-b border-zinc-800">
               <h3 className="text-xl font-black text-white uppercase tracking-wider flex items-center gap-2">
-                <span className="text-yellow-400">⚡</span> Detalhamento: 
-                {visaoAtiva === 'hoje' ? ' Vendas de Hoje' : 
-                 visaoAtiva === 'semana' ? ' Vendas da Semana' : 
-                 visaoAtiva === 'mes' ? ' Acumulado do Mês' : 
-                 visaoAtiva === 'vendedor' ? ` Ficha Completa: ${vendedorSelecionado}` : 
-                 visaoAtiva === 'periodo' ? ' Relatório de Batalha' : ''}
+                <span className="text-yellow-400">⚡</span> Ficha Completa: {vendedorSelecionado}
               </h3>
               <button onClick={() => { setVisaoAtiva(null); setVendedorSelecionado(''); setDataInicio(''); setDataFim(''); }} className="text-zinc-500 hover:text-red-500 font-bold uppercase text-xs transition-colors px-3 py-1 border border-zinc-800 rounded hover:border-red-500">
                 FECHAR X
               </button>
             </div>
 
-            {/* PAINEL DE RESUMO DO RELATÓRIO DE PERÍODO */}
-            {visaoAtiva === 'periodo' && (
-              <div className="bg-yellow-400/10 border border-yellow-400/30 p-4 rounded-lg mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
-                <div>
-                  <p className="text-zinc-400 text-[10px] font-black uppercase tracking-widest mb-1">Período Analisado</p>
-                  <p className="text-white text-sm font-bold">{dataInicio.split('-').reverse().join('/')} <span className="text-yellow-400 mx-2">até</span> {dataFim.split('-').reverse().join('/')}</p>
-                </div>
-                <div className="md:border-l md:border-r border-yellow-400/20 md:px-8 text-center">
-                  <p className="text-zinc-400 text-[10px] font-black uppercase tracking-widest mb-1">Quantidade Total</p>
-                  <p className="text-white text-2xl font-black">{vendasTabela.length}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-zinc-400 text-[10px] font-black uppercase tracking-widest mb-1">Total Movimentado</p>
-                  <p className="text-green-400 text-2xl font-black">{formataBRL(vendasTabela.reduce((acc, curr) => acc + Number(curr.sale_value), 0))}</p>
-                </div>
-              </div>
-            )}
-
             <div className="overflow-x-auto">
-              {/* 🔥 SE FOR RELATÓRIO DE PERÍODO, MOSTRA A TABELA AGRUPADA. SE NÃO, MOSTRA A TABELA DETALHADA. */}
-              {visaoAtiva === 'periodo' ? (
-                <table className="w-full text-left">
-                  <thead>
-                    <tr className="border-b border-zinc-800 text-zinc-500 text-[10px] uppercase tracking-widest">
-                      <th className="pb-4 font-black">Soldado</th>
-                      <th className="pb-4 font-black text-center">Qtd Vendas</th>
-                      <th className="pb-4 font-black">Produtos Vendidos</th>
-                      <th className="pb-4 font-black text-right">Total Arrecadado</th>
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b border-zinc-800 text-zinc-500 text-[10px] uppercase tracking-widest">
+                    <th className="pb-4 font-black">Data</th>
+                    <th className="pb-4 font-black">Cliente</th>
+                    <th className="pb-4 font-black">E-mail</th>
+                    <th className="pb-4 font-black">Produto</th>
+                    <th className="pb-4 font-black text-right">Valor</th>
+                    <th className="pb-4 font-black text-center">Status</th>
+                    <th className="pb-4 font-black text-center">Ações</th>
+                  </tr>
+                </thead>
+                <tbody className="text-sm">
+                  {vendasTabela.length > 0 ? vendasTabela.map(venda => (
+                    <tr key={venda.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/40 transition-colors">
+                      <td className="py-4 text-zinc-400 whitespace-nowrap">{venda.created_at ? new Date(venda.created_at).toLocaleDateString('pt-BR') : '--'}</td>
+                      <td className="py-4 text-zinc-200 font-medium">{venda.customer_name}</td>
+                      <td className="py-4 text-zinc-400 select-all cursor-pointer hover:text-blue-300 transition-colors" title="Clique para copiar">{venda.customer_email || '--'}</td>
+                      <td className="py-4 text-zinc-400 text-xs">{venda.product_name}</td>
+                      <td className="py-4 text-green-400 font-black text-right whitespace-nowrap">{formataBRL(Number(venda.sale_value))}</td>
+                      <td className="py-4 text-center">
+                        <span className={`px-2 py-1 rounded text-[9px] font-black uppercase tracking-wider ${venda.status === 'aprovada' ? 'bg-green-500/10 text-green-500 border border-green-500/20' : 'bg-yellow-500/10 text-yellow-500 border border-yellow-500/20'}`}>
+                          {venda.status === 'aprovada' ? 'Aprovada' : 'Pendente'}
+                        </span>
+                      </td>
+                      <td className="py-4 text-center">
+                        <button onClick={() => handleDeleteVenda(venda.id)} className="text-zinc-500 hover:text-red-400 hover:bg-red-500/10 p-2 rounded transition-colors" title="Excluir Venda">
+                          🗑️
+                        </button>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody className="text-sm">
-                    {relatorioAgrupado.length > 0 ? relatorioAgrupado.map((item, index) => (
-                      <tr key={index} className="border-b border-zinc-800/50 hover:bg-zinc-800/40 transition-colors">
-                        <td className="py-4 font-black text-blue-400 uppercase tracking-wider">{item.nome}</td>
-                        <td className="py-4 text-center font-bold text-white bg-zinc-950/50 rounded-lg">{item.totalVendas}</td>
-                        <td className="py-4 text-zinc-300 text-xs">
-                          <div className="flex flex-wrap gap-2">
-                            {Object.entries(item.produtos).map(([nomeProduto, qtd]) => (
-                              <span key={nomeProduto} className="bg-zinc-800 px-2 py-1 rounded text-[10px] uppercase font-bold border border-zinc-700">
-                                <span className="text-yellow-400">{String(qtd)}x</span> {nomeProduto}
-                              </span>
-                            ))}
-                          </div>
-                        </td>
-                        <td className="py-4 text-green-400 font-black text-right whitespace-nowrap">{formataBRL(item.valorTotal)}</td>
-                      </tr>
-                    )) : (
-                      <tr>
-                        <td colSpan={4} className="py-12 text-center text-zinc-600 uppercase font-black tracking-widest italic">
-                          Nenhuma movimentação neste período.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              ) : (
-                <table className="w-full text-left">
-                  <thead>
-                    <tr className="border-b border-zinc-800 text-zinc-500 text-[10px] uppercase tracking-widest">
-                      <th className="pb-4 font-black">Data</th>
-                      <th className="pb-4 font-black">Soldado</th>
-                      <th className="pb-4 font-black">Cliente</th>
-                      <th className="pb-4 font-black">Produto</th>
-                      <th className="pb-4 font-black text-right">Valor</th>
-                      <th className="pb-4 font-black text-center">Status</th>
-                      <th className="pb-4 font-black text-center">Ações</th>
+                  )) : (
+                    <tr>
+                      <td colSpan={7} className="py-12 text-center text-zinc-600 uppercase font-black tracking-widest italic">
+                        Nenhuma venda encontrada.
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody className="text-sm">
-                    {vendasTabela.length > 0 ? vendasTabela.map(venda => (
-                      <tr key={venda.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/40 transition-colors">
-                        <td className="py-4 text-zinc-400 whitespace-nowrap">{venda.created_at ? new Date(venda.created_at).toLocaleDateString('pt-BR') : '--'}</td>
-                        <td className="py-4 font-black text-blue-400 uppercase tracking-wider">{venda.seller_name || 'Desconhecido'}</td>
-                        <td className="py-4 text-zinc-200 font-medium">{venda.customer_name}</td>
-                        <td className="py-4 text-zinc-400 text-xs">{venda.product_name}</td>
-                        <td className="py-4 text-green-400 font-black text-right whitespace-nowrap">{formataBRL(Number(venda.sale_value))}</td>
-                        <td className="py-4 text-center">
-                          <span className={`px-2 py-1 rounded text-[9px] font-black uppercase tracking-wider ${venda.status === 'aprovada' ? 'bg-green-500/10 text-green-500 border border-green-500/20' : 'bg-yellow-500/10 text-yellow-500 border border-yellow-500/20'}`}>
-                            {venda.status === 'aprovada' ? 'Aprovada' : 'Pendente'}
-                          </span>
-                        </td>
-                        <td className="py-4 text-center">
-                          <button onClick={() => handleDeleteVenda(venda.id)} className="text-zinc-500 hover:text-red-400 hover:bg-red-500/10 p-2 rounded transition-colors" title="Excluir Venda">
-                            🗑️
-                          </button>
-                        </td>
-                      </tr>
-                    )) : (
-                      <tr>
-                        <td colSpan={7} className="py-12 text-center text-zinc-600 uppercase font-black tracking-widest italic">
-                          Nenhuma venda encontrada.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              )}
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
         )}
@@ -608,148 +496,25 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* ========================================= */}
-      {/* MODAL DE VENDAS DO ADMIN                  */}
-      {/* ========================================= */}
-      {isModalVendaOpen && (
-         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-           
-           <div className="bg-zinc-950 p-6 border-b border-zinc-800 flex justify-between items-center">
-             <h2 className="text-2xl font-black text-yellow-400 uppercase tracking-wider">🎯 Venda do Comando</h2>
-             <button onClick={() => setIsModalVendaOpen(false)} className="text-zinc-500 hover:text-white text-2xl font-bold leading-none">&times;</button>
-           </div>
+      {/* 🔥 CHAMANDO OS NOSSOS COMPONENTES MODAIS AQUI! */}
+      
+      <ModalGerenciarProdutos 
+        isOpen={isModalProdutoOpen} 
+        onClose={() => setIsModalProdutoOpen(false)} 
+        produtos={produtos} 
+        onAtualizarLista={fetchProdutos} 
+      />
 
-           <form onSubmit={handleRegisterSale} className="p-6 space-y-4">
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-               <div>
-                 <label className="block text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">Produto Vendido</label>
-                 <select value={productName} onChange={handleProductChange} className="w-full bg-zinc-950 border border-zinc-700 text-white rounded p-3 focus:outline-none focus:border-yellow-400 cursor-pointer">
-                   {produtos.map(p => <option key={p.id} value={p.nome}>{p.nome}</option>)}
-                   {produtos.length === 0 && <option value="">Cadastre produtos primeiro...</option>}
-                 </select>
-               </div>
-               <div>
-                 <label className="block text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">Valor da Venda (R$)</label>
-                 <input type="number" step="0.01" required value={saleValue} onChange={(e) => setSaleValue(e.target.value)} className="w-full bg-zinc-950 border border-zinc-700 text-yellow-400 font-bold rounded p-3 focus:outline-none focus:border-yellow-400"/>
-               </div>
-             </div>
-
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-               <div>
-                 <label className="block text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">Nome do Cliente</label>
-                 <input type="text" required value={customerName} onChange={(e) => setCustomerName(e.target.value)} className="w-full bg-zinc-950 border border-zinc-700 text-white rounded p-3 focus:outline-none focus:border-yellow-400"/>
-               </div>
-               <div>
-                 <label className="block text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">Telefone</label>
-                 <input type="text" required value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} className="w-full bg-zinc-950 border border-zinc-700 text-white rounded p-3 focus:outline-none focus:border-yellow-400"/>
-               </div>
-             </div>
-
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-               <div>
-                 <label className="block text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">E-mail do Cliente</label>
-                 <input type="email" required value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} className="w-full bg-zinc-950 border border-zinc-700 text-white rounded p-3 focus:outline-none focus:border-yellow-400"/>
-               </div>
-               <div>
-                 <label className="block text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">Data da Venda</label>
-                 <input type="date" required value={saleDate} onChange={(e) => setSaleDate(e.target.value)} className="w-full bg-zinc-950 border border-zinc-700 text-white rounded p-3 focus:outline-none focus:border-yellow-400 cursor-pointer [color-scheme:dark]"/>
-               </div>
-             </div>
-
-             <div>
-               <label className="block text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">Método de Pagamento</label>
-               <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} className="w-full bg-zinc-950 border border-zinc-700 text-white rounded p-3 focus:outline-none focus:border-yellow-400 cursor-pointer">
-                 <option value="PIX">PIX</option>
-                 <option value="Cartão de Crédito (até 12x)">Cartão de Crédito (até 12x)</option>
-                 <option value="Crédito à vista">Crédito à vista</option>
-                 <option value="Débito à vista">Débito à vista</option>
-                 <option value="Boleto Parcelado">Boleto Parcelado</option>
-               </select>
-             </div>
-
-             <div className="pt-4 flex justify-end gap-3 border-t border-zinc-800 mt-6">
-               <button type="button" onClick={() => setIsModalVendaOpen(false)} className="px-6 py-3 font-bold text-zinc-400 hover:text-white transition-colors">CANCELAR</button>
-               <button type="submit" disabled={isLoading} className="bg-yellow-400 hover:bg-yellow-500 text-black font-black px-8 py-3 rounded uppercase tracking-wider transition-transform hover:scale-105 active:scale-95 disabled:opacity-50">
-                 {isLoading ? 'ENVIANDO...' : 'SALVAR VENDA'}
-               </button>
-             </div>
-           </form>
-         </div>
-       </div>
-      )}
-
-      {/* ========================================= */}
-      {/* MODAL DE GERENCIAR PRODUTOS               */}
-      {/* ========================================= */}
-      {isModalProdutoOpen && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            
-            <div className="bg-zinc-950 p-6 border-b border-zinc-800 flex justify-between items-center">
-              <h2 className="text-2xl font-black text-blue-400 uppercase tracking-wider">📦 Arsenal de Produtos</h2>
-              <button onClick={() => setIsModalProdutoOpen(false)} className="text-zinc-500 hover:text-white text-2xl font-bold leading-none">&times;</button>
-            </div>
-
-            <div className="p-6 flex-1 overflow-y-auto">
-              <form onSubmit={handleSalvarProduto} className="bg-zinc-950 p-4 rounded-lg border border-zinc-800 mb-8">
-                <h3 className="text-zinc-400 font-bold mb-4 uppercase text-sm tracking-wider">
-                  {editandoProdutoId ? '✏️ Editando Produto' : '➕ Adicionar Novo Produto'}
-                </h3>
-                <div className="flex flex-col md:flex-row gap-4 items-end">
-                  <div className="flex-1">
-                    <label className="block text-zinc-500 text-xs font-bold uppercase mb-1">Nome do Produto</label>
-                    <input type="text" required value={novoProdutoNome} onChange={(e) => setNovoProdutoNome(e.target.value)} className="w-full bg-zinc-900 border border-zinc-700 text-white rounded p-2 focus:outline-none focus:border-blue-500" />
-                  </div>
-                  <div className="w-full md:w-32">
-                    <label className="block text-zinc-500 text-xs font-bold uppercase mb-1">Valor (R$)</label>
-                    <input type="number" step="0.01" required value={novoProdutoValor} onChange={(e) => setNovoProdutoValor(e.target.value)} className="w-full bg-zinc-900 border border-zinc-700 text-white rounded p-2 focus:outline-none focus:border-blue-500" />
-                  </div>
-                  <div className="flex gap-2">
-                    {editandoProdutoId && (
-                      <button type="button" onClick={cancelarEdicao} className="px-4 py-2 border border-zinc-600 text-zinc-400 rounded hover:bg-zinc-800 transition-colors">Cancelar</button>
-                    )}
-                    <button type="submit" className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-6 py-2 rounded whitespace-nowrap transition-colors">
-                      {editandoProdutoId ? 'Salvar Edição' : 'Cadastrar'}
-                    </button>
-                  </div>
-                </div>
-              </form>
-
-              <h3 className="text-zinc-400 font-bold mb-4 uppercase text-sm tracking-wider">Produtos Cadastrados ({produtos.length})</h3>
-              
-              <div className="bg-zinc-950 border border-zinc-800 rounded-lg overflow-hidden">
-                <table className="w-full text-left">
-                  <thead>
-                    <tr className="border-b border-zinc-800 text-zinc-500 text-xs uppercase bg-zinc-900">
-                      <th className="p-3 font-bold">Produto</th>
-                      <th className="p-3 font-bold text-right">Valor</th>
-                      <th className="p-3 font-bold text-center w-24">Ação</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {produtos.map(p => (
-                      <tr key={p.id} className="border-b border-zinc-800/50 hover:bg-zinc-900 transition-colors">
-                        <td className="p-3 font-bold text-white">{p.nome}</td>
-                        <td className="p-3 text-right text-green-400 font-medium">{formataBRL(Number(p.valor))}</td>
-                        <td className="p-3 text-center">
-                          <button onClick={() => iniciarEdicaoProduto(p)} className="text-blue-400 hover:text-blue-300 text-sm font-bold underline">Editar</button>
-                        </td>
-                      </tr>
-                    ))}
-                    {produtos.length === 0 && (
-                      <tr>
-                        <td colSpan={3} className="p-6 text-center text-zinc-500">Nenhum produto cadastrado ainda.</td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-            </div>
-          </div>
-        </div>
-      )}
+      <ModalRegistrarVenda 
+        isOpen={isModalVendaOpen}
+        onClose={() => setIsModalVendaOpen(false)}
+        produtos={produtos}
+        user={user}
+        onVendaRegistrada={() => {
+          setIsModalVendaOpen(false);
+          fetchVendasPlacar();
+        }}
+      />
 
     </div>
   );
