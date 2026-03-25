@@ -206,7 +206,8 @@ export function Vendas() {
         </div>
 
         <div className="mb-10">
-           <GuerraEquipes />
+           {/* 🔥 CORREÇÃO DA VERCEL APLICADA AQUI */}
+           <GuerraEquipes refreshTrigger={0} />
         </div>
 
         <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 shadow-2xl">
