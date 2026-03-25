@@ -59,7 +59,10 @@ export function ModalGerenciarDesafios({ isOpen, onClose, onAtualizar }: ModalGe
     setStartDate(challenge.start_date);
     setEndDate(challenge.end_date);
     setGoalAmount(String(challenge.goal_amount));
-    window.scrollTo({ top: 0, behavior: 'smooth' }); // Sobe para o form
+    
+    // Rola a tela suavemente para cima para o Comandante ver o formulário
+    const modalContent = document.getElementById('modal-desafios-content');
+    if (modalContent) modalContent.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   // 🔥 TÁTICA: handleSave agora faz POST (criar) ou PUT (editar)
@@ -97,7 +100,6 @@ export function ModalGerenciarDesafios({ isOpen, onClose, onAtualizar }: ModalGe
     }
   }
 
-  // 🔥 TÁTICA: handleAtivar (muda o status)
   async function handleAtivar(id: string) {
     if(!window.confirm("Confirmar ativação desta operação como Meta Global?")) return;
     try {
@@ -118,7 +120,6 @@ export function ModalGerenciarDesafios({ isOpen, onClose, onAtualizar }: ModalGe
     try {
       await api.delete(`/challenges/${id}`);
       fetchDesafios();
-      // Se apagar uma inativa, não precisa atualizar o placar principal
       alert('💥 Operação eliminada com sucesso!');
     } catch (error: any) {
       const mensagemReal = error.response?.data?.error || error.message;
@@ -141,7 +142,7 @@ export function ModalGerenciarDesafios({ isOpen, onClose, onAtualizar }: ModalGe
           <button onClick={onClose} className="text-zinc-500 hover:text-white text-2xl font-bold leading-none">&times;</button>
         </div>
 
-        <div className="p-6 flex-1 overflow-y-auto space-y-8">
+        <div id="modal-desafios-content" className="p-6 flex-1 overflow-y-auto space-y-8">
           
           {/* FORMULÁRIO (Reutilizável para Criar/Editar) */}
           <form onSubmit={handleSaveDesafio} className="bg-zinc-950/50 p-6 rounded-xl border border-red-900/30 shadow-inner">
