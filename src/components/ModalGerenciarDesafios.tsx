@@ -13,19 +13,28 @@ type Challenge = {
 interface ModalGerenciarDesafiosProps {
   isOpen: boolean;
   onClose: () => void;
-  onAtualizar: () => void;
+  onAtualizar: () => void; // Callback para atualizar o Dashboard principal
 }
 
 export function ModalGerenciarDesafios({ isOpen, onClose, onAtualizar }: ModalGerenciarDesafiosProps) {
   const [desafios, setDesafios] = useState<Challenge[]>([]);
+  
+  // Estados do Formulário
   const [name, setName] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [goalAmount, setGoalAmount] = useState('');
+  
+  // 🔥 ESTADOS DE EDIÇÃO
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingChallengeId, setEditingChallengeId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    if (isOpen) fetchDesafios();
+    if (isOpen) {
+      fetchDesafios();
+      handleResetForm(); // Garante formulário limpo ao abrir
+    }
   }, [isOpen]);
 
   async function fetchDesafios() {
@@ -37,38 +46,83 @@ export function ModalGerenciarDesafios({ isOpen, onClose, onAtualizar }: ModalGe
     }
   }
 
-  async function handleCriarDesafio(e: React.FormEvent) {
+  function handleResetForm() {
+    setName(''); setStartDate(''); setEndDate(''); setGoalAmount('');
+    setIsEditing(false); setEditingChallengeId(null);
+  }
+
+  // 🔥 TÁTICA: Preparar o formulário para edição
+  function fillFormForEdit(challenge: Challenge) {
+    setIsEditing(true);
+    setEditingChallengeId(challenge.id);
+    setName(challenge.name);
+    setStartDate(challenge.start_date);
+    setEndDate(challenge.end_date);
+    setGoalAmount(String(challenge.goal_amount));
+    window.scrollTo({ top: 0, behavior: 'smooth' }); // Sobe para o form
+  }
+
+  // 🔥 TÁTICA: handleSave agora faz POST (criar) ou PUT (editar)
+  async function handleSaveDesafio(e: React.FormEvent) {
     e.preventDefault();
     setIsLoading(true);
+
+    const payload = {
+      name,
+      start_date: startDate,
+      end_date: endDate,
+      goal_amount: Number(goalAmount)
+    };
+
     try {
-      await api.post('/challenges', {
-        name,
-        start_date: startDate,
-        end_date: endDate,
-        goal_amount: Number(goalAmount)
-      });
-      alert('🎯 Operação criada com sucesso!');
-      setName(''); setStartDate(''); setEndDate(''); setGoalAmount('');
+      if (isEditing && editingChallengeId) {
+        // EDIÇÃO (PUT)
+        await api.put(`/challenges/${editingChallengeId}`, payload);
+        alert('⚙️ Operação ATUALIZADA com sucesso!');
+      } else {
+        // CRIAÇÃO (POST)
+        await api.post('/challenges', payload);
+        alert('🎯 Operação criada com sucesso!');
+      }
+
+      handleResetForm();
       fetchDesafios();
-      onAtualizar(); 
+      onAtualizar(); // Gatilho para atualizar o Dashboard Principal na hora!
+    
     } catch (error: any) {
-      // 🔥 AQUI ESTÁ O RAIO-X: Ele vai exibir a mensagem exata de erro do Back-end
       const mensagemReal = error.response?.data?.error || error.message;
-      alert(`🚨 ERRO DO SERVIDOR:\n${mensagemReal}`);
+      alert(`🚨 FALHA NA OPERAÇÃO:\n${mensagemReal}`);
     } finally {
       setIsLoading(false);
     }
   }
 
+  // 🔥 TÁTICA: handleAtivar (muda o status)
   async function handleAtivar(id: string) {
+    if(!window.confirm("Confirmar ativação desta operação como Meta Global?")) return;
     try {
       await api.put(`/challenges/${id}/active`);
       fetchDesafios();
       onAtualizar(); 
       alert('⚔️ Operação ativada! O placar principal foi atualizado.');
+    } catch (error) {
+      alert('Erro ao ativar operação.');
+    }
+  }
+
+  // 🔥 TÁTICA: handleDelete (Exclui a operação)
+  async function handleDelete(id: string) {
+    const cancelado = window.confirm("⚠️ ATENÇÃO COMANDANTE!\nTem certeza que deseja ELIMINAR permanentemente esta operação do arquivo morto? Isso não pode ser desfeito.");
+    if(!cancelado) return;
+
+    try {
+      await api.delete(`/challenges/${id}`);
+      fetchDesafios();
+      // Se apagar uma inativa, não precisa atualizar o placar principal
+      alert('💥 Operação eliminada com sucesso!');
     } catch (error: any) {
       const mensagemReal = error.response?.data?.error || error.message;
-      alert(`🚨 ERRO AO ATIVAR:\n${mensagemReal}`);
+      alert(`🚨 FALHA NA ELIMINAÇÃO:\n${mensagemReal}`);
     }
   }
 
@@ -89,9 +143,10 @@ export function ModalGerenciarDesafios({ isOpen, onClose, onAtualizar }: ModalGe
 
         <div className="p-6 flex-1 overflow-y-auto space-y-8">
           
-          <form onSubmit={handleCriarDesafio} className="bg-zinc-950/50 p-6 rounded-xl border border-red-900/30 shadow-inner">
+          {/* FORMULÁRIO (Reutilizável para Criar/Editar) */}
+          <form onSubmit={handleSaveDesafio} className="bg-zinc-950/50 p-6 rounded-xl border border-red-900/30 shadow-inner">
             <h3 className="text-red-400 font-black mb-4 uppercase tracking-widest text-sm flex items-center gap-2">
-              ➕ Criar Nova Operação
+              {isEditing ? `🔄 EDITANDO OPERAÇÃO: ${name}` : '➕ Criar Nova Operação'}
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
               <div className="lg:col-span-1">
@@ -111,9 +166,14 @@ export function ModalGerenciarDesafios({ isOpen, onClose, onAtualizar }: ModalGe
                 <input type="number" step="0.01" required value={goalAmount} onChange={(e) => setGoalAmount(e.target.value)} className="w-full bg-zinc-900 border border-zinc-700 text-green-400 font-bold rounded p-2.5 focus:outline-none focus:border-red-500 transition-colors text-sm" placeholder="Ex: 400000" />
               </div>
             </div>
-            <div className="mt-4 flex justify-end">
+            <div className="mt-4 flex justify-end gap-3">
+              {isEditing && (
+                <button type="button" onClick={handleResetForm} className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold px-8 py-2.5 rounded uppercase text-xs tracking-widest transition-all">
+                  CANCELAR EDIÇÃO
+                </button>
+              )}
               <button type="submit" disabled={isLoading} className="bg-red-600 hover:bg-red-500 text-white font-black px-8 py-2.5 rounded shadow-[0_0_15px_rgba(220,38,38,0.3)] uppercase text-xs tracking-widest transition-all disabled:opacity-50">
-                {isLoading ? 'CRIANDO...' : 'CRIAR E ATIVAR DESAFIO'}
+                {isLoading ? 'SALVANDO...' : isEditing ? 'SALVAR ALTERAÇÕES E ATUALIZAR PLACAR' : 'CRIAR E ATIVAR DESAFIO'}
               </button>
             </div>
           </form>
@@ -128,14 +188,14 @@ export function ModalGerenciarDesafios({ isOpen, onClose, onAtualizar }: ModalGe
                     <th className="p-4 font-black">Período</th>
                     <th className="p-4 font-black text-right">Meta Global</th>
                     <th className="p-4 font-black text-center">Status</th>
-                    <th className="p-4 font-black text-center">Ação</th>
+                    <th className="p-4 font-black text-center w-60">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="text-sm">
                   {desafios.map(d => (
                     <tr key={d.id} className={`border-b border-zinc-800/50 transition-colors ${d.is_active ? 'bg-red-950/20' : 'hover:bg-zinc-900'}`}>
                       <td className="p-4 font-black text-white uppercase tracking-wider">{d.name}</td>
-                      <td className="p-4 text-zinc-400 text-xs">
+                      <td className="p-4 text-zinc-400 text-xs whitespace-nowrap">
                         {new Date(d.start_date).toLocaleDateString('pt-BR', {timeZone: 'UTC'})} até {new Date(d.end_date).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}
                       </td>
                       <td className="p-4 text-right text-green-400 font-bold">{formataBRL(Number(d.goal_amount))}</td>
@@ -147,11 +207,26 @@ export function ModalGerenciarDesafios({ isOpen, onClose, onAtualizar }: ModalGe
                         )}
                       </td>
                       <td className="p-4 text-center">
-                        {!d.is_active && (
-                          <button onClick={() => handleAtivar(d.id)} className="text-red-400 hover:text-red-300 hover:bg-red-400/10 border border-red-400/30 px-3 py-1.5 rounded text-[10px] font-bold uppercase tracking-widest transition-all">
-                            Ativar
+                        <div className="flex gap-2 justify-center">
+                          {/* 🔥 Botão Editar (Sempre disponível) */}
+                          <button onClick={() => fillFormForEdit(d)} className="text-blue-400 hover:text-blue-300 hover:bg-blue-400/10 border border-blue-400/30 px-3 py-1.5 rounded text-[10px] font-bold uppercase tracking-widest transition-all">
+                            ✏️ Editar
                           </button>
-                        )}
+
+                          {!d.is_active && (
+                            <>
+                              {/* Botão Ativar */}
+                              <button onClick={() => handleAtivar(d.id)} className="text-red-400 hover:text-red-300 hover:bg-red-400/10 border border-red-400/30 px-3 py-1.5 rounded text-[10px] font-bold uppercase tracking-widest transition-all">
+                                ⚔️ Ativar
+                              </button>
+                              
+                              {/* 🔥 Botão Excluir (Só para inativas) */}
+                              <button onClick={() => handleDelete(d.id)} className="text-zinc-600 hover:text-zinc-100 hover:bg-red-950/20 px-2 py-1.5 rounded text-[10px] font-bold transition-colors">
+                                🗑️ Deletar
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}

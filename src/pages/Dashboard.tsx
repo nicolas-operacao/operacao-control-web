@@ -41,7 +41,14 @@ export function Dashboard() {
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [isModalProdutoOpen, setIsModalProdutoOpen] = useState(false);
   const [isModalVendaOpen, setIsModalVendaOpen] = useState(false);
-  const [isModalDesafioOpen, setIsModalDesafioOpen] = useState(false); // 🔥 2. CONTROLE DA TELA DE TEMPORADAS
+  const [isModalDesafioOpen, setIsModalDesafioOpen] = useState(false); 
+
+  // 🔥 GATILHO QUE ESTAVA FALTANDO! (Avisa a Guerra de Equipes para atualizar)
+  const [mainRefreshTrigger, setMainRefreshTrigger] = useState(0);
+
+  // 🔥 ESTADO DA META DINÂMICA
+  const [desafioAtivo, setDesafioAtivo] = useState<any>(null);
+  const META_MENSAL = desafioAtivo ? Number(desafioAtivo.goal_amount) : 400000;
 
   // 🔥 VALORES FINANCEIROS
   const [vendasHoje, setVendasHoje] = useState(0);
@@ -52,10 +59,6 @@ export function Dashboard() {
   const [qtdHoje, setQtdHoje] = useState(0);
   const [qtdSemana, setQtdSemana] = useState(0);
   const [qtdMes, setQtdMes] = useState(0);
-
-  // 🔥 3. META DINÂMICA (SUBSTITUI OS 400.000 FIXOS)
-  const [desafioAtivo, setDesafioAtivo] = useState<any>(null);
-  const META_MENSAL = desafioAtivo ? Number(desafioAtivo.goal_amount) : 400000;
 
   const [todasVendas, setTodasVendas] = useState<Venda[]>([]);
   
@@ -78,10 +81,9 @@ export function Dashboard() {
   useEffect(() => {
     fetchProdutos();
     fetchVendasPlacar();
-    fetchDesafioAtivo(); // 🔥 4. BUSCA A TEMPORADA AO CARREGAR A TELA
+    fetchDesafioAtivo();
   }, []);
 
-  // 🔥 5. FUNÇÃO QUE BUSCA A TEMPORADA ATIVA
   async function fetchDesafioAtivo() {
     try {
       const response = await api.get('/challenges');
@@ -255,9 +257,8 @@ export function Dashboard() {
     <div className="min-h-screen bg-zinc-950 text-zinc-100 p-4 md:p-8 font-sans relative">
       <div className="max-w-7xl mx-auto space-y-8">
         
-        {/* CABEÇALHO TÁTICO REFORMULADO */}
+        {/* CABEÇALHO */}
         <div className="flex flex-col xl:flex-row justify-between items-center pb-6 border-b border-zinc-800 gap-6">
-          
           <div className="flex items-center gap-4">
             <h1 className="text-3xl md:text-4xl font-black text-yellow-400 uppercase tracking-wider leading-none text-center xl:text-left">
               Operação Control
@@ -268,11 +269,9 @@ export function Dashboard() {
           </div>
 
           <div className="flex flex-wrap justify-center xl:justify-end gap-3 w-full xl:w-auto">
-            {/* 🔥 6. O BOTÃO DE TEMPORADAS INSERIDO AQUI */}
             <button onClick={() => setIsModalDesafioOpen(true)} className="border border-red-500 text-red-400 hover:bg-red-500 hover:text-white px-4 py-2.5 rounded font-bold shadow-[0_0_10px_rgba(220,38,38,0.1)] uppercase text-[10px] tracking-widest transition-all">
               ⚔️ Temporadas
             </button>
-
             <button onClick={() => navigate('/liberacoes')} className="bg-purple-600 hover:bg-purple-500 text-white font-bold px-4 py-2.5 rounded shadow-[0_0_15px_rgba(147,51,234,0.3)] uppercase text-[10px] tracking-widest transition-all">
               🛡️ Suporte
             </button>
@@ -293,12 +292,12 @@ export function Dashboard() {
         
         <div className="space-y-4">
           
+          {/* AVISOS PENDENTES */}
           {edicoesPendentes.length > 0 && (
             <div className="bg-blue-900/10 border border-blue-500/30 rounded-xl p-6 shadow-2xl animate-in fade-in">
               <h2 className="text-xl font-black text-blue-400 uppercase tracking-widest mb-4 flex items-center gap-2">
                 🔄 Solicitações de Correção Pendentes ({edicoesPendentes.length})
               </h2>
-              
               <div className="grid grid-cols-1 gap-4">
                 {edicoesPendentes.map(venda => (
                   <div key={venda.id} className="bg-zinc-950 border border-blue-500/20 rounded-lg p-4 flex flex-col md:flex-row justify-between items-center gap-4">
@@ -314,14 +313,9 @@ export function Dashboard() {
                         <p className="text-zinc-300 text-sm italic">"{venda.edit_reason}"</p>
                       </div>
                     </div>
-                    
                     <div className="flex gap-2 w-full md:w-auto">
-                      <button onClick={() => handleRejeitarEdicao(venda.id)} className="flex-1 md:flex-none border border-red-500/50 text-red-500 hover:bg-red-500 hover:text-white px-4 py-2 rounded font-bold text-xs uppercase tracking-widest transition-colors">
-                        Rejeitar
-                      </button>
-                      <button onClick={() => handleAprovarEdicao(venda.id)} className="flex-1 md:flex-none bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded font-black text-xs uppercase tracking-widest shadow-lg transition-colors">
-                        Aprovar Correção
-                      </button>
+                      <button onClick={() => handleRejeitarEdicao(venda.id)} className="flex-1 md:flex-none border border-red-500/50 text-red-500 hover:bg-red-500 hover:text-white px-4 py-2 rounded font-bold text-xs uppercase tracking-widest transition-colors">Rejeitar</button>
+                      <button onClick={() => handleAprovarEdicao(venda.id)} className="flex-1 md:flex-none bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded font-black text-xs uppercase tracking-widest shadow-lg transition-colors">Aprovar Correção</button>
                     </div>
                   </div>
                 ))}
@@ -334,7 +328,6 @@ export function Dashboard() {
               <h2 className="text-xl font-black text-yellow-400 uppercase tracking-widest mb-4 flex items-center gap-2">
                 ⚠️ Vendas Aguardando Liberação ({vendasPendentes.length})
               </h2>
-              
               <div className="grid grid-cols-1 gap-4">
                 {vendasPendentes.map(venda => (
                   <div key={venda.id} className="bg-zinc-950 border border-yellow-500/20 rounded-lg p-4 flex flex-col md:flex-row justify-between items-center gap-4">
@@ -349,14 +342,9 @@ export function Dashboard() {
                         Valor: {formataBRL(Number(venda.sale_value))} | Pagamento: {venda.payment_method}
                       </p>
                     </div>
-                    
                     <div className="flex gap-2 w-full md:w-auto">
-                      <button onClick={() => handleDeleteVenda(venda.id)} className="flex-1 md:flex-none border border-red-500/50 text-red-500 hover:bg-red-500 hover:text-white px-4 py-2 rounded font-bold text-xs uppercase tracking-widest transition-colors">
-                        Excluir Venda
-                      </button>
-                      <button onClick={() => handleAprovarVenda(venda.id)} className="flex-1 md:flex-none bg-green-600 hover:bg-green-500 text-black px-6 py-2 rounded font-black text-xs uppercase tracking-widest shadow-lg transition-colors">
-                        Liberar Venda
-                      </button>
+                      <button onClick={() => handleDeleteVenda(venda.id)} className="flex-1 md:flex-none border border-red-500/50 text-red-500 hover:bg-red-500 hover:text-white px-4 py-2 rounded font-bold text-xs uppercase tracking-widest transition-colors">Excluir Venda</button>
+                      <button onClick={() => handleAprovarVenda(venda.id)} className="flex-1 md:flex-none bg-green-600 hover:bg-green-500 text-black px-6 py-2 rounded font-black text-xs uppercase tracking-widest shadow-lg transition-colors">Liberar Venda</button>
                     </div>
                   </div>
                 ))}
@@ -365,33 +353,15 @@ export function Dashboard() {
           )}
         </div>
 
+        {/* FILTROS E BUSCA */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 shadow-xl flex flex-col lg:flex-row items-end gap-6">
           <div className="w-full lg:flex-1">
-            <label className="block text-zinc-400 text-xs font-bold uppercase tracking-widest mb-2 text-yellow-400">
-              🎯 Caçar Soldado (Ver Toda a Ficha)
-            </label>
-            <select 
-              value={vendedorSelecionado} 
-              onChange={(e) => {
-                const nome = e.target.value;
-                setVendedorSelecionado(nome);
-                if (nome) {
-                  setVisaoAtiva('vendedor');
-                  setDataInicio(''); 
-                  setDataFim('');
-                } else {
-                  setVisaoAtiva(null);
-                }
-              }}
-              className="w-full bg-zinc-950 border border-zinc-700 text-white rounded p-3 focus:outline-none focus:border-yellow-400 cursor-pointer transition-colors"
-            >
+            <label className="block text-zinc-400 text-xs font-bold uppercase tracking-widest mb-2 text-yellow-400">🎯 Caçar Soldado (Ver Toda a Ficha)</label>
+            <select value={vendedorSelecionado} onChange={(e) => { const nome = e.target.value; setVendedorSelecionado(nome); if (nome) { setVisaoAtiva('vendedor'); setDataInicio(''); setDataFim(''); } else { setVisaoAtiva(null); } }} className="w-full bg-zinc-950 border border-zinc-700 text-white rounded p-3 focus:outline-none focus:border-yellow-400 cursor-pointer transition-colors">
               <option value="">Selecione um soldado...</option>
-              {vendedoresUnicos.map(nome => (
-                <option key={nome} value={nome}>{nome}</option>
-              ))}
+              {vendedoresUnicos.map(nome => <option key={nome} value={nome}>{nome}</option>)}
             </select>
           </div>
-
           <div className="w-full lg:w-auto flex flex-col md:flex-row items-end gap-4 border-t lg:border-t-0 lg:border-l border-zinc-800 pt-4 lg:pt-0 lg:pl-6">
             <div className="w-full md:w-auto">
               <label className="block text-zinc-400 text-xs font-bold uppercase tracking-widest mb-2">Data Inicial</label>
@@ -401,12 +371,11 @@ export function Dashboard() {
               <label className="block text-zinc-400 text-xs font-bold uppercase tracking-widest mb-2">Data Final</label>
               <input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} className="w-full bg-zinc-950 border border-zinc-700 text-white rounded p-3 focus:outline-none focus:border-yellow-400 transition-colors [color-scheme:dark]" />
             </div>
-            <button onClick={handleFiltrar} className="w-full md:w-auto bg-zinc-800 hover:bg-yellow-400 hover:text-black text-white font-black py-3 px-8 rounded transition-all duration-300 uppercase tracking-widest border border-zinc-700 hover:border-yellow-400">
-              Filtrar Batalha
-            </button>
+            <button onClick={handleFiltrar} className="w-full md:w-auto bg-zinc-800 hover:bg-yellow-400 hover:text-black text-white font-black py-3 px-8 rounded transition-all duration-300 uppercase tracking-widest border border-zinc-700 hover:border-yellow-400">Filtrar Batalha</button>
           </div>
         </div>
 
+        {/* PLACAR GLOBAL GAMIFICADO */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div onClick={() => { setVisaoAtiva('hoje'); setVendedorSelecionado(''); setDataInicio(''); setDataFim(''); }} className={`bg-zinc-900 border-l-4 p-6 rounded-lg shadow-2xl relative overflow-hidden cursor-pointer transform transition-all duration-200 hover:scale-[1.02] group ${visaoAtiva === 'hoje' ? 'border-yellow-400 ring-2 ring-yellow-400/50' : 'border-yellow-400 hover:border-yellow-300'}`}>
             <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-yellow-400 text-[10px] font-black uppercase tracking-widest">Ver Lista 👁️</div>
@@ -423,12 +392,7 @@ export function Dashboard() {
           <div onClick={() => { setVisaoAtiva('mes'); setVendedorSelecionado(''); setDataInicio(''); setDataFim(''); }} className={`bg-zinc-900 border-l-4 p-6 rounded-lg shadow-2xl relative overflow-hidden md:col-span-2 cursor-pointer transform transition-all duration-200 hover:scale-[1.02] group ${visaoAtiva === 'mes' ? 'border-yellow-400 ring-2 ring-yellow-400/50' : 'border-yellow-400 hover:border-yellow-300'}`}>
             <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-yellow-400 text-[10px] font-black uppercase tracking-widest">Ver Lista 👁️</div>
             <div className="absolute top-0 right-0 p-4 opacity-5 text-yellow-400 text-8xl">🎯</div>
-            
-            {/* 🔥 7. NOME DO DESAFIO NO CARD AMARELO */}
-            <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">
-              Acumulado ({desafioAtivo ? desafioAtivo.name : 'Geral'})
-            </p>
-            
+            <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">Acumulado ({desafioAtivo ? desafioAtivo.name : 'Geral'})</p>
             <div className="flex justify-between items-end">
               <h2 className="text-4xl font-black text-white">{formataBRL(vendasMes)}</h2>
               <span className="text-zinc-500 text-sm font-bold mb-1">Meta: {formataBRL(META_MENSAL)}</span>
@@ -445,13 +409,9 @@ export function Dashboard() {
           </div>
         </div>
 
+        {/* RELATÓRIOS E FICHAS */}
         {visaoAtiva && visaoAtiva !== 'vendedor' && (
-          <RelatorioBatalha 
-            vendas={vendasTabela} 
-            titulo={tituloRelatorio} 
-            subtitulo={subTituloRelatorio} 
-            onClose={() => { setVisaoAtiva(null); setVendedorSelecionado(''); setDataInicio(''); setDataFim(''); }} 
-          />
+          <RelatorioBatalha vendas={vendasTabela} titulo={tituloRelatorio} subtitulo={subTituloRelatorio} onClose={() => { setVisaoAtiva(null); setVendedorSelecionado(''); setDataInicio(''); setDataFim(''); }} />
         )}
 
         {visaoAtiva === 'vendedor' && (
@@ -464,7 +424,6 @@ export function Dashboard() {
                 FECHAR X
               </button>
             </div>
-
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead>
@@ -492,17 +451,11 @@ export function Dashboard() {
                         </span>
                       </td>
                       <td className="py-4 text-center">
-                        <button onClick={() => handleDeleteVenda(venda.id)} className="text-zinc-500 hover:text-red-400 hover:bg-red-500/10 p-2 rounded transition-colors" title="Excluir Venda">
-                          🗑️
-                        </button>
+                        <button onClick={() => handleDeleteVenda(venda.id)} className="text-zinc-500 hover:text-red-400 hover:bg-red-500/10 p-2 rounded transition-colors" title="Excluir Venda">🗑️</button>
                       </td>
                     </tr>
                   )) : (
-                    <tr>
-                      <td colSpan={7} className="py-12 text-center text-zinc-600 uppercase font-black tracking-widest italic">
-                        Nenhuma venda encontrada.
-                      </td>
-                    </tr>
+                    <tr><td colSpan={7} className="py-12 text-center text-zinc-600 uppercase font-black tracking-widest italic">Nenhuma venda encontrada.</td></tr>
                   )}
                 </tbody>
               </table>
@@ -510,35 +463,24 @@ export function Dashboard() {
           </div>
         )}
 
+        {/* 🔥 A GUERRA DE EQUIPES AGORA RECEBE O GATILHO CORRETAMENTE */}
         <div className="w-full">
-          <GuerraEquipes />
+          <GuerraEquipes refreshTrigger={mainRefreshTrigger} /> 
         </div>
       </div>
 
-      {/* 🔥 8. CHAMANDO O MODAL DE TEMPORADAS AQUI NO FUNDO */}
+      {/* 🔥 MODAIS - AQUI A ORDEM DE ATUALIZAÇÃO É DISPARADA QUANDO VOCÊ EDITA UM DESAFIO */}
       <ModalGerenciarDesafios 
         isOpen={isModalDesafioOpen} 
         onClose={() => setIsModalDesafioOpen(false)} 
-        onAtualizar={fetchDesafioAtivo} 
+        onAtualizar={() => {
+          fetchDesafioAtivo(); 
+          setMainRefreshTrigger(prev => prev + 1); 
+        }} 
       />
       
-      <ModalGerenciarProdutos 
-        isOpen={isModalProdutoOpen} 
-        onClose={() => setIsModalProdutoOpen(false)} 
-        produtos={produtos} 
-        onAtualizarLista={fetchProdutos} 
-      />
-
-      <ModalRegistrarVenda 
-        isOpen={isModalVendaOpen}
-        onClose={() => setIsModalVendaOpen(false)}
-        produtos={produtos}
-        user={user}
-        onVendaRegistrada={() => {
-          setIsModalVendaOpen(false);
-          fetchVendasPlacar();
-        }}
-      />
+      <ModalGerenciarProdutos isOpen={isModalProdutoOpen} onClose={() => setIsModalProdutoOpen(false)} produtos={produtos} onAtualizarLista={fetchProdutos} />
+      <ModalRegistrarVenda isOpen={isModalVendaOpen} onClose={() => setIsModalVendaOpen(false)} produtos={produtos} user={user} onVendaRegistrada={() => { setIsModalVendaOpen(false); fetchVendasPlacar(); }} />
 
     </div>
   );

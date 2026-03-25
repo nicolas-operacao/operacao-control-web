@@ -9,7 +9,12 @@ type VendedorRank = {
   foto_url?: string; 
 };
 
-export function GuerraEquipes() {
+// 🔥 NOVO: Interface para receber a ordem de atualização do Dashboard
+interface GuerraEquipesProps {
+  refreshTrigger: number;
+}
+
+export function GuerraEquipes({ refreshTrigger }: GuerraEquipesProps) { // 🔥 Aceitando a prop aqui
   const [equipeA, setEquipeA] = useState<VendedorRank[]>([]);
   const [equipeB, setEquipeB] = useState<VendedorRank[]>([]);
   const [totalA, setTotalA] = useState(0);
@@ -21,10 +26,10 @@ export function GuerraEquipes() {
 
   const [tempoRestante, setTempoRestante] = useState('');
 
-  // Busca inicial
+  // 🔥 TÁTICA ATUALIZADA: Busca inicial E toda vez que o gatilho (refreshTrigger) for acionado
   useEffect(() => {
     fetchRankingEDesafio();
-  }, []);
+  }, [refreshTrigger]);
 
   // Relógio Tático sincronizado com a Operação
   useEffect(() => {
@@ -67,7 +72,13 @@ export function GuerraEquipes() {
       // Garante que é um array antes de tentar usar o .find()
       const listaDesafios = Array.isArray(resChallenge.data) ? resChallenge.data : [];
       const ativo = listaDesafios.find((c: any) => c.is_active);
-      if (ativo) setDesafioAtivo(ativo);
+      
+      // Atualizado para limpar a meta caso não encontre nenhuma ativa
+      if (ativo) {
+        setDesafioAtivo(ativo);
+      } else {
+        setDesafioAtivo(null);
+      }
     } catch (error) {
       console.error('Radar sem sinal para Desafios (Nenhum ativo ou erro):', error);
     }
