@@ -43,19 +43,15 @@ export function Dashboard() {
   const [isModalVendaOpen, setIsModalVendaOpen] = useState(false);
   const [isModalDesafioOpen, setIsModalDesafioOpen] = useState(false); 
 
-  // 🔥 GATILHO QUE ESTAVA FALTANDO! (Avisa a Guerra de Equipes para atualizar)
   const [mainRefreshTrigger, setMainRefreshTrigger] = useState(0);
 
-  // 🔥 ESTADO DA META DINÂMICA
   const [desafioAtivo, setDesafioAtivo] = useState<any>(null);
   const META_MENSAL = desafioAtivo ? Number(desafioAtivo.goal_amount) : 400000;
 
-  // 🔥 VALORES FINANCEIROS
   const [vendasHoje, setVendasHoje] = useState(0);
   const [vendasSemana, setVendasSemana] = useState(0);
   const [vendasMes, setVendasMes] = useState(0);
 
-  // 🔥 QUANTIDADES DE VENDAS
   const [qtdHoje, setQtdHoje] = useState(0);
   const [qtdSemana, setQtdSemana] = useState(0);
   const [qtdMes, setQtdMes] = useState(0);
@@ -65,9 +61,9 @@ export function Dashboard() {
   const [visaoAtiva, setVisaoAtiva] = useState<'hoje' | 'semana' | 'mes' | 'vendedor' | 'periodo' | null>(null);
   const [vendedorSelecionado, setVendedorSelecionado] = useState<string>('');
 
-  const somDinheiro = () => new Audio('https://actions.google.com/sounds/v1/foley/cash_register.ogg').play().catch((e) => console.log('Bloqueio de som:', e));
-  const somAlerta = () => new Audio('https://actions.google.com/sounds/v1/alarms/buzzer_alarm.ogg').play().catch((e) => console.log('Bloqueio de som:', e));
-  const somSucesso = () => new Audio('https://actions.google.com/sounds/v1/cartoon/bell_ding.ogg').play().catch((e) => console.log('Bloqueio de som:', e));
+  const somDinheiro = () => new Audio('https://actions.google.com/sounds/v1/foley/cash_register.ogg').play().catch(() => {});
+  const somAlerta = () => new Audio('https://actions.google.com/sounds/v1/alarms/buzzer_alarm.ogg').play().catch(() => {});
+  const somSucesso = () => new Audio('https://actions.google.com/sounds/v1/cartoon/bell_ding.ogg').play().catch(() => {});
 
   const lancarConfetes = () => {
     confetti({
@@ -257,7 +253,7 @@ export function Dashboard() {
     <div className="min-h-screen bg-zinc-950 text-zinc-100 p-4 md:p-8 font-sans relative">
       <div className="max-w-7xl mx-auto space-y-8">
         
-        {/* CABEÇALHO */}
+        {/* CABEÇALHO TÁTICO REFORMULADO */}
         <div className="flex flex-col xl:flex-row justify-between items-center pb-6 border-b border-zinc-800 gap-6">
           <div className="flex items-center gap-4">
             <h1 className="text-3xl md:text-4xl font-black text-yellow-400 uppercase tracking-wider leading-none text-center xl:text-left">
@@ -291,23 +287,15 @@ export function Dashboard() {
         </div>
         
         <div className="space-y-4">
-          
-          {/* AVISOS PENDENTES */}
           {edicoesPendentes.length > 0 && (
             <div className="bg-blue-900/10 border border-blue-500/30 rounded-xl p-6 shadow-2xl animate-in fade-in">
-              <h2 className="text-xl font-black text-blue-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                🔄 Solicitações de Correção Pendentes ({edicoesPendentes.length})
-              </h2>
+              <h2 className="text-xl font-black text-blue-400 uppercase tracking-widest mb-4 flex items-center gap-2">🔄 Solicitações de Correção Pendentes ({edicoesPendentes.length})</h2>
               <div className="grid grid-cols-1 gap-4">
                 {edicoesPendentes.map(venda => (
                   <div key={venda.id} className="bg-zinc-950 border border-blue-500/20 rounded-lg p-4 flex flex-col md:flex-row justify-between items-center gap-4">
                     <div className="flex-1">
                       <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest">Vendedor: <span className="text-white">{venda.seller_name}</span></p>
-                      <p className="text-zinc-300 text-sm mt-1">
-                        Cliente: <span className="font-bold text-white">{venda.customer_name}</span> | 
-                        <span className="text-zinc-400 mx-1">E-mail:</span> <span className="font-bold text-blue-300 select-all cursor-pointer bg-blue-900/20 px-1 rounded">{venda.customer_email || 'Não informado'}</span> | 
-                        Valor Atual: <span className="text-green-400">{formataBRL(Number(venda.sale_value))}</span>
-                      </p>
+                      <p className="text-zinc-300 text-sm mt-1">Cliente: <span className="font-bold text-white">{venda.customer_name}</span> | <span className="text-zinc-400 mx-1">E-mail:</span> <span className="font-bold text-blue-300 select-all cursor-pointer bg-blue-900/20 px-1 rounded">{venda.customer_email || 'Não informado'}</span> | Valor Atual: <span className="text-green-400">{formataBRL(Number(venda.sale_value))}</span></p>
                       <div className="mt-3 bg-red-950/30 border border-red-500/20 p-3 rounded">
                         <p className="text-red-400 text-[10px] font-black uppercase mb-1">Motivo do Erro:</p>
                         <p className="text-zinc-300 text-sm italic">"{venda.edit_reason}"</p>
@@ -325,22 +313,14 @@ export function Dashboard() {
 
           {vendasPendentes.length > 0 && (
             <div className="bg-yellow-900/10 border border-yellow-500/30 rounded-xl p-6 shadow-2xl animate-in fade-in">
-              <h2 className="text-xl font-black text-yellow-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                ⚠️ Vendas Aguardando Liberação ({vendasPendentes.length})
-              </h2>
+              <h2 className="text-xl font-black text-yellow-400 uppercase tracking-widest mb-4 flex items-center gap-2">⚠️ Vendas Aguardando Liberação ({vendasPendentes.length})</h2>
               <div className="grid grid-cols-1 gap-4">
                 {vendasPendentes.map(venda => (
                   <div key={venda.id} className="bg-zinc-950 border border-yellow-500/20 rounded-lg p-4 flex flex-col md:flex-row justify-between items-center gap-4">
                     <div className="flex-1">
                       <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest">Vendedor: <span className="text-white">{venda.seller_name}</span></p>
-                      <p className="text-zinc-300 text-sm mt-1">
-                        Cliente: <span className="font-bold text-white">{venda.customer_name}</span> | 
-                        <span className="text-zinc-400 mx-1">E-mail:</span> <span className="font-bold text-blue-300 select-all cursor-pointer bg-blue-900/20 px-1 rounded">{venda.customer_email || 'Não informado'}</span> | 
-                        Produto: <span className="font-bold text-yellow-400">{venda.product_name}</span>
-                      </p>
-                      <p className="text-zinc-500 text-xs mt-1 uppercase tracking-widest">
-                        Valor: {formataBRL(Number(venda.sale_value))} | Pagamento: {venda.payment_method}
-                      </p>
+                      <p className="text-zinc-300 text-sm mt-1">Cliente: <span className="font-bold text-white">{venda.customer_name}</span> | <span className="text-zinc-400 mx-1">E-mail:</span> <span className="font-bold text-blue-300 select-all cursor-pointer bg-blue-900/20 px-1 rounded">{venda.customer_email || 'Não informado'}</span> | Produto: <span className="font-bold text-yellow-400">{venda.product_name}</span></p>
+                      <p className="text-zinc-500 text-xs mt-1 uppercase tracking-widest">Valor: {formataBRL(Number(venda.sale_value))} | Pagamento: {venda.payment_method}</p>
                     </div>
                     <div className="flex gap-2 w-full md:w-auto">
                       <button onClick={() => handleDeleteVenda(venda.id)} className="flex-1 md:flex-none border border-red-500/50 text-red-500 hover:bg-red-500 hover:text-white px-4 py-2 rounded font-bold text-xs uppercase tracking-widest transition-colors">Excluir Venda</button>
@@ -353,7 +333,6 @@ export function Dashboard() {
           )}
         </div>
 
-        {/* FILTROS E BUSCA */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 shadow-xl flex flex-col lg:flex-row items-end gap-6">
           <div className="w-full lg:flex-1">
             <label className="block text-zinc-400 text-xs font-bold uppercase tracking-widest mb-2 text-yellow-400">🎯 Caçar Soldado (Ver Toda a Ficha)</label>
@@ -375,20 +354,22 @@ export function Dashboard() {
           </div>
         </div>
 
-        {/* PLACAR GLOBAL GAMIFICADO */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        {/* 🔥 GRADE DE CARTÕES ATUALIZADA PARA 5 COLUNAS */}
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
           <div onClick={() => { setVisaoAtiva('hoje'); setVendedorSelecionado(''); setDataInicio(''); setDataFim(''); }} className={`bg-zinc-900 border-l-4 p-6 rounded-lg shadow-2xl relative overflow-hidden cursor-pointer transform transition-all duration-200 hover:scale-[1.02] group ${visaoAtiva === 'hoje' ? 'border-yellow-400 ring-2 ring-yellow-400/50' : 'border-yellow-400 hover:border-yellow-300'}`}>
             <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-yellow-400 text-[10px] font-black uppercase tracking-widest">Ver Lista 👁️</div>
             <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">Vendas Hoje</p>
             <h2 className="text-3xl font-black text-white">{formataBRL(vendasHoje)}</h2>
             <p className="text-zinc-400 text-xs font-bold mt-2 text-yellow-400/80">🔥 {qtdHoje} vendas confirmadas</p>
           </div>
+          
           <div onClick={() => { setVisaoAtiva('semana'); setVendedorSelecionado(''); setDataInicio(''); setDataFim(''); }} className={`bg-zinc-900 border-l-4 p-6 rounded-lg shadow-2xl relative overflow-hidden cursor-pointer transform transition-all duration-200 hover:scale-[1.02] group ${visaoAtiva === 'semana' ? 'border-yellow-400 ring-2 ring-yellow-400/50' : 'border-yellow-400 hover:border-yellow-300'}`}>
             <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-yellow-400 text-[10px] font-black uppercase tracking-widest">Ver Lista 👁️</div>
             <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">Esta Semana</p>
             <h2 className="text-3xl font-black text-white">{formataBRL(vendasSemana)}</h2>
             <p className="text-zinc-400 text-xs font-bold mt-2 text-yellow-400/80">🔥 {qtdSemana} vendas confirmadas</p>
           </div>
+          
           <div onClick={() => { setVisaoAtiva('mes'); setVendedorSelecionado(''); setDataInicio(''); setDataFim(''); }} className={`bg-zinc-900 border-l-4 p-6 rounded-lg shadow-2xl relative overflow-hidden md:col-span-2 cursor-pointer transform transition-all duration-200 hover:scale-[1.02] group ${visaoAtiva === 'mes' ? 'border-yellow-400 ring-2 ring-yellow-400/50' : 'border-yellow-400 hover:border-yellow-300'}`}>
             <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-yellow-400 text-[10px] font-black uppercase tracking-widest">Ver Lista 👁️</div>
             <div className="absolute top-0 right-0 p-4 opacity-5 text-yellow-400 text-8xl">🎯</div>
@@ -407,9 +388,16 @@ export function Dashboard() {
               <p className="text-right text-yellow-400/50 text-xs font-bold">{progressoMeta.toFixed(1)}% alcançado</p>
             </div>
           </div>
+
+          {/* 🔥 SEU NOVO CARTÃO DE COMISSÃO DO SUPERVISOR AQUI */}
+          <div className="bg-zinc-900 border-l-4 border-green-500 p-6 rounded-lg shadow-2xl relative overflow-hidden transform transition-all duration-200 hover:scale-[1.02] group cursor-default">
+            <div className="absolute top-0 right-0 p-4 opacity-10 text-green-500 text-8xl">💰</div>
+            <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">Sua Comissão (1%)</p>
+            <h2 className="text-3xl font-black text-green-400">{formataBRL(vendasMes * 0.01)}</h2>
+            <p className="text-zinc-500 text-[10px] font-bold mt-2 uppercase tracking-widest">Ganhos da Operação</p>
+          </div>
         </div>
 
-        {/* RELATÓRIOS E FICHAS */}
         {visaoAtiva && visaoAtiva !== 'vendedor' && (
           <RelatorioBatalha vendas={vendasTabela} titulo={tituloRelatorio} subtitulo={subTituloRelatorio} onClose={() => { setVisaoAtiva(null); setVendedorSelecionado(''); setDataInicio(''); setDataFim(''); }} />
         )}
@@ -463,13 +451,11 @@ export function Dashboard() {
           </div>
         )}
 
-        {/* 🔥 A GUERRA DE EQUIPES AGORA RECEBE O GATILHO CORRETAMENTE */}
         <div className="w-full">
           <GuerraEquipes refreshTrigger={mainRefreshTrigger} /> 
         </div>
       </div>
 
-      {/* 🔥 MODAIS - AQUI A ORDEM DE ATUALIZAÇÃO É DISPARADA QUANDO VOCÊ EDITA UM DESAFIO */}
       <ModalGerenciarDesafios 
         isOpen={isModalDesafioOpen} 
         onClose={() => setIsModalDesafioOpen(false)} 

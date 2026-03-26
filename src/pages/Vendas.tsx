@@ -138,13 +138,11 @@ export function Vendas() {
     }
   }
 
-  // 🔥 ATUALIZADO: ENVIA A DATA JUNTO COM O PEDIDO DE EDIÇÃO
   async function handleRequestEdit(e: React.FormEvent) {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      // Ajusta a nova data para o formato exato que o banco de dados exige
       const novaDataFormatada = new Date(`${saleDate}T12:00:00Z`).toISOString();
 
       const newData = {
@@ -154,7 +152,7 @@ export function Vendas() {
         customer_email: customerEmail,
         customer_phone: customerPhone,
         payment_method: paymentMethod,
-        created_at: novaDataFormatada // 🔥 AQUI ESTÁ A DATA CORRIGIDA!
+        created_at: novaDataFormatada 
       };
 
       await api.post(`/sales/${editingSaleId}/request-edit`, {
@@ -189,6 +187,40 @@ export function Vendas() {
     return true; 
   });
 
+  // ========================================================
+  // 🔥 MOTOR DE GAMIFICAÇÃO: CÁLCULO DE COMISSÃO DO SOLDADO
+  // ========================================================
+  const vendasAprovadasMes = vendas.filter(v => {
+    if (String(v.seller_id) !== String(user.id)) return false;
+    if (v.status !== 'aprovada') return false; // Regra: Só ganha comissão se a venda for aprovada
+    if (!v.created_at) return false;
+    
+    const dataVenda = new Date(v.created_at);
+    const hoje = new Date();
+    const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+    
+    return dataVenda >= inicioMes;
+  });
+
+  const qtdVendasMes = vendasAprovadasMes.length;
+  const valorTotalMes = vendasAprovadasMes.reduce((acc, v) => acc + Number(v.sale_value), 0);
+
+  // Definição dos degraus da gamificação
+  let percentualComissao = 0;
+  if (qtdVendasMes <= 60) {
+    percentualComissao = 1;
+  } else if (qtdVendasMes <= 100) {
+    percentualComissao = 2;
+  } else if (qtdVendasMes <= 150) {
+    percentualComissao = 2.5;
+  } else {
+    percentualComissao = 3; // Acima de 150 rumo a 300
+  }
+
+  const valorComissao = (valorTotalMes * percentualComissao) / 100;
+  const formataBRL = (valor: number) => valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans p-4 md:p-8 relative">
       <div className="max-w-6xl mx-auto">
@@ -205,8 +237,36 @@ export function Vendas() {
           </button>
         </div>
 
+        {/* ======================================================== */}
+        {/* 🔥 PAINEL GAMIFICADO DE COMISSÃO DO SOLDADO */}
+        {/* ======================================================== */}
+        <div className="bg-gradient-to-r from-green-950 to-zinc-900 border border-green-500/30 rounded-xl p-6 shadow-[0_0_20px_rgba(34,197,94,0.1)] mb-8 flex flex-col md:flex-row justify-between items-center gap-6 animate-in fade-in slide-in-from-top-4">
+          <div className="text-center md:text-left">
+            <h3 className="text-green-400 font-black uppercase tracking-widest text-lg flex items-center justify-center md:justify-start gap-2">
+              💰 Relatório de Ganhos Pessoais
+            </h3>
+            <p className="text-zinc-400 text-xs mt-1 uppercase tracking-widest">
+              Baseado nas suas Vendas Aprovadas do Mês
+            </p>
+          </div>
+          
+          <div className="flex flex-wrap justify-center gap-4 w-full md:w-auto">
+            <div className="bg-zinc-950 p-4 rounded-lg border border-zinc-800 min-w-[120px] text-center">
+              <p className="text-zinc-500 text-[10px] font-black uppercase mb-1">Total de Vendas</p>
+              <p className="text-2xl font-black text-white">{qtdVendasMes}</p>
+            </div>
+            <div className="bg-zinc-950 p-4 rounded-lg border border-yellow-500/20 min-w-[120px] text-center">
+              <p className="text-yellow-500/70 text-[10px] font-black uppercase mb-1">Taxa Alcançada</p>
+              <p className="text-2xl font-black text-yellow-400">{percentualComissao}%</p>
+            </div>
+            <div className="bg-green-950/50 p-4 rounded-lg border border-green-500/50 min-w-[150px] text-center shadow-[0_0_15px_rgba(34,197,94,0.2)]">
+              <p className="text-green-500 text-[10px] font-black uppercase mb-1">Comissão Estimada</p>
+              <p className="text-2xl font-black text-green-400">{formataBRL(valorComissao)}</p>
+            </div>
+          </div>
+        </div>
+
         <div className="mb-10">
-           {/* 🔥 CORREÇÃO DA VERCEL APLICADA AQUI */}
            <GuerraEquipes refreshTrigger={0} />
         </div>
 
@@ -375,7 +435,6 @@ export function Vendas() {
                     </div>
                 </div>
                 
-                {/* 🔥 AQUI ESTÁ O CAMPO DE DATA ADICIONADO! */}
                 <div className="grid grid-cols-2 gap-4">
                     <div>
                         <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">Nome do Cliente</label>
