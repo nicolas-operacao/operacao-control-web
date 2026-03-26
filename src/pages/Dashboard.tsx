@@ -60,18 +60,16 @@ export function Dashboard() {
   
   const [visaoAtiva, setVisaoAtiva] = useState<'hoje' | 'semana' | 'mes' | 'vendedor' | 'periodo' | null>(null);
   const [vendedorSelecionado, setVendedorSelecionado] = useState<string>('');
+  
+  // 🔥 NOVO: ESTADO DO FILTRO DE PAGAMENTO
+  const [metodoPagamentoFiltro, setMetodoPagamentoFiltro] = useState<string>('');
 
   const somDinheiro = () => new Audio('https://actions.google.com/sounds/v1/foley/cash_register.ogg').play().catch(() => {});
   const somAlerta = () => new Audio('https://actions.google.com/sounds/v1/alarms/buzzer_alarm.ogg').play().catch(() => {});
   const somSucesso = () => new Audio('https://actions.google.com/sounds/v1/cartoon/bell_ding.ogg').play().catch(() => {});
 
   const lancarConfetes = () => {
-    confetti({
-      particleCount: 150,
-      spread: 80,
-      origin: { y: 0.6 },
-      colors: ['#FACC15', '#22C55E', '#3B82F6']
-    });
+    confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 }, colors: ['#FACC15', '#22C55E', '#3B82F6'] });
   };
 
   useEffect(() => {
@@ -85,18 +83,14 @@ export function Dashboard() {
       const response = await api.get('/challenges');
       const ativo = response.data.find((c: any) => c.is_active);
       setDesafioAtivo(ativo || null);
-    } catch (error) {
-      console.error('Erro ao buscar desafio ativo:', error);
-    }
+    } catch (error) { console.error('Erro ao buscar desafio ativo:', error); }
   }
 
   async function fetchProdutos() {
     try {
       const response = await api.get('/products');
       setProdutos(response.data);
-    } catch (error) {
-      console.error('Erro ao buscar produtos:', error);
-    }
+    } catch (error) { console.error('Erro ao buscar produtos:', error); }
   }
 
   async function fetchVendasPlacar() {
@@ -106,12 +100,8 @@ export function Dashboard() {
 
       const vendasAprovadas = response.data.filter((v: Venda) => v.status === 'aprovada');
 
-      const hojeData = new Date();
-      hojeData.setHours(0, 0, 0, 0);
-
-      const inicioSemana = new Date(hojeData);
-      inicioSemana.setDate(hojeData.getDate() - hojeData.getDay()); 
-
+      const hojeData = new Date(); hojeData.setHours(0, 0, 0, 0);
+      const inicioSemana = new Date(hojeData); inicioSemana.setDate(hojeData.getDate() - hojeData.getDay()); 
       const inicioMes = new Date(hojeData.getFullYear(), hojeData.getMonth(), 1); 
 
       let tHoje = 0, tSemana = 0, tMes = 0;
@@ -126,109 +116,86 @@ export function Dashboard() {
         if (dataVenda >= hojeData) { tHoje += valor; qHoje++; }
       });
 
-      setVendasHoje(tHoje);
-      setVendasSemana(tSemana);
-      setVendasMes(tMes);
-      setQtdHoje(qHoje);
-      setQtdSemana(qSemana);
-      setQtdMes(qMes);
+      setVendasHoje(tHoje); setVendasSemana(tSemana); setVendasMes(tMes);
+      setQtdHoje(qHoje); setQtdSemana(qSemana); setQtdMes(qMes);
 
-    } catch (error) {
-      console.error('Erro ao calcular placar:', error);
-    }
+    } catch (error) { console.error('Erro ao calcular placar:', error); }
   }
 
   async function handleAprovarEdicao(id: string) {
     if(!window.confirm("Deseja APROVAR esta correção? Os dados da venda serão alterados.")) return;
-    try {
-      await api.post(`/sales/${id}/approve-edit`);
-      somSucesso();
-      alert("✅ Edição aprovada e aplicada com sucesso!");
-      fetchVendasPlacar();
-    } catch (error) {
-      alert("Erro ao aprovar edição.");
-    }
+    try { await api.post(`/sales/${id}/approve-edit`); somSucesso(); alert("✅ Edição aprovada!"); fetchVendasPlacar(); } 
+    catch (error) { alert("Erro ao aprovar edição."); }
   }
 
   async function handleRejeitarEdicao(id: string) {
     if(!window.confirm("Deseja REJEITAR esta correção? O vendedor será notificado.")) return;
-    try {
-      await api.post(`/sales/${id}/reject-edit`);
-      somAlerta();
-      alert("❌ Edição rejeitada.");
-      fetchVendasPlacar();
-    } catch (error) {
-      alert("Erro ao rejeitar edição.");
-    }
+    try { await api.post(`/sales/${id}/reject-edit`); somAlerta(); alert("❌ Edição rejeitada."); fetchVendasPlacar(); } 
+    catch (error) { alert("Erro ao rejeitar edição."); }
   }
 
   async function handleAprovarVenda(id: string) {
     if(!window.confirm("Deseja LIBERAR esta venda? Ela entrará imediatamente no placar do soldado.")) return;
-    try {
-      await api.post(`/sales/${id}/approve`);
-      somDinheiro();
-      lancarConfetes();
-      alert("✅ Venda liberada com sucesso!");
-      fetchVendasPlacar();
-    } catch (error) {
-      alert("Erro ao liberar venda.");
-    }
+    try { await api.post(`/sales/${id}/approve`); somDinheiro(); lancarConfetes(); alert("✅ Venda liberada com sucesso!"); fetchVendasPlacar(); } 
+    catch (error) { alert("Erro ao liberar venda."); }
   }
 
   async function handleDeleteVenda(id: string) {
-    const confirmacao = window.confirm("⚠️ ATENÇÃO COMANDANTE!\nTem certeza que deseja apagar esta venda permanentemente? Essa ação não pode ser desfeita.");
+    const confirmacao = window.confirm("⚠️ ATENÇÃO COMANDANTE!\nTem certeza que deseja apagar esta venda permanentemente?");
     if (confirmacao) {
-      try {
-        await api.delete(`/sales/${id}`);
-        somAlerta();
-        alert('💥 Venda eliminada com sucesso!');
-        fetchVendasPlacar();
-      } catch (error) {
-        alert('🚨 Erro ao tentar excluir a venda. Verifique a conexão com o servidor.');
-      }
+      try { await api.delete(`/sales/${id}`); somAlerta(); alert('💥 Venda eliminada com sucesso!'); fetchVendasPlacar(); } 
+      catch (error) { alert('🚨 Erro ao tentar excluir a venda.'); }
     }
   }
 
   function handleLogout() {
-    localStorage.removeItem('user');
-    localStorage.removeItem('token');
-    navigate('/');
+    localStorage.removeItem('user'); localStorage.removeItem('token'); navigate('/');
   }
 
   function handleFiltrar(e: React.FormEvent) {
     e.preventDefault();
-    if (!dataInicio || !dataFim) {
-      alert("⚠️ Comandante, insira a Data Inicial e Final no radar antes de filtrar!");
-      return;
-    }
-    setVendedorSelecionado(''); 
-    setVisaoAtiva('periodo'); 
-    somSucesso(); 
+    if (!dataInicio || !dataFim) { alert("⚠️ Comandante, insira a Data Inicial e Final no radar antes de filtrar!"); return; }
+    setVendedorSelecionado(''); setVisaoAtiva('periodo'); somSucesso(); 
   }
 
+  // 🔥 LÓGICA DE FILTRAGEM DUPLA (Mês/Semana/Período + Método de Pagamento)
   const vendasTabela = todasVendas.filter(v => {
     if (!visaoAtiva || !v.created_at) return false;
 
+    // 1. Filtra a data ou o vendedor
+    let passaFiltroPrincipal = false;
     if (visaoAtiva === 'vendedor') {
-      return v.seller_name === vendedorSelecionado;
-    }
-
-    if (visaoAtiva === 'periodo') {
+      passaFiltroPrincipal = v.seller_name === vendedorSelecionado;
+    } else if (visaoAtiva === 'periodo') {
       const dataString = v.created_at.split('T')[0]; 
-      return dataString >= dataInicio && dataString <= dataFim;
+      passaFiltroPrincipal = dataString >= dataInicio && dataString <= dataFim;
+    } else {
+      const dataVenda = new Date(v.created_at);
+      const hojeData = new Date(); hojeData.setHours(0, 0, 0, 0);
+      const inicioSemana = new Date(hojeData); inicioSemana.setDate(hojeData.getDate() - hojeData.getDay());
+      const inicioMes = new Date(hojeData.getFullYear(), hojeData.getMonth(), 1);
+
+      if (visaoAtiva === 'hoje') passaFiltroPrincipal = dataVenda >= hojeData;
+      else if (visaoAtiva === 'semana') passaFiltroPrincipal = dataVenda >= inicioSemana;
+      else if (visaoAtiva === 'mes') passaFiltroPrincipal = dataVenda >= inicioMes;
     }
 
-    const dataVenda = new Date(v.created_at);
-    const hojeData = new Date();
-    hojeData.setHours(0, 0, 0, 0);
-    const inicioSemana = new Date(hojeData);
-    inicioSemana.setDate(hojeData.getDate() - hojeData.getDay());
-    const inicioMes = new Date(hojeData.getFullYear(), hojeData.getMonth(), 1);
+    if (!passaFiltroPrincipal) return false;
 
-    if (visaoAtiva === 'hoje') return dataVenda >= hojeData;
-    if (visaoAtiva === 'semana') return dataVenda >= inicioSemana;
-    if (visaoAtiva === 'mes') return dataVenda >= inicioMes;
-    return false;
+    // 2. Filtra por Método de Pagamento (se você selecionou algum na caixinha)
+    if (metodoPagamentoFiltro) {
+      const metodo = v.payment_method || '';
+      if (metodoPagamentoFiltro === 'Cartão') {
+        // Pega cartão de crédito e débito juntos
+        if (!metodo.includes('Cartão') && !metodo.includes('Crédito') && !metodo.includes('Débito')) return false;
+      } else if (metodoPagamentoFiltro === 'PIX') {
+        if (metodo !== 'PIX') return false;
+      } else if (metodoPagamentoFiltro === 'Boleto Parcelado') {
+        if (metodo !== 'Boleto Parcelado') return false;
+      }
+    }
+
+    return true;
   }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
   const edicoesPendentes = todasVendas.filter(v => v.edit_status === 'pendente');
@@ -249,11 +216,15 @@ export function Dashboard() {
     subTituloRelatorio = `${dataInicio.split('-').reverse().join('/')} até ${dataFim.split('-').reverse().join('/')}`;
   }
 
+  // Avisa no relatório se tem filtro de pagamento ativado
+  if (metodoPagamentoFiltro) {
+    subTituloRelatorio += subTituloRelatorio ? ` | Pagamento: ${metodoPagamentoFiltro}` : `Pagamento: ${metodoPagamentoFiltro}`;
+  }
+
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 p-4 md:p-8 font-sans relative">
       <div className="max-w-7xl mx-auto space-y-8">
         
-        {/* CABEÇALHO TÁTICO REFORMULADO */}
         <div className="flex flex-col xl:flex-row justify-between items-center pb-6 border-b border-zinc-800 gap-6">
           <div className="flex items-center gap-4">
             <h1 className="text-3xl md:text-4xl font-black text-yellow-400 uppercase tracking-wider leading-none text-center xl:text-left">
@@ -265,24 +236,12 @@ export function Dashboard() {
           </div>
 
           <div className="flex flex-wrap justify-center xl:justify-end gap-3 w-full xl:w-auto">
-            <button onClick={() => setIsModalDesafioOpen(true)} className="border border-red-500 text-red-400 hover:bg-red-500 hover:text-white px-4 py-2.5 rounded font-bold shadow-[0_0_10px_rgba(220,38,38,0.1)] uppercase text-[10px] tracking-widest transition-all">
-              ⚔️ Temporadas
-            </button>
-            <button onClick={() => navigate('/liberacoes')} className="bg-purple-600 hover:bg-purple-500 text-white font-bold px-4 py-2.5 rounded shadow-[0_0_15px_rgba(147,51,234,0.3)] uppercase text-[10px] tracking-widest transition-all">
-              🛡️ Suporte
-            </button>
-            <button onClick={() => navigate('/admin/recrutas')} className="border border-purple-500 text-purple-400 hover:bg-purple-500 hover:text-white px-4 py-2.5 rounded font-bold shadow-[0_0_10px_rgba(147,51,234,0.1)] uppercase text-[10px] tracking-widest transition-all">
-              ⚠️ Recrutas
-            </button>
-            <button onClick={() => setIsModalProdutoOpen(true)} className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-4 py-2.5 rounded shadow-[0_0_15px_rgba(37,99,235,0.3)] uppercase text-[10px] tracking-widest transition-all">
-              ⚙️ Produtos
-            </button>
-            <button onClick={() => setIsModalVendaOpen(true)} className="bg-yellow-400 hover:bg-yellow-300 text-black font-black px-6 py-2.5 rounded shadow-[0_0_15px_rgba(250,204,21,0.4)] uppercase text-xs tracking-widest transition-transform hover:scale-105 active:scale-95">
-              + Registrar Venda
-            </button>
-            <button onClick={handleLogout} className="bg-zinc-900 border border-zinc-700 hover:bg-red-600 hover:border-red-500 text-zinc-400 hover:text-white px-5 py-2.5 rounded font-bold uppercase text-[10px] tracking-widest transition-all">
-              Sair
-            </button>
+            <button onClick={() => setIsModalDesafioOpen(true)} className="border border-red-500 text-red-400 hover:bg-red-500 hover:text-white px-4 py-2.5 rounded font-bold shadow-[0_0_10px_rgba(220,38,38,0.1)] uppercase text-[10px] tracking-widest transition-all">⚔️ Temporadas</button>
+            <button onClick={() => navigate('/liberacoes')} className="bg-purple-600 hover:bg-purple-500 text-white font-bold px-4 py-2.5 rounded shadow-[0_0_15px_rgba(147,51,234,0.3)] uppercase text-[10px] tracking-widest transition-all">🛡️ Suporte</button>
+            <button onClick={() => navigate('/admin/recrutas')} className="border border-purple-500 text-purple-400 hover:bg-purple-500 hover:text-white px-4 py-2.5 rounded font-bold shadow-[0_0_10px_rgba(147,51,234,0.1)] uppercase text-[10px] tracking-widest transition-all">⚠️ Recrutas</button>
+            <button onClick={() => setIsModalProdutoOpen(true)} className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-4 py-2.5 rounded shadow-[0_0_15px_rgba(37,99,235,0.3)] uppercase text-[10px] tracking-widest transition-all">⚙️ Produtos</button>
+            <button onClick={() => setIsModalVendaOpen(true)} className="bg-yellow-400 hover:bg-yellow-300 text-black font-black px-6 py-2.5 rounded shadow-[0_0_15px_rgba(250,204,21,0.4)] uppercase text-xs tracking-widest transition-transform hover:scale-105 active:scale-95">+ Registrar Venda</button>
+            <button onClick={handleLogout} className="bg-zinc-900 border border-zinc-700 hover:bg-red-600 hover:border-red-500 text-zinc-400 hover:text-white px-5 py-2.5 rounded font-bold uppercase text-[10px] tracking-widest transition-all">Sair</button>
           </div>
         </div>
         
@@ -296,10 +255,7 @@ export function Dashboard() {
                     <div className="flex-1">
                       <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest">Vendedor: <span className="text-white">{venda.seller_name}</span></p>
                       <p className="text-zinc-300 text-sm mt-1">Cliente: <span className="font-bold text-white">{venda.customer_name}</span> | <span className="text-zinc-400 mx-1">E-mail:</span> <span className="font-bold text-blue-300 select-all cursor-pointer bg-blue-900/20 px-1 rounded">{venda.customer_email || 'Não informado'}</span> | Valor Atual: <span className="text-green-400">{formataBRL(Number(venda.sale_value))}</span></p>
-                      <div className="mt-3 bg-red-950/30 border border-red-500/20 p-3 rounded">
-                        <p className="text-red-400 text-[10px] font-black uppercase mb-1">Motivo do Erro:</p>
-                        <p className="text-zinc-300 text-sm italic">"{venda.edit_reason}"</p>
-                      </div>
+                      <div className="mt-3 bg-red-950/30 border border-red-500/20 p-3 rounded"><p className="text-red-400 text-[10px] font-black uppercase mb-1">Motivo do Erro:</p><p className="text-zinc-300 text-sm italic">"{venda.edit_reason}"</p></div>
                     </div>
                     <div className="flex gap-2 w-full md:w-auto">
                       <button onClick={() => handleRejeitarEdicao(venda.id)} className="flex-1 md:flex-none border border-red-500/50 text-red-500 hover:bg-red-500 hover:text-white px-4 py-2 rounded font-bold text-xs uppercase tracking-widest transition-colors">Rejeitar</button>
@@ -333,15 +289,30 @@ export function Dashboard() {
           )}
         </div>
 
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 shadow-xl flex flex-col lg:flex-row items-end gap-6">
-          <div className="w-full lg:flex-1">
-            <label className="block text-zinc-400 text-xs font-bold uppercase tracking-widest mb-2 text-yellow-400">🎯 Caçar Soldado (Ver Toda a Ficha)</label>
-            <select value={vendedorSelecionado} onChange={(e) => { const nome = e.target.value; setVendedorSelecionado(nome); if (nome) { setVisaoAtiva('vendedor'); setDataInicio(''); setDataFim(''); } else { setVisaoAtiva(null); } }} className="w-full bg-zinc-950 border border-zinc-700 text-white rounded p-3 focus:outline-none focus:border-yellow-400 cursor-pointer transition-colors">
-              <option value="">Selecione um soldado...</option>
-              {vendedoresUnicos.map(nome => <option key={nome} value={nome}>{nome}</option>)}
-            </select>
+        {/* 🔥 PAINEL DE FILTROS TOTALMENTE ATUALIZADO COM OS MÉTODOS DE PAGAMENTO */}
+        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 shadow-xl flex flex-col xl:flex-row items-end gap-6">
+          
+          <div className="w-full xl:flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-zinc-400 text-xs font-bold uppercase tracking-widest mb-2 text-yellow-400">🎯 Caçar Soldado (Ver Toda a Ficha)</label>
+              <select value={vendedorSelecionado} onChange={(e) => { const nome = e.target.value; setVendedorSelecionado(nome); if (nome) { setVisaoAtiva('vendedor'); setDataInicio(''); setDataFim(''); } else { setVisaoAtiva(null); } }} className="w-full bg-zinc-950 border border-zinc-700 text-white rounded p-3 focus:outline-none focus:border-yellow-400 cursor-pointer transition-colors">
+                <option value="">Selecione um soldado...</option>
+                {vendedoresUnicos.map(nome => <option key={nome} value={nome}>{nome}</option>)}
+              </select>
+            </div>
+            
+            <div>
+              <label className="block text-zinc-400 text-xs font-bold uppercase tracking-widest mb-2 text-blue-400">💳 Método de Pagamento</label>
+              <select value={metodoPagamentoFiltro} onChange={(e) => setMetodoPagamentoFiltro(e.target.value)} className="w-full bg-zinc-950 border border-zinc-700 text-white rounded p-3 focus:outline-none focus:border-blue-400 cursor-pointer transition-colors">
+                <option value="">Todos os Métodos</option>
+                <option value="PIX">PIX</option>
+                <option value="Cartão">Cartão (Crédito / Débito)</option>
+                <option value="Boleto Parcelado">Boleto Parcelado</option>
+              </select>
+            </div>
           </div>
-          <div className="w-full lg:w-auto flex flex-col md:flex-row items-end gap-4 border-t lg:border-t-0 lg:border-l border-zinc-800 pt-4 lg:pt-0 lg:pl-6">
+
+          <div className="w-full xl:w-auto flex flex-col md:flex-row items-end gap-4 border-t xl:border-t-0 xl:border-l border-zinc-800 pt-4 xl:pt-0 xl:pl-6">
             <div className="w-full md:w-auto">
               <label className="block text-zinc-400 text-xs font-bold uppercase tracking-widest mb-2">Data Inicial</label>
               <input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} className="w-full bg-zinc-950 border border-zinc-700 text-white rounded p-3 focus:outline-none focus:border-yellow-400 transition-colors [color-scheme:dark]" />
@@ -354,7 +325,6 @@ export function Dashboard() {
           </div>
         </div>
 
-        {/* 🔥 GRADE DE CARTÕES ATUALIZADA PARA 5 COLUNAS */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
           <div onClick={() => { setVisaoAtiva('hoje'); setVendedorSelecionado(''); setDataInicio(''); setDataFim(''); }} className={`bg-zinc-900 border-l-4 p-6 rounded-lg shadow-2xl relative overflow-hidden cursor-pointer transform transition-all duration-200 hover:scale-[1.02] group ${visaoAtiva === 'hoje' ? 'border-yellow-400 ring-2 ring-yellow-400/50' : 'border-yellow-400 hover:border-yellow-300'}`}>
             <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-yellow-400 text-[10px] font-black uppercase tracking-widest">Ver Lista 👁️</div>
@@ -389,7 +359,6 @@ export function Dashboard() {
             </div>
           </div>
 
-          {/* 🔥 SEU NOVO CARTÃO DE COMISSÃO DO SUPERVISOR AQUI */}
           <div className="bg-zinc-900 border-l-4 border-green-500 p-6 rounded-lg shadow-2xl relative overflow-hidden transform transition-all duration-200 hover:scale-[1.02] group cursor-default">
             <div className="absolute top-0 right-0 p-4 opacity-10 text-green-500 text-8xl">💰</div>
             <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">Sua Comissão (1%)</p>
@@ -421,6 +390,7 @@ export function Dashboard() {
                     <th className="pb-4 font-black">E-mail</th>
                     <th className="pb-4 font-black">Produto</th>
                     <th className="pb-4 font-black text-right">Valor</th>
+                    <th className="pb-4 font-black text-center">Pagamento</th> {/* Adicionado a coluna de Pagamento para visualizar o filtro */}
                     <th className="pb-4 font-black text-center">Status</th>
                     <th className="pb-4 font-black text-center">Ações</th>
                   </tr>
@@ -433,6 +403,7 @@ export function Dashboard() {
                       <td className="py-4 text-zinc-400 select-all cursor-pointer hover:text-blue-300 transition-colors" title="Clique para copiar">{venda.customer_email || '--'}</td>
                       <td className="py-4 text-zinc-400 text-xs">{venda.product_name}</td>
                       <td className="py-4 text-green-400 font-black text-right whitespace-nowrap">{formataBRL(Number(venda.sale_value))}</td>
+                      <td className="py-4 text-center text-zinc-400 text-[10px] font-bold uppercase">{venda.payment_method || '--'}</td>
                       <td className="py-4 text-center">
                         <span className={`px-2 py-1 rounded text-[9px] font-black uppercase tracking-wider ${venda.status === 'aprovada' ? 'bg-green-500/10 text-green-500 border border-green-500/20' : 'bg-yellow-500/10 text-yellow-500 border border-yellow-500/20'}`}>
                           {venda.status === 'aprovada' ? 'Aprovada' : 'Pendente'}
@@ -443,7 +414,7 @@ export function Dashboard() {
                       </td>
                     </tr>
                   )) : (
-                    <tr><td colSpan={7} className="py-12 text-center text-zinc-600 uppercase font-black tracking-widest italic">Nenhuma venda encontrada.</td></tr>
+                    <tr><td colSpan={8} className="py-12 text-center text-zinc-600 uppercase font-black tracking-widest italic">Nenhuma venda encontrada.</td></tr>
                   )}
                 </tbody>
               </table>
