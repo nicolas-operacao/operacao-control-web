@@ -61,7 +61,6 @@ export function Dashboard() {
   const [visaoAtiva, setVisaoAtiva] = useState<'hoje' | 'semana' | 'mes' | 'vendedor' | 'periodo' | null>(null);
   const [vendedorSelecionado, setVendedorSelecionado] = useState<string>('');
   
-  // 🔥 NOVO: ESTADO DO FILTRO DE PAGAMENTO
   const [metodoPagamentoFiltro, setMetodoPagamentoFiltro] = useState<string>('');
 
   const somDinheiro = () => new Audio('https://actions.google.com/sounds/v1/foley/cash_register.ogg').play().catch(() => {});
@@ -158,11 +157,9 @@ export function Dashboard() {
     setVendedorSelecionado(''); setVisaoAtiva('periodo'); somSucesso(); 
   }
 
-  // 🔥 LÓGICA DE FILTRAGEM DUPLA (Mês/Semana/Período + Método de Pagamento)
   const vendasTabela = todasVendas.filter(v => {
     if (!visaoAtiva || !v.created_at) return false;
 
-    // 1. Filtra a data ou o vendedor
     let passaFiltroPrincipal = false;
     if (visaoAtiva === 'vendedor') {
       passaFiltroPrincipal = v.seller_name === vendedorSelecionado;
@@ -182,11 +179,9 @@ export function Dashboard() {
 
     if (!passaFiltroPrincipal) return false;
 
-    // 2. Filtra por Método de Pagamento (se você selecionou algum na caixinha)
     if (metodoPagamentoFiltro) {
       const metodo = v.payment_method || '';
       if (metodoPagamentoFiltro === 'Cartão') {
-        // Pega cartão de crédito e débito juntos
         if (!metodo.includes('Cartão') && !metodo.includes('Crédito') && !metodo.includes('Débito')) return false;
       } else if (metodoPagamentoFiltro === 'PIX') {
         if (metodo !== 'PIX') return false;
@@ -216,7 +211,6 @@ export function Dashboard() {
     subTituloRelatorio = `${dataInicio.split('-').reverse().join('/')} até ${dataFim.split('-').reverse().join('/')}`;
   }
 
-  // Avisa no relatório se tem filtro de pagamento ativado
   if (metodoPagamentoFiltro) {
     subTituloRelatorio += subTituloRelatorio ? ` | Pagamento: ${metodoPagamentoFiltro}` : `Pagamento: ${metodoPagamentoFiltro}`;
   }
@@ -246,23 +240,79 @@ export function Dashboard() {
         </div>
         
         <div className="space-y-4">
+          
+          {/* 🔥 NOVO PAINEL DE RAIO-X DE EDIÇÕES */}
           {edicoesPendentes.length > 0 && (
             <div className="bg-blue-900/10 border border-blue-500/30 rounded-xl p-6 shadow-2xl animate-in fade-in">
               <h2 className="text-xl font-black text-blue-400 uppercase tracking-widest mb-4 flex items-center gap-2">🔄 Solicitações de Correção Pendentes ({edicoesPendentes.length})</h2>
-              <div className="grid grid-cols-1 gap-4">
-                {edicoesPendentes.map(venda => (
-                  <div key={venda.id} className="bg-zinc-950 border border-blue-500/20 rounded-lg p-4 flex flex-col md:flex-row justify-between items-center gap-4">
-                    <div className="flex-1">
-                      <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest">Vendedor: <span className="text-white">{venda.seller_name}</span></p>
-                      <p className="text-zinc-300 text-sm mt-1">Cliente: <span className="font-bold text-white">{venda.customer_name}</span> | <span className="text-zinc-400 mx-1">E-mail:</span> <span className="font-bold text-blue-300 select-all cursor-pointer bg-blue-900/20 px-1 rounded">{venda.customer_email || 'Não informado'}</span> | Valor Atual: <span className="text-green-400">{formataBRL(Number(venda.sale_value))}</span></p>
-                      <div className="mt-3 bg-red-950/30 border border-red-500/20 p-3 rounded"><p className="text-red-400 text-[10px] font-black uppercase mb-1">Motivo do Erro:</p><p className="text-zinc-300 text-sm italic">"{venda.edit_reason}"</p></div>
+              
+              <div className="grid grid-cols-1 gap-6">
+                {edicoesPendentes.map(venda => {
+                  // Decodifica o pedido secreto do soldado para ver as alterações
+                  let newData: any = {};
+                  try {
+                    newData = typeof venda.edit_data === 'string' ? JSON.parse(venda.edit_data) : (venda.edit_data || {});
+                  } catch(e) {
+                    console.error("Falha ao abrir relatório de edição.");
+                  }
+
+                  return (
+                    <div key={venda.id} className="bg-zinc-950 border border-blue-500/30 rounded-lg p-5 flex flex-col gap-4 shadow-inner">
+                      
+                      {/* Cabeçalho da Edição: Vendedor e Motivo */}
+                      <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-zinc-800 pb-4 gap-4">
+                        <div className="flex-1">
+                          <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest">
+                            Soldado: <span className="text-white text-sm">{venda.seller_name}</span>
+                          </p>
+                          <div className="mt-2 bg-red-950/30 border border-red-500/20 p-3 rounded">
+                            <p className="text-red-400 text-[10px] font-black uppercase mb-1">Motivo do Erro / Justificativa:</p>
+                            <p className="text-zinc-300 text-sm italic">"{venda.edit_reason}"</p>
+                          </div>
+                        </div>
+                        
+                        <div className="flex gap-2 w-full md:w-auto mt-2 md:mt-0">
+                          <button onClick={() => handleRejeitarEdicao(venda.id)} className="flex-1 md:flex-none border border-red-500/50 text-red-500 hover:bg-red-500 hover:text-white px-6 py-2.5 rounded font-bold text-xs uppercase tracking-widest transition-colors">Rejeitar</button>
+                          <button onClick={() => handleAprovarEdicao(venda.id)} className="flex-1 md:flex-none bg-blue-600 hover:bg-blue-500 text-white px-6 py-2.5 rounded font-black text-xs uppercase tracking-widest shadow-lg transition-colors">Aprovar Correção</button>
+                        </div>
+                      </div>
+
+                      {/* Raio-X da Comparação (Atual vs Proposta) */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        
+                        {/* CARD 1: O que está no banco hoje */}
+                        <div className="bg-zinc-900/50 border border-zinc-700/50 p-4 rounded-lg">
+                          <h4 className="text-zinc-500 font-black uppercase tracking-widest text-[10px] mb-3 flex items-center gap-1">
+                            📋 Informação Atual (No Sistema)
+                          </h4>
+                          <div className="space-y-2 text-xs text-zinc-300">
+                            <p><span className="font-bold text-zinc-500 uppercase">Cliente:</span> {venda.customer_name}</p>
+                            <p><span className="font-bold text-zinc-500 uppercase">Produto:</span> {venda.product_name}</p>
+                            <p><span className="font-bold text-zinc-500 uppercase">Valor:</span> <span className="text-white font-bold">{formataBRL(Number(venda.sale_value))}</span></p>
+                            <p><span className="font-bold text-zinc-500 uppercase">Data:</span> {venda.created_at ? new Date(venda.created_at).toLocaleDateString('pt-BR', {timeZone: 'UTC'}) : '--'}</p>
+                            <p><span className="font-bold text-zinc-500 uppercase">Pagamento:</span> {venda.payment_method || '--'}</p>
+                          </div>
+                        </div>
+
+                        {/* CARD 2: O que ele quer que vire */}
+                        <div className="bg-blue-950/20 border border-blue-500/30 p-4 rounded-lg relative overflow-hidden">
+                          <div className="absolute top-0 right-0 w-16 h-16 bg-blue-500/10 rounded-bl-full -z-10"></div>
+                          <h4 className="text-blue-400 font-black uppercase tracking-widest text-[10px] mb-3 flex items-center gap-1">
+                            ✨ Nova Proposta (Solicitada)
+                          </h4>
+                          <div className="space-y-2 text-xs text-blue-100">
+                            <p><span className="font-bold text-blue-500/60 uppercase">Cliente:</span> {newData.customer_name || venda.customer_name}</p>
+                            <p><span className="font-bold text-blue-500/60 uppercase">Produto:</span> {newData.product_name || venda.product_name}</p>
+                            <p><span className="font-bold text-blue-500/60 uppercase">Valor:</span> <span className="text-green-400 font-black">{newData.sale_value ? formataBRL(Number(newData.sale_value)) : formataBRL(Number(venda.sale_value))}</span></p>
+                            <p><span className="font-bold text-blue-500/60 uppercase">Data:</span> {newData.created_at ? new Date(newData.created_at).toLocaleDateString('pt-BR', {timeZone: 'UTC'}) : '--'}</p>
+                            <p><span className="font-bold text-blue-500/60 uppercase">Pagamento:</span> <span className="text-yellow-400 font-bold">{newData.payment_method || venda.payment_method || '--'}</span></p>
+                          </div>
+                        </div>
+
+                      </div>
                     </div>
-                    <div className="flex gap-2 w-full md:w-auto">
-                      <button onClick={() => handleRejeitarEdicao(venda.id)} className="flex-1 md:flex-none border border-red-500/50 text-red-500 hover:bg-red-500 hover:text-white px-4 py-2 rounded font-bold text-xs uppercase tracking-widest transition-colors">Rejeitar</button>
-                      <button onClick={() => handleAprovarEdicao(venda.id)} className="flex-1 md:flex-none bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded font-black text-xs uppercase tracking-widest shadow-lg transition-colors">Aprovar Correção</button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
@@ -289,9 +339,7 @@ export function Dashboard() {
           )}
         </div>
 
-        {/* 🔥 PAINEL DE FILTROS TOTALMENTE ATUALIZADO COM OS MÉTODOS DE PAGAMENTO */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 shadow-xl flex flex-col xl:flex-row items-end gap-6">
-          
           <div className="w-full xl:flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-zinc-400 text-xs font-bold uppercase tracking-widest mb-2 text-yellow-400">🎯 Caçar Soldado (Ver Toda a Ficha)</label>
@@ -300,7 +348,6 @@ export function Dashboard() {
                 {vendedoresUnicos.map(nome => <option key={nome} value={nome}>{nome}</option>)}
               </select>
             </div>
-            
             <div>
               <label className="block text-zinc-400 text-xs font-bold uppercase tracking-widest mb-2 text-blue-400">💳 Método de Pagamento</label>
               <select value={metodoPagamentoFiltro} onChange={(e) => setMetodoPagamentoFiltro(e.target.value)} className="w-full bg-zinc-950 border border-zinc-700 text-white rounded p-3 focus:outline-none focus:border-blue-400 cursor-pointer transition-colors">
@@ -390,7 +437,7 @@ export function Dashboard() {
                     <th className="pb-4 font-black">E-mail</th>
                     <th className="pb-4 font-black">Produto</th>
                     <th className="pb-4 font-black text-right">Valor</th>
-                    <th className="pb-4 font-black text-center">Pagamento</th> {/* Adicionado a coluna de Pagamento para visualizar o filtro */}
+                    <th className="pb-4 font-black text-center">Pagamento</th>
                     <th className="pb-4 font-black text-center">Status</th>
                     <th className="pb-4 font-black text-center">Ações</th>
                   </tr>
