@@ -63,6 +63,19 @@ export function Dashboard() {
   
   const [metodoPagamentoFiltro, setMetodoPagamentoFiltro] = useState<string>('');
 
+  // 🔥 ESTADOS DE APROVAÇÃO EM MASSA
+  const [selectedEdits, setSelectedEdits] = useState<string[]>([]);
+  const [selectedSales, setSelectedSales] = useState<string[]>([]);
+
+  // 🔥 ESTADO DO NOVO MODAL TÁTICO DE CONFIRMAÇÃO
+  const [confirmDialog, setConfirmDialog] = useState({
+    isOpen: false, 
+    title: '', 
+    message: '', 
+    type: 'blue' as 'red' | 'blue' | 'green' | 'yellow', 
+    action: async () => {}
+  });
+
   const somDinheiro = () => new Audio('https://actions.google.com/sounds/v1/foley/cash_register.ogg').play().catch(() => {});
   const somAlerta = () => new Audio('https://actions.google.com/sounds/v1/alarms/buzzer_alarm.ogg').play().catch(() => {});
   const somSucesso = () => new Audio('https://actions.google.com/sounds/v1/cartoon/bell_ding.ogg').play().catch(() => {});
@@ -118,34 +131,173 @@ export function Dashboard() {
       setVendasHoje(tHoje); setVendasSemana(tSemana); setVendasMes(tMes);
       setQtdHoje(qHoje); setQtdSemana(qSemana); setQtdMes(qMes);
 
+      // Limpa as seleções ao recarregar a lista
+      setSelectedEdits([]); 
+      setSelectedSales([]);
+
     } catch (error) { console.error('Erro ao calcular placar:', error); }
   }
 
-  async function handleAprovarEdicao(id: string) {
-    if(!window.confirm("Deseja APROVAR esta correção? Os dados da venda serão alterados.")) return;
-    try { await api.post(`/sales/${id}/approve-edit`); somSucesso(); alert("✅ Edição aprovada!"); fetchVendasPlacar(); } 
-    catch (error) { alert("Erro ao aprovar edição."); }
-  }
+  // ==========================================
+  // 🔥 FUNÇÃO PARA ABRIR O MODAL TÁTICO
+  // ==========================================
+  const openConfirm = (title: string, message: string, type: 'red' | 'blue' | 'green' | 'yellow', action: () => Promise<void>) => {
+    setConfirmDialog({ isOpen: true, title, message, type, action });
+  };
 
-  async function handleRejeitarEdicao(id: string) {
-    if(!window.confirm("Deseja REJEITAR esta correção? O vendedor será notificado.")) return;
-    try { await api.post(`/sales/${id}/reject-edit`); somAlerta(); alert("❌ Edição rejeitada."); fetchVendasPlacar(); } 
-    catch (error) { alert("Erro ao rejeitar edição."); }
-  }
+  const executeConfirm = async () => {
+    setConfirmDialog(prev => ({ ...prev, isOpen: false })); // Fecha o modal visualmente
+    await confirmDialog.action(); // Executa a ação da API
+  };
 
-  async function handleAprovarVenda(id: string) {
-    if(!window.confirm("Deseja LIBERAR esta venda? Ela entrará imediatamente no placar do soldado.")) return;
-    try { await api.post(`/sales/${id}/approve`); somDinheiro(); lancarConfetes(); alert("✅ Venda liberada com sucesso!"); fetchVendasPlacar(); } 
-    catch (error) { alert("Erro ao liberar venda."); }
-  }
+  // ==========================================
+  // 🔥 AÇÕES INDIVIDUAIS (COM MODAL TÁTICO)
+  // ==========================================
+  const handleAprovarEdicao = (id: string) => {
+    openConfirm(
+      'APROVAR CORREÇÃO', 
+      'Confirma a alteração desta venda? O banco de dados será atualizado permanentemente com os novos valores.', 
+      'blue', 
+      async () => {
+        try { 
+          await api.post(`/sales/${id}/approve-edit`); 
+          somSucesso(); 
+          fetchVendasPlacar(); 
+        } catch (error) { alert("Erro ao aprovar edição."); }
+      }
+    );
+  };
 
-  async function handleDeleteVenda(id: string) {
-    const confirmacao = window.confirm("⚠️ ATENÇÃO COMANDANTE!\nTem certeza que deseja apagar esta venda permanentemente?");
-    if (confirmacao) {
-      try { await api.delete(`/sales/${id}`); somAlerta(); alert('💥 Venda eliminada com sucesso!'); fetchVendasPlacar(); } 
-      catch (error) { alert('🚨 Erro ao tentar excluir a venda.'); }
-    }
-  }
+  const handleRejeitarEdicao = (id: string) => {
+    openConfirm(
+      'REJEITAR CORREÇÃO', 
+      'O vendedor será notificado que a correção foi negada. Confirma?', 
+      'red', 
+      async () => {
+        try { 
+          await api.post(`/sales/${id}/reject-edit`); 
+          somAlerta(); 
+          fetchVendasPlacar(); 
+        } catch (error) { alert("Erro ao rejeitar edição."); }
+      }
+    );
+  };
+
+  const handleAprovarVenda = (id: string) => {
+    openConfirm(
+      'LIBERAR VENDA', 
+      'Esta venda será creditada no painel de ranking do soldado e na meta da equipe. Confirma?', 
+      'green', 
+      async () => {
+        try { 
+          await api.post(`/sales/${id}/approve`); 
+          somDinheiro(); 
+          lancarConfetes(); 
+          fetchVendasPlacar(); 
+        } catch (error) { alert("Erro ao liberar venda."); }
+      }
+    );
+  };
+
+  const handleDeleteVenda = (id: string) => {
+    openConfirm(
+      'EXCLUIR VENDA', 
+      '⚠️ ALERTA: Esta venda será apagada do sistema e não poderá ser recuperada. Confirma exclusão?', 
+      'red', 
+      async () => {
+        try { 
+          await api.delete(`/sales/${id}`); 
+          somAlerta(); 
+          fetchVendasPlacar(); 
+        } catch (error) { alert('🚨 Erro ao tentar excluir a venda.'); }
+      }
+    );
+  };
+
+  // ==========================================
+  // 🔥 AÇÕES EM MASSA (BATCH)
+  // ==========================================
+  const batchApproveEdits = () => {
+    openConfirm(
+      'APROVAR SELECIONADOS', 
+      `Você está prestes a aprovar ${selectedEdits.length} correções de uma vez. Confirma?`, 
+      'blue', 
+      async () => {
+        try { 
+          await Promise.all(selectedEdits.map(id => api.post(`/sales/${id}/approve-edit`))); 
+          somSucesso(); 
+          fetchVendasPlacar(); 
+        } catch (error) { alert("Erro na aprovação em massa."); }
+      }
+    );
+  };
+
+  const batchRejectEdits = () => {
+    openConfirm(
+      'REJEITAR SELECIONADOS', 
+      `Você está prestes a rejeitar ${selectedEdits.length} correções de uma vez. Confirma?`, 
+      'red', 
+      async () => {
+        try { 
+          await Promise.all(selectedEdits.map(id => api.post(`/sales/${id}/reject-edit`))); 
+          somAlerta(); 
+          fetchVendasPlacar(); 
+        } catch (error) { alert("Erro na rejeição em massa."); }
+      }
+    );
+  };
+
+  const batchApproveSales = () => {
+    openConfirm(
+      'LIBERAR SELECIONADAS', 
+      `Você vai liberar ${selectedSales.length} vendas para o ranking oficial. Confirma?`, 
+      'green', 
+      async () => {
+        try { 
+          await Promise.all(selectedSales.map(id => api.post(`/sales/${id}/approve`))); 
+          somDinheiro(); 
+          lancarConfetes(); 
+          fetchVendasPlacar(); 
+        } catch (error) { alert("Erro na liberação em massa."); }
+      }
+    );
+  };
+
+  const batchDeleteSales = () => {
+    openConfirm(
+      'EXCLUIR SELECIONADAS', 
+      `⚠️ ALERTA DE EXCLUSÃO: Você vai APAGAR PERMANENTEMENTE ${selectedSales.length} vendas do sistema. Confirma?`, 
+      'red', 
+      async () => {
+        try { 
+          await Promise.all(selectedSales.map(id => api.delete(`/sales/${id}`))); 
+          somAlerta(); 
+          fetchVendasPlacar(); 
+        } catch (error) { alert("Erro ao deletar em massa."); }
+      }
+    );
+  };
+
+  // Funções de Seleção de Checkbox
+  const edicoesPendentes = todasVendas.filter(v => v.edit_status === 'pendente');
+  const vendasPendentes = todasVendas.filter(v => v.status === 'pendente_liberacao' || v.status === 'pendente_boleto' || v.status === 'pendente');
+
+  const toggleEditSelection = (id: string) => {
+    setSelectedEdits(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+  };
+  const toggleSaleSelection = (id: string) => {
+    setSelectedSales(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+  };
+  
+  const selectAllEdits = () => {
+    if (selectedEdits.length === edicoesPendentes.length) setSelectedEdits([]);
+    else setSelectedEdits(edicoesPendentes.map(e => e.id));
+  };
+  
+  const selectAllSales = () => {
+    if (selectedSales.length === vendasPendentes.length) setSelectedSales([]);
+    else setSelectedSales(vendasPendentes.map(v => v.id));
+  };
 
   function handleLogout() {
     localStorage.removeItem('user'); localStorage.removeItem('token'); navigate('/');
@@ -193,9 +345,6 @@ export function Dashboard() {
     return true;
   }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-  const edicoesPendentes = todasVendas.filter(v => v.edit_status === 'pendente');
-  const vendasPendentes = todasVendas.filter(v => v.status === 'pendente_liberacao' || v.status === 'pendente_boleto' || v.status === 'pendente');
-
   const progressoMeta = Math.min((vendasMes / META_MENSAL) * 100, 100);
   const formataBRL = (valor: number) => valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -241,10 +390,44 @@ export function Dashboard() {
         
         <div className="space-y-4">
           
-          {/* 🔥 NOVO PAINEL DE RAIO-X DE EDIÇÕES */}
+          {/* ======================================================== */}
+          {/* 🔥 PAINEL DE RAIO-X DE EDIÇÕES (COM CHECKBOX E MASSA)    */}
+          {/* ======================================================== */}
           {edicoesPendentes.length > 0 && (
-            <div className="bg-blue-900/10 border border-blue-500/30 rounded-xl p-6 shadow-2xl animate-in fade-in">
-              <h2 className="text-xl font-black text-blue-400 uppercase tracking-widest mb-4 flex items-center gap-2">🔄 Solicitações de Correção Pendentes ({edicoesPendentes.length})</h2>
+            <div className="bg-blue-950/20 border border-blue-500/30 rounded-xl p-6 shadow-2xl animate-in fade-in">
+              
+              {/* CABEÇALHO DO PAINEL DE EDIÇÃO (COM SELEÇÃO MÚLTIPLA) */}
+              <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4 border-b border-blue-500/20 pb-4">
+                <div className="flex items-center gap-3">
+                  <input 
+                    type="checkbox" 
+                    checked={selectedEdits.length === edicoesPendentes.length} 
+                    onChange={selectAllEdits} 
+                    className="w-5 h-5 accent-blue-600 rounded cursor-pointer" 
+                  />
+                  <h2 className="text-xl font-black text-blue-400 uppercase tracking-widest cursor-pointer" onClick={selectAllEdits}>
+                    🔄 Solicitações de Correção Pendentes ({edicoesPendentes.length})
+                  </h2>
+                </div>
+                
+                {/* BOTÕES DE AÇÃO EM MASSA SÓ APARECEM SE ALGO ESTIVER SELECIONADO */}
+                {selectedEdits.length > 0 && (
+                  <div className="flex gap-2 w-full md:w-auto">
+                    <button 
+                      onClick={batchRejectEdits} 
+                      className="flex-1 border border-red-500/50 text-red-500 hover:bg-red-500 hover:text-white px-6 py-2 rounded font-bold text-[10px] uppercase tracking-widest transition-all"
+                    >
+                      Rejeitar {selectedEdits.length} Selecionados
+                    </button>
+                    <button 
+                      onClick={batchApproveEdits} 
+                      className="flex-1 bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded font-black text-[10px] uppercase tracking-widest shadow-lg transition-all"
+                    >
+                      Aprovar {selectedEdits.length} Selecionados
+                    </button>
+                  </div>
+                )}
+              </div>
               
               <div className="grid grid-cols-1 gap-6">
                 {edicoesPendentes.map(venda => {
@@ -256,29 +439,44 @@ export function Dashboard() {
                     console.error("Falha ao abrir relatório de edição.");
                   }
 
+                  const isChecked = selectedEdits.includes(venda.id);
+
                   return (
-                    <div key={venda.id} className="bg-zinc-950 border border-blue-500/30 rounded-lg p-5 flex flex-col gap-4 shadow-inner">
+                    <div key={venda.id} className={`bg-zinc-950 border ${isChecked ? 'border-blue-500' : 'border-zinc-800'} rounded-lg p-5 flex flex-col gap-4 shadow-inner transition-colors`}>
                       
-                      {/* Cabeçalho da Edição: Vendedor e Motivo */}
+                      {/* Cabeçalho da Edição: Checkbox, Vendedor e Motivo */}
                       <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-zinc-800 pb-4 gap-4">
-                        <div className="flex-1">
-                          <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest">
-                            Soldado: <span className="text-white text-sm">{venda.seller_name}</span>
-                          </p>
-                          <div className="mt-2 bg-red-950/30 border border-red-500/20 p-3 rounded">
-                            <p className="text-red-400 text-[10px] font-black uppercase mb-1">Motivo do Erro / Justificativa:</p>
-                            <p className="text-zinc-300 text-sm italic">"{venda.edit_reason}"</p>
+                        
+                        <div className="flex items-start gap-4">
+                          <input 
+                            type="checkbox" 
+                            checked={isChecked} 
+                            onChange={() => toggleEditSelection(venda.id)} 
+                            className="w-5 h-5 accent-blue-600 rounded cursor-pointer mt-1" 
+                          />
+                          <div>
+                            <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest">
+                              Soldado: <span className="text-white text-sm">{venda.seller_name}</span>
+                            </p>
+                            <div className="mt-2 bg-red-950/30 border border-red-500/20 p-3 rounded">
+                              <p className="text-red-400 text-[10px] font-black uppercase mb-1">Motivo do Erro / Justificativa:</p>
+                              <p className="text-zinc-300 text-sm italic">"{venda.edit_reason}"</p>
+                            </div>
                           </div>
                         </div>
                         
                         <div className="flex gap-2 w-full md:w-auto mt-2 md:mt-0">
-                          <button onClick={() => handleRejeitarEdicao(venda.id)} className="flex-1 md:flex-none border border-red-500/50 text-red-500 hover:bg-red-500 hover:text-white px-6 py-2.5 rounded font-bold text-xs uppercase tracking-widest transition-colors">Rejeitar</button>
-                          <button onClick={() => handleAprovarEdicao(venda.id)} className="flex-1 md:flex-none bg-blue-600 hover:bg-blue-500 text-white px-6 py-2.5 rounded font-black text-xs uppercase tracking-widest shadow-lg transition-colors">Aprovar Correção</button>
+                          <button onClick={() => handleRejeitarEdicao(venda.id)} className="flex-1 md:flex-none border border-red-500/50 text-red-500 hover:bg-red-500 hover:text-white px-6 py-2.5 rounded font-bold text-xs uppercase tracking-widest transition-colors">
+                            Rejeitar
+                          </button>
+                          <button onClick={() => handleAprovarEdicao(venda.id)} className="flex-1 md:flex-none bg-blue-600 hover:bg-blue-500 text-white px-6 py-2.5 rounded font-black text-xs uppercase tracking-widest shadow-lg transition-colors">
+                            Aprovar Correção
+                          </button>
                         </div>
                       </div>
 
                       {/* Raio-X da Comparação (Atual vs Proposta) */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-0 md:pl-9">
                         
                         {/* CARD 1: O que está no banco hoje */}
                         <div className="bg-zinc-900/50 border border-zinc-700/50 p-4 rounded-lg">
@@ -317,23 +515,83 @@ export function Dashboard() {
             </div>
           )}
 
+          {/* ======================================================== */}
+          {/* 🔥 VENDAS AGUARDANDO LIBERAÇÃO (COM CHECKBOX E MASSA)    */}
+          {/* ======================================================== */}
           {vendasPendentes.length > 0 && (
             <div className="bg-yellow-900/10 border border-yellow-500/30 rounded-xl p-6 shadow-2xl animate-in fade-in">
-              <h2 className="text-xl font-black text-yellow-400 uppercase tracking-widest mb-4 flex items-center gap-2">⚠️ Vendas Aguardando Liberação ({vendasPendentes.length})</h2>
-              <div className="grid grid-cols-1 gap-4">
-                {vendasPendentes.map(venda => (
-                  <div key={venda.id} className="bg-zinc-950 border border-yellow-500/20 rounded-lg p-4 flex flex-col md:flex-row justify-between items-center gap-4">
-                    <div className="flex-1">
-                      <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest">Vendedor: <span className="text-white">{venda.seller_name}</span></p>
-                      <p className="text-zinc-300 text-sm mt-1">Cliente: <span className="font-bold text-white">{venda.customer_name}</span> | <span className="text-zinc-400 mx-1">E-mail:</span> <span className="font-bold text-blue-300 select-all cursor-pointer bg-blue-900/20 px-1 rounded">{venda.customer_email || 'Não informado'}</span> | Produto: <span className="font-bold text-yellow-400">{venda.product_name}</span></p>
-                      <p className="text-zinc-500 text-xs mt-1 uppercase tracking-widest">Valor: {formataBRL(Number(venda.sale_value))} | Pagamento: {venda.payment_method}</p>
-                    </div>
-                    <div className="flex gap-2 w-full md:w-auto">
-                      <button onClick={() => handleDeleteVenda(venda.id)} className="flex-1 md:flex-none border border-red-500/50 text-red-500 hover:bg-red-500 hover:text-white px-4 py-2 rounded font-bold text-xs uppercase tracking-widest transition-colors">Excluir Venda</button>
-                      <button onClick={() => handleAprovarVenda(venda.id)} className="flex-1 md:flex-none bg-green-600 hover:bg-green-500 text-black px-6 py-2 rounded font-black text-xs uppercase tracking-widest shadow-lg transition-colors">Liberar Venda</button>
-                    </div>
+              
+              <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4 border-b border-yellow-500/20 pb-4">
+                <div className="flex items-center gap-3">
+                  <input 
+                    type="checkbox" 
+                    checked={selectedSales.length === vendasPendentes.length} 
+                    onChange={selectAllSales} 
+                    className="w-5 h-5 accent-yellow-500 rounded cursor-pointer" 
+                  />
+                  <h2 className="text-xl font-black text-yellow-400 uppercase tracking-widest cursor-pointer" onClick={selectAllSales}>
+                    ⚠️ Vendas Aguardando Liberação ({vendasPendentes.length})
+                  </h2>
+                </div>
+                
+                {selectedSales.length > 0 && (
+                  <div className="flex gap-2 w-full md:w-auto">
+                    <button 
+                      onClick={batchDeleteSales} 
+                      className="flex-1 border border-red-500/50 text-red-500 hover:bg-red-500 hover:text-white px-6 py-2 rounded font-bold text-[10px] uppercase tracking-widest transition-all"
+                    >
+                      Excluir {selectedSales.length} Selecionadas
+                    </button>
+                    <button 
+                      onClick={batchApproveSales} 
+                      className="flex-1 bg-green-600 hover:bg-green-500 text-black px-6 py-2 rounded font-black text-[10px] uppercase tracking-widest shadow-lg transition-all"
+                    >
+                      Liberar {selectedSales.length} Selecionadas
+                    </button>
                   </div>
-                ))}
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 gap-4">
+                {vendasPendentes.map(venda => {
+                  const isChecked = selectedSales.includes(venda.id);
+                  
+                  return (
+                    <div key={venda.id} className={`bg-zinc-950 border ${isChecked ? 'border-yellow-500' : 'border-zinc-800'} rounded-lg p-4 flex flex-col md:flex-row justify-between items-center gap-4 transition-colors`}>
+                      
+                      <div className="flex items-center gap-4 flex-1 w-full">
+                        <input 
+                          type="checkbox" 
+                          checked={isChecked} 
+                          onChange={() => toggleSaleSelection(venda.id)} 
+                          className="w-5 h-5 accent-yellow-500 rounded cursor-pointer" 
+                        />
+                        <div className="flex-1">
+                          <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest">
+                            Vendedor: <span className="text-white">{venda.seller_name}</span>
+                          </p>
+                          <p className="text-zinc-300 text-sm mt-1">
+                            Cliente: <span className="font-bold text-white">{venda.customer_name}</span> | 
+                            <span className="text-zinc-400 mx-1">E-mail:</span> <span className="font-bold text-blue-300 select-all cursor-pointer bg-blue-900/20 px-1 rounded">{venda.customer_email || 'Não informado'}</span> | 
+                            Produto: <span className="font-bold text-yellow-400">{venda.product_name}</span>
+                          </p>
+                          <p className="text-zinc-500 text-xs mt-1 uppercase tracking-widest">
+                            Valor: {formataBRL(Number(venda.sale_value))} | Pagamento: {venda.payment_method}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-2 w-full md:w-auto">
+                        <button onClick={() => handleDeleteVenda(venda.id)} className="flex-1 md:flex-none border border-red-500/50 text-red-500 hover:bg-red-500 hover:text-white px-4 py-2 rounded font-bold text-xs uppercase tracking-widest transition-colors">
+                          Excluir Venda
+                        </button>
+                        <button onClick={() => handleAprovarVenda(venda.id)} className="flex-1 md:flex-none bg-green-600 hover:bg-green-500 text-black px-6 py-2 rounded font-black text-xs uppercase tracking-widest shadow-lg transition-colors">
+                          Liberar Venda
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -474,6 +732,9 @@ export function Dashboard() {
         </div>
       </div>
 
+      {/* ========================================= */}
+      {/* 🔥 MODAIS PADRÕES (PRODUTOS, DESAFIOS)   */}
+      {/* ========================================= */}
       <ModalGerenciarDesafios 
         isOpen={isModalDesafioOpen} 
         onClose={() => setIsModalDesafioOpen(false)} 
@@ -482,9 +743,48 @@ export function Dashboard() {
           setMainRefreshTrigger(prev => prev + 1); 
         }} 
       />
-      
       <ModalGerenciarProdutos isOpen={isModalProdutoOpen} onClose={() => setIsModalProdutoOpen(false)} produtos={produtos} onAtualizarLista={fetchProdutos} />
       <ModalRegistrarVenda isOpen={isModalVendaOpen} onClose={() => setIsModalVendaOpen(false)} produtos={produtos} user={user} onVendaRegistrada={() => { setIsModalVendaOpen(false); fetchVendasPlacar(); }} />
+
+      {/* ========================================= */}
+      {/* 🔥 MODAL TÁTICO DE CONFIRMAÇÃO (SUBSTITUI O WINDOW.CONFIRM) */}
+      {/* ========================================= */}
+      {confirmDialog.isOpen && (
+        <div className="fixed inset-0 bg-black/95 backdrop-blur-sm z-[999] flex items-center justify-center p-4">
+          <div className={`bg-zinc-950 border ${confirmDialog.type === 'red' ? 'border-red-500/50 shadow-[0_0_30px_rgba(239,68,68,0.2)]' : confirmDialog.type === 'green' ? 'border-green-500/50 shadow-[0_0_30px_rgba(34,197,94,0.2)]' : 'border-blue-500/50 shadow-[0_0_30px_rgba(59,130,246,0.2)]'} rounded-2xl w-full max-w-md animate-in zoom-in duration-200 overflow-hidden`}>
+            
+            <div className={`p-6 border-b border-zinc-800 ${confirmDialog.type === 'red' ? 'bg-red-950/30' : confirmDialog.type === 'green' ? 'bg-green-950/30' : 'bg-blue-950/30'}`}>
+              <h2 className={`text-xl font-black uppercase tracking-widest flex items-center gap-2 ${confirmDialog.type === 'red' ? 'text-red-500' : confirmDialog.type === 'green' ? 'text-green-500' : 'text-blue-500'}`}>
+                {confirmDialog.type === 'red' && '⚠️ '}
+                {confirmDialog.type === 'green' && '✅ '}
+                {confirmDialog.type === 'blue' && '🛡️ '}
+                {confirmDialog.title}
+              </h2>
+            </div>
+            
+            <div className="p-6">
+              <p className="text-zinc-300 text-sm font-medium leading-relaxed">
+                {confirmDialog.message}
+              </p>
+            </div>
+            
+            <div className="p-6 bg-zinc-900/50 border-t border-zinc-800 flex gap-3">
+              <button 
+                onClick={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))} 
+                className="flex-1 border border-zinc-700 hover:bg-zinc-800 text-white font-bold py-3 rounded-lg uppercase tracking-widest text-xs transition-colors"
+              >
+                CANCELAR
+              </button>
+              <button 
+                onClick={executeConfirm} 
+                className={`flex-1 font-black py-3 rounded-lg uppercase tracking-widest text-xs shadow-lg transition-transform hover:scale-105 ${confirmDialog.type === 'red' ? 'bg-red-600 hover:bg-red-500 text-white' : confirmDialog.type === 'green' ? 'bg-green-600 hover:bg-green-500 text-black' : 'bg-blue-600 hover:bg-blue-500 text-white'}`}
+              >
+                CONFIRMAR
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
