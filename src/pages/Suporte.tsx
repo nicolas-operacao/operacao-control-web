@@ -198,6 +198,10 @@ export function Suporte() {
                   <th className="p-4 font-black">Cliente & Contato</th>
                   <th className="p-4 font-black">Produto</th>
                   <th className="p-4 font-black text-right">Valor</th>
+                  
+                  {/* 🔥 NOVA COLUNA DE PAGAMENTO */}
+                  <th className="p-4 font-black text-center">Pagamento</th>
+                  
                   <th className="p-4 font-black text-center">Status</th>
                   {abaAtiva === 'aprovadas' && <th className="p-4 font-black text-center">Ação</th>}
                 </tr>
@@ -228,6 +232,12 @@ export function Suporte() {
                     <td className={`p-4 font-black text-right whitespace-nowrap ${venda.status === 'cancelada' ? 'text-red-400 line-through opacity-70' : 'text-zinc-100'}`}>
                       {formataBRL(Number(venda.sale_value))}
                     </td>
+                    
+                    {/* 🔥 EXIBIÇÃO DO MÉTODO DE PAGAMENTO AQUI */}
+                    <td className="p-4 text-center text-zinc-400 text-[10px] font-bold uppercase">
+                      {venda.payment_method || '--'}
+                    </td>
+
                     <td className="p-4 text-center">
                       <span className={`px-2 py-1 rounded text-[9px] font-black uppercase tracking-wider 
                         ${venda.status === 'aprovada' ? 'bg-green-500/10 text-green-500 border border-green-500/20' : 
@@ -249,7 +259,7 @@ export function Suporte() {
                   </tr>
                 )) : (
                   <tr>
-                    <td colSpan={7} className="py-12 text-center text-zinc-600 uppercase font-black tracking-widest italic">
+                    <td colSpan={8} className="py-12 text-center text-zinc-600 uppercase font-black tracking-widest italic">
                       Nenhuma venda encontrada nesta categoria.
                     </td>
                   </tr>
@@ -276,6 +286,7 @@ export function Suporte() {
                   <p className="text-zinc-400 text-xs uppercase tracking-widest mb-1">Estornar venda de:</p>
                   <p className="text-white font-black text-lg">{selectedSale.customer_name}</p>
                   <p className="text-zinc-500 text-sm mt-1">Valor: <span className="text-red-400 font-bold">{formataBRL(Number(selectedSale.sale_value))}</span></p>
+                  <p className="text-zinc-500 text-xs mt-1">Pagamento: <span className="text-yellow-400 font-bold">{selectedSale.payment_method || '--'}</span></p>
                   <p className="text-zinc-500 text-xs mt-1">Vendedor: <span className="text-blue-400 font-bold">{selectedSale.seller_name}</span></p>
                 </div>
 
