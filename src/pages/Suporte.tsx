@@ -1,76 +1,47 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
-import { GuerraEquipes } from '../components/GuerraEquipes'; 
-
-type Produto = {
-  id: number;
-  nome: string;
-  valor: number;
-};
 
 type Venda = {
   id: string;
   product_name: string;
-  sale_value: number;
-  created_at: string; 
   customer_name: string;
   customer_email?: string;
   customer_phone?: string;
   payment_method?: string;
+  sale_value: number;
   status: string;
-  seller_id: string | number; 
-  edit_status?: string; 
+  created_at: string;
+  seller_name?: string; 
 };
 
-export function Vendas() {
+export function Suporte() {
   const navigate = useNavigate();
   const userString = localStorage.getItem('user');
-  const user = userString ? JSON.parse(userString) : { name: 'Vendedor', id: '' };
+  const user = userString ? JSON.parse(userString) : { name: 'Suporte', id: '' };
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false); 
-
-  const [produtos, setProdutos] = useState<Produto[]>([]);
   const [vendas, setVendas] = useState<Venda[]>([]);
-  
-  // 🔥 FILTRO COM ABA DE REEMBOLSOS
-  const [filtro, setFiltro] = useState<'dia' | 'semana' | 'mes' | 'reembolsos'>('mes');
-
-  const [productName, setProductName] = useState('');
-  const [customerName, setCustomerName] = useState('');
-  const [customerEmail, setCustomerEmail] = useState('');
-  const [customerPhone, setCustomerPhone] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('PIX');
-  const [saleValue, setSaleValue] = useState('');
-  const [saleDate, setSaleDate] = useState(new Date().toISOString().split('T')[0]);
-  
-  const [editingSaleId, setEditingSaleId] = useState('');
-  const [editReason, setEditReason] = useState('');
-
+  const [filtroDias, setFiltroDias] = useState<number>(7); 
+  const [searchTerm, setSearchTerm] = useState(''); 
   const [isLoading, setIsLoading] = useState(false);
-  const [mostrarComissao, setMostrarComissao] = useState(false);
+
+  // 🔥 ESTADO DAS GUIAS (TABS)
+  const [abaAtiva, setAbaAtiva] = useState<'aprovadas' | 'canceladas'>('aprovadas');
+
+  const [isRefundModalOpen, setIsRefundModalOpen] = useState(false);
+  const [selectedSale, setSelectedSale] = useState<Venda | null>(null);
+  const [refundReason, setRefundReason] = useState('');
 
   useEffect(() => {
-    fetchData();
+    fetchVendas();
   }, []);
 
-  async function fetchData() {
+  async function fetchVendas() {
     try {
-      const [prodRes, salesRes] = await Promise.all([
-        api.get('/products'),
-        api.get('/sales') 
-      ]);
-
-      setProdutos(prodRes.data);
-      setVendas(salesRes.data);
-      
-      if (prodRes.data.length > 0) {
-        setProductName(prodRes.data[0].nome);
-        setSaleValue(String(prodRes.data[0].valor));
-      }
+      const response = await api.get('/sales');
+      setVendas(response.data);
     } catch (error) {
-      console.error('Erro ao carregar dados:', error);
+      console.error('Erro ao buscar vendas:', error);
     }
   }
 
@@ -80,304 +51,206 @@ export function Vendas() {
     navigate('/');
   }
 
-  function handleProductChange(e: React.ChangeEvent<HTMLSelectElement>) {
-    const nomeSelecionado = e.target.value;
-    setProductName(nomeSelecionado);
-
-    const produtoEscolhido = produtos.find(p => p.nome === nomeSelecionado);
-    if (produtoEscolhido) {
-      setSaleValue(String(produtoEscolhido.valor));
-    }
+  function openRefundModal(venda: Venda) {
+    setSelectedSale(venda);
+    setRefundReason('');
+    setIsRefundModalOpen(true);
   }
 
-  function handleOpenEdit(venda: Venda) {
-    setEditingSaleId(venda.id);
-    setProductName(venda.product_name);
-    setSaleValue(String(venda.sale_value));
-    setCustomerName(venda.customer_name);
-    setCustomerEmail(venda.customer_email || '');
-    setCustomerPhone(venda.customer_phone || '');
-    setPaymentMethod(venda.payment_method || 'PIX');
-    setEditReason('');
-    
-    if (venda.created_at) {
-      setSaleDate(new Date(venda.created_at).toISOString().split('T')[0]);
-    }
-
-    setIsEditModalOpen(true);
+  function copiarEmail(email?: string) {
+    if (!email) return;
+    navigator.clipboard.writeText(email);
+    alert(`📧 E-mail copiado para a área de transferência:\n${email}`);
   }
 
-  function resetForm() {
-    setCustomerName('');
-    setCustomerEmail('');
-    setCustomerPhone('');
-    setEditReason('');
-    setSaleDate(new Date().toISOString().split('T')[0]);
-    if (produtos.length > 0) {
-      setProductName(produtos[0].nome);
-      setSaleValue(String(produtos[0].valor));
-    }
-  }
-
-  async function handleRegisterSale(e: React.FormEvent) {
+  async function handleConfirmRefund(e: React.FormEvent) {
     e.preventDefault();
+    if (!selectedSale) return;
     setIsLoading(true);
 
     try {
-      await api.post('/sales', {
-        seller_id: user.id, product_name: productName, customer_name: customerName,
-        customer_email: customerEmail, customer_phone: customerPhone, payment_method: paymentMethod,
-        sale_value: Number(saleValue), sale_date: saleDate
+      await api.post(`/sales/${selectedSale.id}/cancel`, {
+        reason: refundReason
       });
 
-      alert('⚡ Venda registrada com sucesso!');
-      resetForm();
-      setIsModalOpen(false);
-      fetchData(); 
+      new Audio('https://actions.google.com/sounds/v1/alarms/buzzer_alarm.ogg').play().catch(()=>{});
+      
+      alert('🔴 Reembolso efetuado! O valor foi removido do placar do vendedor.');
+      setIsRefundModalOpen(false);
+      setSelectedSale(null);
+      fetchVendas(); 
     } catch (error: any) {
-      alert('Erro ao registrar venda.');
+      const mensagemReal = error.response?.data?.error || error.message;
+      alert(`🚨 ERRO DO SERVIDOR: ${mensagemReal}`);
     } finally {
       setIsLoading(false);
     }
   }
 
-  async function handleRequestEdit(e: React.FormEvent) {
-    e.preventDefault();
-    setIsLoading(true);
-
-    try {
-      const novaDataFormatada = new Date(`${saleDate}T12:00:00Z`).toISOString();
-
-      const newData = {
-        product_name: productName,
-        sale_value: Number(saleValue),
-        customer_name: customerName,
-        customer_email: customerEmail,
-        customer_phone: customerPhone,
-        payment_method: paymentMethod,
-        created_at: novaDataFormatada 
-      };
-
-      await api.post(`/sales/${editingSaleId}/request-edit`, {
-        reason: editReason,
-        newData: newData
-      });
-
-      alert('🛡️ Solicitação de edição enviada ao Comando Militar! Aguarde aprovação.');
-      resetForm();
-      setIsEditModalOpen(false);
-      fetchData(); 
-    } catch (error: any) {
-      alert('Erro ao solicitar edição. Fale com o suporte.');
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
+  // Lógica de Filtragem de Datas, Busca e Abas
   const vendasFiltradas = vendas.filter(venda => {
-    if (String(venda.seller_id) !== String(user.id)) return false;
     if (!venda.created_at) return false;
     
-    if (filtro === 'reembolsos') {
-      return venda.status === 'cancelada';
-    }
-
-    if (venda.status === 'cancelada') return false;
+    // Filtro da Aba (Aprovadas vs Canceladas)
+    if (abaAtiva === 'aprovadas' && venda.status !== 'aprovada') return false;
+    if (abaAtiva === 'canceladas' && venda.status !== 'cancelada') return false;
 
     const dataVenda = new Date(venda.created_at);
-    const hoje = new Date();
-    
-    if (filtro === 'dia') return dataVenda.toDateString() === hoje.toDateString();
-    if (filtro === 'semana') {
-      const umaSemanaAtras = new Date();
-      umaSemanaAtras.setDate(hoje.getDate() - 7);
-      return dataVenda >= umaSemanaAtras;
+    const limiteData = new Date();
+    limiteData.setDate(limiteData.getDate() - (filtroDias - 1));
+    limiteData.setHours(0, 0, 0, 0);
+    const dentroDaData = dataVenda >= limiteData;
+
+    const termo = searchTerm.toLowerCase();
+    const passouNaBusca = 
+      (venda.customer_name && venda.customer_name.toLowerCase().includes(termo)) ||
+      (venda.customer_email && venda.customer_email.toLowerCase().includes(termo)) ||
+      (venda.customer_phone && venda.customer_phone.toLowerCase().includes(termo));
+
+    if (searchTerm.trim() === '') {
+      return dentroDaData;
+    } else {
+      return dentroDaData && passouNaBusca;
     }
-    return true; 
-  });
 
-  const vendasAprovadasMes = vendas.filter(v => {
-    if (String(v.seller_id) !== String(user.id)) return false;
-    if (v.status !== 'aprovada') return false;
-    if (!v.created_at) return false;
-    
-    const dataVenda = new Date(v.created_at);
-    const hoje = new Date();
-    const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
-    
-    return dataVenda >= inicioMes;
-  });
+  }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-  const qtdVendasMes = vendasAprovadasMes.length;
-  const valorTotalMes = vendasAprovadasMes.reduce((acc, v) => acc + Number(v.sale_value), 0);
+  const formataBRL = (valor: number) => 
+    valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-  let percentualComissao = 0;
-  if (qtdVendasMes <= 60) {
-    percentualComissao = 1;
-  } else if (qtdVendasMes <= 100) {
-    percentualComissao = 2;
-  } else if (qtdVendasMes <= 150) {
-    percentualComissao = 2.5;
-  } else {
-    percentualComissao = 3; 
-  }
-
-  const valorComissao = (valorTotalMes * percentualComissao) / 100;
-  const formataBRL = (valor: number) => valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-
-  const minhasVendasCanceladas = vendas.filter(v => String(v.seller_id) === String(user.id) && v.status === 'cancelada');
-  const totalArrecadacaoPerdida = minhasVendasCanceladas.reduce((acc, v) => acc + Number(v.sale_value), 0);
+  const qtdAprovadas = vendas.filter(v => v.status === 'aprovada').length;
+  const qtdCanceladas = vendas.filter(v => v.status === 'cancelada').length;
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans p-4 md:p-8 relative">
-      <div className="max-w-6xl mx-auto">
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans p-4 md:p-8">
+      <div className="max-w-7xl mx-auto space-y-8">
         
-        <div className="flex flex-col md:flex-row justify-between items-center mb-8 pb-4 border-b border-zinc-800 gap-4">
+        {/* CABEÇALHO */}
+        <div className="flex flex-col md:flex-row justify-between items-center pb-4 border-b border-zinc-800 gap-4">
           <div>
-            <h1 className="text-3xl font-black text-yellow-400 tracking-tight uppercase flex items-center gap-3">
-              CENTRAL DO VENDEDOR <span className="text-xl">⚡</span>
+            <h1 className="text-3xl md:text-4xl font-black text-purple-500 uppercase tracking-wider flex items-center gap-3">
+              🛡️ CENTRAL DE SUPORTE
             </h1>
-            <p className="text-zinc-400">Soldado: <span className="text-white font-bold">{user.name}</span></p>
+            <p className="text-zinc-400 mt-1">Operador: <span className="text-white font-bold">{user.name}</span></p>
           </div>
-          <button onClick={handleLogout} className="border-2 border-zinc-700 text-zinc-300 hover:border-red-500 hover:text-red-500 px-6 py-2 rounded font-bold transition-all uppercase text-sm">
-            Sair da Operação
-          </button>
-        </div>
-
-        {/* ALERTA DE BAIXAS */}
-        {minhasVendasCanceladas.length > 0 && (
-          <div className="bg-red-950/40 border border-red-500/50 rounded-xl p-4 md:p-6 mb-8 shadow-[0_0_20px_rgba(239,68,68,0.2)] animate-in fade-in flex flex-col md:flex-row justify-between items-center gap-4">
-            <div className="flex items-start gap-4">
-              <span className="text-4xl">🚨</span>
-              <div>
-                <h3 className="text-red-400 font-black uppercase tracking-widest text-lg">Aviso de Baixa em Combate</h3>
-                <p className="text-zinc-300 text-sm mt-1">
-                  Você possui <span className="font-black text-white bg-red-600/30 px-2 py-0.5 rounded">{minhasVendasCanceladas.length} reembolsos</span> registrados. Estes valores foram removidos do seu placar.
-                </p>
-              </div>
-            </div>
-            <div className="text-center md:text-right bg-red-950/80 p-3 rounded-lg border border-red-500/30 w-full md:w-auto">
-              <p className="text-red-500/70 text-[10px] font-black uppercase mb-1 tracking-widest">Valor Estornado</p>
-              <p className="text-red-400 font-black text-xl">{formataBRL(totalArrecadacaoPerdida)}</p>
-            </div>
+          <div className="flex gap-4">
+            <button 
+              onClick={() => navigate('/dashboard')} 
+              className="border border-zinc-700 hover:border-purple-500 hover:text-purple-400 text-zinc-400 font-bold px-6 py-2 rounded transition-colors text-sm uppercase tracking-wider"
+            >
+              Voltar
+            </button>
+            <button 
+              onClick={handleLogout} 
+              className="border-2 border-red-900 text-red-500 hover:bg-red-900 hover:text-white px-6 py-2 rounded font-bold transition-all text-sm uppercase tracking-wider"
+            >
+              Sair
+            </button>
           </div>
-        )}
-
-        {/* PAINEL DE COMISSÃO */}
-        <div className="bg-gradient-to-r from-green-950 to-zinc-900 border border-green-500/30 rounded-xl p-6 shadow-[0_0_20px_rgba(34,197,94,0.1)] mb-8 flex flex-col md:flex-row justify-between items-center gap-6 animate-in fade-in slide-in-from-top-4">
-          <div className="text-center md:text-left">
-            <h3 className="text-green-400 font-black uppercase tracking-widest text-lg flex items-center justify-center md:justify-start gap-2">
-              💰 Relatório de Ganhos Pessoais
-            </h3>
-            <p className="text-zinc-400 text-xs mt-1 uppercase tracking-widest">
-              Baseado nas suas Vendas Aprovadas do Mês
-            </p>
-          </div>
-          
-          <div className="flex flex-wrap justify-center gap-4 w-full md:w-auto">
-            <div className="bg-zinc-950 p-4 rounded-lg border border-zinc-800 min-w-[120px] text-center">
-              <p className="text-zinc-500 text-[10px] font-black uppercase mb-1">Total de Vendas</p>
-              <p className="text-2xl font-black text-white">{qtdVendasMes}</p>
-            </div>
-            <div className="bg-zinc-950 p-4 rounded-lg border border-yellow-500/20 min-w-[120px] text-center">
-              <p className="text-yellow-500/70 text-[10px] font-black uppercase mb-1">Taxa Alcançada</p>
-              <p className="text-2xl font-black text-yellow-400">{percentualComissao}%</p>
-            </div>
-            
-            {/* TRAVA DE SEGURANÇA (OLHINHO) */}
-            <div className="bg-green-950/50 p-4 rounded-lg border border-green-500/50 min-w-[170px] text-center shadow-[0_0_15px_rgba(34,197,94,0.2)]">
-              <div className="flex items-center justify-center gap-2 mb-1">
-                <p className="text-green-500 text-[10px] font-black uppercase">Comissão Estimada</p>
-                <button onClick={() => setMostrarComissao(!mostrarComissao)} className="text-green-500/70 hover:text-green-400 focus:outline-none transition-colors" title={mostrarComissao ? "Ocultar Comissão" : "Ver Comissão"}>
-                  {mostrarComissao ? (
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
-                  ) : (
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" y1="2" x2="22" y2="22"/></svg>
-                  )}
-                </button>
-              </div>
-              <p className="text-2xl font-black text-green-400">{mostrarComissao ? formataBRL(valorComissao) : 'R$ •••••••'}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="mb-10">
-           <GuerraEquipes refreshTrigger={0} />
         </div>
 
         <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 shadow-2xl">
-          <div className="flex flex-col lg:flex-row justify-between items-center mb-8 gap-4 border-b border-zinc-800 pb-6">
-            
-            <div className="flex flex-wrap justify-center gap-2">
-              <button onClick={() => setFiltro('dia')} className={`px-4 py-2 rounded-lg font-bold text-[10px] sm:text-xs uppercase tracking-widest transition-all ${filtro === 'dia' ? 'bg-yellow-400 text-black' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}>Hoje</button>
-              <button onClick={() => setFiltro('semana')} className={`px-4 py-2 rounded-lg font-bold text-[10px] sm:text-xs uppercase tracking-widest transition-all ${filtro === 'semana' ? 'bg-yellow-400 text-black' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}>Semana</button>
-              <button onClick={() => setFiltro('mes')} className={`px-4 py-2 rounded-lg font-bold text-[10px] sm:text-xs uppercase tracking-widest transition-all ${filtro === 'mes' ? 'bg-yellow-400 text-black' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}>Mês</button>
-              <button onClick={() => setFiltro('reembolsos')} className={`px-4 py-2 rounded-lg font-bold text-[10px] sm:text-xs uppercase tracking-widest transition-all flex items-center gap-1.5 ${filtro === 'reembolsos' ? 'bg-red-600 text-white shadow-[0_0_10px_rgba(220,38,38,0.5)]' : 'bg-red-950/30 text-red-500 border border-red-900/50 hover:bg-red-900/50'}`}>
-                Reembolsos <span className="bg-black/30 px-1.5 py-0.5 rounded text-[9px]">{minhasVendasCanceladas.length}</span>
-              </button>
-            </div>
-            
+          
+          {/* 🔥 GUIAS (TABS) TÁTICAS */}
+          <div className="flex gap-4 mb-8 border-b border-zinc-800 pb-px">
             <button 
-              onClick={() => { resetForm(); setIsModalOpen(true); }}
-              className="w-full lg:w-auto bg-green-500 hover:bg-green-600 text-black font-black px-8 py-3 rounded-lg shadow-lg transition-transform hover:scale-105 tracking-widest text-xs uppercase"
+              onClick={() => setAbaAtiva('aprovadas')}
+              className={`px-6 py-3 font-black uppercase tracking-widest rounded-t-lg transition-colors border-b-2 text-xs md:text-sm ${abaAtiva === 'aprovadas' ? 'border-purple-500 text-purple-400 bg-zinc-950' : 'border-transparent text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 bg-zinc-900/30'}`}
             >
-              + Lançar Nova Venda
+              Análise de Risco ({qtdAprovadas})
             </button>
+            <button 
+              onClick={() => setAbaAtiva('canceladas')}
+              className={`px-6 py-3 font-black uppercase tracking-widest rounded-t-lg transition-colors border-b-2 text-xs md:text-sm ${abaAtiva === 'canceladas' ? 'border-red-500 text-red-400 bg-red-950/20' : 'border-transparent text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 bg-zinc-900/30'}`}
+            >
+              Histórico de Baixas ({qtdCanceladas})
+            </button>
+          </div>
+
+          <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4 border-b border-zinc-800 pb-6">
+            
+            <div className="flex flex-col md:flex-row items-center gap-3 w-full">
+              <div className="w-full md:w-96">
+                <input 
+                  type="text"
+                  placeholder="Buscar por cliente, e-mail ou telefone..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className={`w-full bg-zinc-950 border ${abaAtiva === 'canceladas' ? 'border-red-900/50 focus:border-red-500' : 'border-zinc-700 focus:border-purple-500'} text-white rounded p-3 text-xs outline-none transition-colors placeholder:text-zinc-600`}
+                />
+              </div>
+
+              <div className="flex items-center gap-2 bg-zinc-950 p-1.5 rounded-lg border border-zinc-800 w-full md:w-auto justify-center ml-auto">
+                <span className="text-zinc-500 text-[10px] font-bold uppercase ml-2 hidden lg:block">Exibir:</span>
+                <button onClick={() => setFiltroDias(7)} className={`px-3 py-1.5 rounded text-[10px] font-bold uppercase transition-all ${filtroDias === 7 ? 'bg-purple-600 text-white' : 'text-zinc-400 hover:bg-zinc-800'}`}>7 dias</button>
+                <button onClick={() => setFiltroDias(15)} className={`px-3 py-1.5 rounded text-[10px] font-bold uppercase transition-all ${filtroDias === 15 ? 'bg-purple-600 text-white' : 'text-zinc-400 hover:bg-zinc-800'}`}>15 dias</button>
+                <button onClick={() => setFiltroDias(30)} className={`px-3 py-1.5 rounded text-[10px] font-bold uppercase transition-all ${filtroDias === 30 ? 'bg-purple-600 text-white' : 'text-zinc-400 hover:bg-zinc-800'}`}>30 dias</button>
+              </div>
+            </div>
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead>
-                <tr className="border-b border-zinc-800 text-zinc-500 text-[10px] uppercase tracking-widest">
-                  <th className="pb-4 font-black">Data</th>
-                  <th className="pb-4 font-black">Cliente</th>
-                  <th className="pb-4 font-black">Produto</th>
-                  <th className="pb-4 font-black">Valor</th>
-                  <th className="pb-4 font-black text-center">Status</th>
-                  <th className="pb-4 font-black text-center">Ação</th>
+                <tr className={`border-b border-zinc-800 text-zinc-500 text-[10px] uppercase tracking-widest ${abaAtiva === 'canceladas' ? 'bg-red-950/10' : 'bg-zinc-950/50'}`}>
+                  <th className="p-4 font-black">Data</th>
+                  <th className="p-4 font-black">Soldado (Vendedor)</th>
+                  <th className="p-4 font-black">Cliente & Contato</th>
+                  <th className="p-4 font-black">Produto</th>
+                  <th className="p-4 font-black text-right">Valor</th>
+                  <th className="p-4 font-black text-center">Status</th>
+                  {abaAtiva === 'aprovadas' && <th className="p-4 font-black text-center">Ação</th>}
                 </tr>
               </thead>
               <tbody className="text-sm">
                 {vendasFiltradas.length > 0 ? vendasFiltradas.map(venda => (
-                  <tr key={venda.id} className={`border-b border-zinc-800/50 transition-colors ${venda.status === 'cancelada' ? 'bg-red-950/10 opacity-80' : 'hover:bg-zinc-800/30'}`}>
-                    <td className="py-4 text-zinc-400">
-                      {venda.created_at ? new Date(venda.created_at).toLocaleDateString('pt-BR') : '--/--/----'}
+                  <tr key={venda.id} className={`border-b border-zinc-800/50 transition-colors ${venda.status === 'cancelada' ? 'bg-red-950/20 hover:bg-red-950/30' : 'hover:bg-zinc-800/40'}`}>
+                    <td className="p-4 text-zinc-400 whitespace-nowrap">
+                      {venda.created_at ? new Date(venda.created_at).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '--'}
                     </td>
-                    <td className="py-4 font-bold">{venda.customer_name}</td>
-                    <td className="py-4 text-zinc-300 text-xs uppercase tracking-wider">{venda.product_name}</td>
-                    <td className={`py-4 font-bold ${venda.status === 'cancelada' ? 'text-red-400 line-through' : 'text-green-400'}`}>
-                      R$ {(Number(venda.sale_value) || 0).toFixed(2)}
+                    <td className="p-4 font-black text-blue-400 uppercase tracking-wider">
+                      {venda.seller_name || 'Desconhecido'}
                     </td>
-                    <td className="py-4 text-center">
-                      <span className={`px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-widest 
-                        ${venda.status === 'aprovada' ? 'bg-green-500/10 text-green-500 border border-green-500/20' : 
-                          venda.status === 'cancelada' ? 'bg-red-500/10 text-red-500 border border-red-500/20' : 
-                          'bg-yellow-500/10 text-yellow-500 border border-yellow-500/20'}`}
+                    <td className="p-4 text-zinc-200 font-medium">
+                      {venda.customer_name}
+                      <div className="text-[10px] text-zinc-500 font-normal mt-1">
+                        📞 {venda.customer_phone || 'Sem telefone'}
+                      </div>
+                      <div 
+                        onClick={() => copiarEmail(venda.customer_email)}
+                        className="text-[10px] text-blue-400 font-bold cursor-pointer mt-0.5 hover:text-blue-300 transition-colors" 
+                        title="Clique para copiar o e-mail"
                       >
-                        {venda.status === 'cancelada' ? 'REEMBOLSADO' : venda.status === 'aprovada' ? 'Aprovada' : 'Pendente'}
+                        📧 {venda.customer_email || 'Sem e-mail'}
+                      </div>
+                    </td>
+                    <td className="p-4 text-zinc-400 text-xs">{venda.product_name}</td>
+                    <td className={`p-4 font-black text-right whitespace-nowrap ${venda.status === 'cancelada' ? 'text-red-400 line-through opacity-70' : 'text-zinc-100'}`}>
+                      {formataBRL(Number(venda.sale_value))}
+                    </td>
+                    <td className="p-4 text-center">
+                      <span className={`px-2 py-1 rounded text-[9px] font-black uppercase tracking-wider 
+                        ${venda.status === 'aprovada' ? 'bg-green-500/10 text-green-500 border border-green-500/20' : 
+                          'bg-red-500/10 text-red-500 border border-red-500/20'}`}
+                      >
+                        {venda.status === 'cancelada' ? 'REEMBOLSADO' : venda.status}
                       </span>
                     </td>
-                    <td className="py-4 text-center">
-                      {venda.status === 'cancelada' ? (
-                        <span className="text-[10px] font-bold text-red-500/50 uppercase tracking-widest">Estornado</span>
-                      ) : venda.edit_status === 'pendente' ? (
-                        <span className="text-[10px] font-black text-yellow-500 bg-yellow-500/10 px-2 py-1 rounded border border-yellow-500/30">
-                          ⏳ EM ANÁLISE
-                        </span>
-                      ) : (
+                    {abaAtiva === 'aprovadas' && (
+                      <td className="p-4 text-center">
                         <button 
-                          onClick={() => handleOpenEdit(venda)}
-                          className="text-blue-400 hover:text-blue-300 text-[10px] font-bold uppercase tracking-widest transition-colors border border-blue-400/30 bg-blue-950/20 px-3 py-1.5 rounded"
+                          onClick={() => openRefundModal(venda)}
+                          className="bg-red-600/20 hover:bg-red-600 text-red-500 hover:text-white border border-red-600/50 px-3 py-1.5 rounded text-[10px] font-black uppercase tracking-widest transition-all"
                         >
-                          Corrigir Erro
+                          Reembolsar
                         </button>
-                      )}
-                    </td>
+                      </td>
+                    )}
                   </tr>
                 )) : (
                   <tr>
-                    <td colSpan={6} className="py-12 text-center text-zinc-600 uppercase font-black tracking-widest italic">
-                      {filtro === 'reembolsos' ? 'Ótimo trabalho! Nenhuma baixa registrada. 🛡️' : 'Nenhuma venda sua foi encontrada neste período.'}
+                    <td colSpan={7} className="py-12 text-center text-zinc-600 uppercase font-black tracking-widest italic">
+                      Nenhuma venda encontrada nesta categoria.
                     </td>
                   </tr>
                 )}
@@ -387,152 +260,53 @@ export function Vendas() {
         </div>
       </div>
 
-      {/* MODAL DE REGISTRAR VENDA */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="bg-zinc-900 border border-zinc-700 rounded-2xl w-full max-w-xl shadow-2xl animate-in zoom-in duration-150">
-            <div className="p-6 border-b border-zinc-800 flex justify-between items-center">
-              <h2 className="text-xl font-black text-green-500 uppercase">🎯 Registrar Venda</h2>
-              <button onClick={() => setIsModalOpen(false)} className="text-zinc-500 hover:text-white text-2xl">&times;</button>
-            </div>
-            <form onSubmit={handleRegisterSale} className="p-6 space-y-4">
-                
-                <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">Produto</label>
-                        <select value={productName} onChange={handleProductChange} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm text-white cursor-pointer">
-                            {produtos.map(p => <option key={p.id} value={p.nome}>{p.nome}</option>)}
-                        </select>
-                    </div>
-                    <div>
-                        <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">Valor R$</label>
-                        <input type="number" step="0.01" value={saleValue} onChange={(e) => setSaleValue(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm text-yellow-400 font-bold" />
-                    </div>
-                </div>
-                
-                <div>
-                    <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">Data</label>
-                    <input type="date" value={saleDate} onChange={(e) => setSaleDate(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm text-white [color-scheme:dark]" />
-                </div>
-                
-                <div>
-                    <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">Nome do Cliente</label>
-                    <input type="text" required value={customerName} onChange={(e) => setCustomerName(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm text-white" />
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">WhatsApp / Telefone</label>
-                        <input type="text" required value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm text-white" placeholder="Ex: (11) 99999-9999" />
-                    </div>
-                    <div>
-                        <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">E-mail do Cliente</label>
-                        <input type="email" required value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm text-white" placeholder="Ex: email@cliente.com" />
-                    </div>
-                </div>
-                
-                <div>
-                    <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">Método de Pagamento</label>
-                    <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm text-white">
-                        <option value="PIX">PIX</option>
-                        <option value="Cartão de Crédito (até 12x)">Cartão de Crédito (até 12x)</option>
-                        <option value="Crédito à vista">Crédito à vista</option>
-                        <option value="Débito à vista">Débito à vista</option>
-                        <option value="Boleto Parcelado">Boleto Parcelado</option>
-                    </select>
-                </div>
-                
-                <button disabled={isLoading} className="w-full bg-green-500 hover:bg-green-400 text-black font-black py-4 rounded-xl mt-4 uppercase tracking-widest shadow-lg transition-colors">
-                    {isLoading ? 'ENVIANDO...' : 'CONFIRMAR LANÇAMENTO ⚡'}
-                </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL SOLICITAR EDIÇÃO */}
-      {isEditModalOpen && (
-        <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="bg-zinc-900 border border-blue-500/30 rounded-2xl w-full max-w-xl shadow-[0_0_30px_rgba(59,130,246,0.15)] animate-in zoom-in duration-150">
-            <div className="p-6 border-b border-zinc-800 flex justify-between items-center bg-blue-900/10">
-              <h2 className="text-xl font-black text-blue-400 uppercase">🛡️ Solicitar Correção</h2>
-              <button onClick={() => setIsEditModalOpen(false)} className="text-zinc-500 hover:text-white text-2xl">&times;</button>
+      {/* MODAL DE JUSTIFICATIVA DE REEMBOLSO */}
+      {isRefundModalOpen && selectedSale && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-zinc-900 border border-red-500/30 rounded-2xl w-full max-w-md shadow-[0_0_30px_rgba(220,38,38,0.15)] animate-in zoom-in duration-150">
+            <div className="p-6 border-b border-zinc-800 flex justify-between items-center bg-red-950/30">
+              <h2 className="text-xl font-black text-red-500 uppercase flex items-center gap-2">
+                🔴 Confirmar Reembolso
+              </h2>
+              <button onClick={() => setIsRefundModalOpen(false)} className="text-zinc-500 hover:text-white text-2xl">&times;</button>
             </div>
             
-            <form onSubmit={handleRequestEdit} className="p-6 space-y-4">
-                
-                <div className="bg-zinc-950 p-4 border border-zinc-800 rounded-lg mb-6">
-                  <label className="block text-red-400 text-xs font-black uppercase mb-2 flex items-center gap-2">
-                    ⚠️ JUSTIFICATIVA DO ERRO
+            <form onSubmit={handleConfirmRefund} className="p-6 space-y-6">
+                <div className="bg-zinc-950 p-4 rounded border border-zinc-800">
+                  <p className="text-zinc-400 text-xs uppercase tracking-widest mb-1">Estornar venda de:</p>
+                  <p className="text-white font-black text-lg">{selectedSale.customer_name}</p>
+                  <p className="text-zinc-500 text-sm mt-1">Valor: <span className="text-red-400 font-bold">{formataBRL(Number(selectedSale.sale_value))}</span></p>
+                  <p className="text-zinc-500 text-xs mt-1">Vendedor: <span className="text-blue-400 font-bold">{selectedSale.seller_name}</span></p>
+                </div>
+
+                <div>
+                  <label className="block text-zinc-400 text-xs font-black uppercase tracking-widest mb-2">
+                    Motivo do Reembolso (Obrigatório)
                   </label>
                   <textarea 
                     required 
-                    value={editReason} 
-                    onChange={(e) => setEditReason(e.target.value)} 
-                    placeholder="Explique detalhadamente por que você está alterando esta venda..."
-                    className="w-full bg-zinc-900 border border-zinc-700 text-white rounded p-3 focus:outline-none focus:border-blue-500 min-h-[80px]" 
+                    value={refundReason} 
+                    onChange={(e) => setRefundReason(e.target.value)} 
+                    placeholder="Ex: Cliente desistiu da compra no prazo de garantia..."
+                    className="w-full bg-zinc-950 border border-zinc-800 text-white rounded p-3 focus:outline-none focus:border-red-500 min-h-[100px]" 
                   />
+                  <p className="text-red-500/70 text-[10px] mt-2 font-bold">
+                    Atenção: Esta ação removerá o valor do placar do vendedor.
+                  </p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">Produto Correto</label>
-                        <select value={productName} onChange={handleProductChange} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm text-white cursor-pointer">
-                            {produtos.map(p => <option key={p.id} value={p.nome}>{p.nome}</option>)}
-                        </select>
-                    </div>
-                    <div>
-                        <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">Valor Correto R$</label>
-                        <input type="number" step="0.01" value={saleValue} onChange={(e) => setSaleValue(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm text-yellow-400 font-bold" />
-                    </div>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">Nome do Cliente</label>
-                        <input type="text" required value={customerName} onChange={(e) => setCustomerName(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm text-white" />
-                    </div>
-                    <div>
-                        <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">Data Correta</label>
-                        <input type="date" required value={saleDate} onChange={(e) => setSaleDate(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm text-white [color-scheme:dark]" />
-                    </div>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">Telefone Correto</label>
-                        <input type="text" required value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm text-white" />
-                    </div>
-                    <div>
-                        <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">E-mail Correto</label>
-                        <input type="email" required value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm text-white" />
-                    </div>
-                </div>
-                
-                <div>
-                    <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">Método de Pagamento</label>
-                    <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm text-white">
-                        <option value="PIX">PIX</option>
-                        <option value="Cartão de Crédito (até 12x)">Cartão de Crédito (até 12x)</option>
-                        <option value="Crédito à vista">Crédito à vista</option>
-                        <option value="Débito à vista">Débito à vista</option>
-                        <option value="Boleto Parcelado">Boleto Parcelado</option>
-                    </select>
-                </div>
-
-                <div className="flex gap-3 pt-4">
-                  <button type="button" onClick={() => setIsEditModalOpen(false)} className="w-1/3 border border-zinc-700 hover:bg-zinc-800 text-white font-bold py-4 rounded-xl uppercase tracking-widest transition-colors">
-                      CANCELAR
+                <div className="flex gap-3 pt-2">
+                  <button type="button" onClick={() => setIsRefundModalOpen(false)} className="w-1/3 border border-zinc-700 hover:bg-zinc-800 text-white font-bold py-3 rounded-lg uppercase tracking-widest transition-colors text-xs">
+                      Cancelar
                   </button>
-                  <button disabled={isLoading} className="w-2/3 bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-xl uppercase tracking-widest shadow-[0_0_15px_rgba(37,99,235,0.3)] transition-all">
-                      {isLoading ? 'ENVIANDO...' : 'ENVIAR PARA APROVAÇÃO'}
+                  <button disabled={isLoading} className="w-2/3 bg-red-600 hover:bg-red-500 text-white font-black py-3 rounded-lg uppercase tracking-widest shadow-[0_0_15px_rgba(220,38,38,0.3)] transition-all text-xs">
+                      {isLoading ? 'PROCESSANDO...' : 'CONFIRMAR ESTORNO'}
                   </button>
                 </div>
             </form>
           </div>
         </div>
       )}
-
     </div>
   );
 }
