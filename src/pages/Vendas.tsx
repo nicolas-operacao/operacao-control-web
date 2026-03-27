@@ -48,6 +48,9 @@ export function Vendas() {
 
   const [isLoading, setIsLoading] = useState(false);
 
+  // 🔥 ESTADO DA TRAVA DE PRIVACIDADE DO BANCO (O OLHINHO)
+  const [mostrarComissao, setMostrarComissao] = useState(false);
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -238,7 +241,7 @@ export function Vendas() {
         </div>
 
         {/* ======================================================== */}
-        {/* 🔥 PAINEL GAMIFICADO DE COMISSÃO DO SOLDADO */}
+        {/* 🔥 PAINEL GAMIFICADO DE COMISSÃO DO SOLDADO COM PRIVACIDADE */}
         {/* ======================================================== */}
         <div className="bg-gradient-to-r from-green-950 to-zinc-900 border border-green-500/30 rounded-xl p-6 shadow-[0_0_20px_rgba(34,197,94,0.1)] mb-8 flex flex-col md:flex-row justify-between items-center gap-6 animate-in fade-in slide-in-from-top-4">
           <div className="text-center md:text-left">
@@ -259,14 +262,27 @@ export function Vendas() {
               <p className="text-yellow-500/70 text-[10px] font-black uppercase mb-1">Taxa Alcançada</p>
               <p className="text-2xl font-black text-yellow-400">{percentualComissao}%</p>
             </div>
-            <div className="bg-green-950/50 p-4 rounded-lg border border-green-500/50 min-w-[150px] text-center shadow-[0_0_15px_rgba(34,197,94,0.2)]">
-              <p className="text-green-500 text-[10px] font-black uppercase mb-1">Comissão Estimada</p>
-              <p className="text-2xl font-black text-green-400">{formataBRL(valorComissao)}</p>
+            
+            {/* 🔥 QUADRO DE COMISSÃO BLINDADO */}
+            <div className="bg-green-950/50 p-4 rounded-lg border border-green-500/50 min-w-[170px] text-center shadow-[0_0_15px_rgba(34,197,94,0.2)]">
+              <div className="flex items-center justify-center gap-2 mb-1">
+                <p className="text-green-500 text-[10px] font-black uppercase">Comissão Estimada</p>
+                <button onClick={() => setMostrarComissao(!mostrarComissao)} className="text-green-500/70 hover:text-green-400 focus:outline-none transition-colors" title={mostrarComissao ? "Ocultar Comissão" : "Ver Comissão"}>
+                  {mostrarComissao ? (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                  ) : (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" y1="2" x2="22" y2="22"/></svg>
+                  )}
+                </button>
+              </div>
+              <p className="text-2xl font-black text-green-400">{mostrarComissao ? formataBRL(valorComissao) : 'R$ •••••••'}</p>
             </div>
+            
           </div>
         </div>
 
         <div className="mb-10">
+           {/* 🔥 CORREÇÃO DA VERCEL APLICADA AQUI */}
            <GuerraEquipes refreshTrigger={0} />
         </div>
 

@@ -63,6 +63,9 @@ export function Dashboard() {
   
   const [metodoPagamentoFiltro, setMetodoPagamentoFiltro] = useState<string>('');
 
+  // 🔥 ESTADO DA TRAVA DE PRIVACIDADE DO BANCO (O OLHINHO)
+  const [mostrarComissao, setMostrarComissao] = useState(false);
+
   // 🔥 ESTADOS DE APROVAÇÃO EM MASSA
   const [selectedEdits, setSelectedEdits] = useState<string[]>([]);
   const [selectedSales, setSelectedSales] = useState<string[]>([]);
@@ -664,11 +667,42 @@ export function Dashboard() {
             </div>
           </div>
 
-          <div className="bg-zinc-900 border-l-4 border-green-500 p-6 rounded-lg shadow-2xl relative overflow-hidden transform transition-all duration-200 hover:scale-[1.02] group cursor-default">
+          {/* ======================================================== */}
+          {/* 🔥 QUADRO DE COMISSÃO DO SUPERVISOR COM PRIVACIDADE      */}
+          {/* ======================================================== */}
+          <div className="bg-zinc-900 border-l-4 border-green-500 p-6 rounded-lg shadow-2xl relative overflow-hidden group cursor-default">
             <div className="absolute top-0 right-0 p-4 opacity-10 text-green-500 text-8xl">💰</div>
-            <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">Sua Comissão (1%)</p>
-            <h2 className="text-3xl font-black text-green-400">{formataBRL(vendasMes * 0.01)}</h2>
-            <p className="text-zinc-500 text-[10px] font-bold mt-2 uppercase tracking-widest">Ganhos da Operação</p>
+            
+            <div className="flex justify-between items-center mb-1 relative z-10">
+              <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest">Sua Comissão (1%)</p>
+              
+              <button 
+                onClick={() => setMostrarComissao(!mostrarComissao)} 
+                className="text-zinc-500 hover:text-zinc-300 transition-colors focus:outline-none" 
+                title={mostrarComissao ? "Ocultar Comissão" : "Ver Comissão"}
+              >
+                {mostrarComissao ? (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                  </svg>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"></path>
+                    <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"></path>
+                    <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"></path>
+                    <line x1="2" y1="2" x2="22" y2="22"></line>
+                  </svg>
+                )}
+              </button>
+            </div>
+            
+            <h2 className="text-3xl font-black text-green-400 relative z-10">
+              {mostrarComissao ? formataBRL(vendasMes * 0.01) : 'R$ •••••••'}
+            </h2>
+            <p className="text-zinc-500 text-[10px] font-bold mt-2 uppercase tracking-widest relative z-10">
+              Ganhos da Operação
+            </p>
           </div>
         </div>
 
@@ -732,9 +766,6 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* ========================================= */}
-      {/* 🔥 MODAIS PADRÕES (PRODUTOS, DESAFIOS)   */}
-      {/* ========================================= */}
       <ModalGerenciarDesafios 
         isOpen={isModalDesafioOpen} 
         onClose={() => setIsModalDesafioOpen(false)} 
@@ -743,6 +774,7 @@ export function Dashboard() {
           setMainRefreshTrigger(prev => prev + 1); 
         }} 
       />
+      
       <ModalGerenciarProdutos isOpen={isModalProdutoOpen} onClose={() => setIsModalProdutoOpen(false)} produtos={produtos} onAtualizarLista={fetchProdutos} />
       <ModalRegistrarVenda isOpen={isModalVendaOpen} onClose={() => setIsModalVendaOpen(false)} produtos={produtos} user={user} onVendaRegistrada={() => { setIsModalVendaOpen(false); fetchVendasPlacar(); }} />
 
