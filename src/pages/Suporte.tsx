@@ -34,7 +34,7 @@ export function Vendas() {
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [vendas, setVendas] = useState<Venda[]>([]);
   
-  // 🔥 NOVO FILTRO: Adicionado 'reembolsos'
+  // 🔥 FILTRO COM ABA DE REEMBOLSOS
   const [filtro, setFiltro] = useState<'dia' | 'semana' | 'mes' | 'reembolsos'>('mes');
 
   const [productName, setProductName] = useState('');
@@ -174,17 +174,14 @@ export function Vendas() {
     }
   }
 
-  // 🔥 LÓGICA DO FILTRO (Separando os Reembolsos do Placar normal)
   const vendasFiltradas = vendas.filter(venda => {
     if (String(venda.seller_id) !== String(user.id)) return false;
     if (!venda.created_at) return false;
     
-    // Se a aba for de reembolsos, mostra apenas as canceladas
     if (filtro === 'reembolsos') {
       return venda.status === 'cancelada';
     }
 
-    // Se estiver nas abas de dia/semana/mês, oculta as canceladas para não sujar o placar
     if (venda.status === 'cancelada') return false;
 
     const dataVenda = new Date(venda.created_at);
@@ -199,12 +196,9 @@ export function Vendas() {
     return true; 
   });
 
-  // ========================================================
-  // 🔥 MOTOR DE GAMIFICAÇÃO: CÁLCULO DE COMISSÃO DO SOLDADO
-  // ========================================================
   const vendasAprovadasMes = vendas.filter(v => {
     if (String(v.seller_id) !== String(user.id)) return false;
-    if (v.status !== 'aprovada') return false; // Regra: Só ganha comissão se a venda for aprovada
+    if (v.status !== 'aprovada') return false;
     if (!v.created_at) return false;
     
     const dataVenda = new Date(v.created_at);
@@ -217,7 +211,6 @@ export function Vendas() {
   const qtdVendasMes = vendasAprovadasMes.length;
   const valorTotalMes = vendasAprovadasMes.reduce((acc, v) => acc + Number(v.sale_value), 0);
 
-  // Definição dos degraus da gamificação
   let percentualComissao = 0;
   if (qtdVendasMes <= 60) {
     percentualComissao = 1;
@@ -226,13 +219,12 @@ export function Vendas() {
   } else if (qtdVendasMes <= 150) {
     percentualComissao = 2.5;
   } else {
-    percentualComissao = 3; // Acima de 150 rumo a 300
+    percentualComissao = 3; 
   }
 
   const valorComissao = (valorTotalMes * percentualComissao) / 100;
   const formataBRL = (valor: number) => valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-  // 🔥 DADOS DO ALERTA DE BAIXA
   const minhasVendasCanceladas = vendas.filter(v => String(v.seller_id) === String(user.id) && v.status === 'cancelada');
   const totalArrecadacaoPerdida = minhasVendasCanceladas.reduce((acc, v) => acc + Number(v.sale_value), 0);
 
@@ -252,7 +244,7 @@ export function Vendas() {
           </button>
         </div>
 
-        {/* 🔥 ALERTA DE BAIXAS (Só aparece se o soldado teve reembolso) */}
+        {/* ALERTA DE BAIXAS */}
         {minhasVendasCanceladas.length > 0 && (
           <div className="bg-red-950/40 border border-red-500/50 rounded-xl p-4 md:p-6 mb-8 shadow-[0_0_20px_rgba(239,68,68,0.2)] animate-in fade-in flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="flex items-start gap-4">
@@ -271,9 +263,7 @@ export function Vendas() {
           </div>
         )}
 
-        {/* ======================================================== */}
-        {/* 🔥 PAINEL GAMIFICADO DE COMISSÃO DO SOLDADO */}
-        {/* ======================================================== */}
+        {/* PAINEL DE COMISSÃO */}
         <div className="bg-gradient-to-r from-green-950 to-zinc-900 border border-green-500/30 rounded-xl p-6 shadow-[0_0_20px_rgba(34,197,94,0.1)] mb-8 flex flex-col md:flex-row justify-between items-center gap-6 animate-in fade-in slide-in-from-top-4">
           <div className="text-center md:text-left">
             <h3 className="text-green-400 font-black uppercase tracking-widest text-lg flex items-center justify-center md:justify-start gap-2">
@@ -294,7 +284,7 @@ export function Vendas() {
               <p className="text-2xl font-black text-yellow-400">{percentualComissao}%</p>
             </div>
             
-            {/* 🔥 QUADRO DE COMISSÃO BLINDADO */}
+            {/* TRAVA DE SEGURANÇA (OLHINHO) */}
             <div className="bg-green-950/50 p-4 rounded-lg border border-green-500/50 min-w-[170px] text-center shadow-[0_0_15px_rgba(34,197,94,0.2)]">
               <div className="flex items-center justify-center gap-2 mb-1">
                 <p className="text-green-500 text-[10px] font-black uppercase">Comissão Estimada</p>
@@ -308,7 +298,6 @@ export function Vendas() {
               </div>
               <p className="text-2xl font-black text-green-400">{mostrarComissao ? formataBRL(valorComissao) : 'R$ •••••••'}</p>
             </div>
-
           </div>
         </div>
 
@@ -319,7 +308,6 @@ export function Vendas() {
         <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 shadow-2xl">
           <div className="flex flex-col lg:flex-row justify-between items-center mb-8 gap-4 border-b border-zinc-800 pb-6">
             
-            {/* 🔥 ABA DE FILTROS COM A OPÇÃO DE REEMBOLSOS */}
             <div className="flex flex-wrap justify-center gap-2">
               <button onClick={() => setFiltro('dia')} className={`px-4 py-2 rounded-lg font-bold text-[10px] sm:text-xs uppercase tracking-widest transition-all ${filtro === 'dia' ? 'bg-yellow-400 text-black' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}>Hoje</button>
               <button onClick={() => setFiltro('semana')} className={`px-4 py-2 rounded-lg font-bold text-[10px] sm:text-xs uppercase tracking-widest transition-all ${filtro === 'semana' ? 'bg-yellow-400 text-black' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}>Semana</button>
@@ -399,10 +387,7 @@ export function Vendas() {
         </div>
       </div>
 
-      {/* ======================================================== */}
-      {/* 🔥 MODAIS ESPAÇADOS E ORGANIZADOS                        */}
-      {/* ======================================================== */}
-
+      {/* MODAL DE REGISTRAR VENDA */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="bg-zinc-900 border border-zinc-700 rounded-2xl w-full max-w-xl shadow-2xl animate-in zoom-in duration-150">
@@ -465,6 +450,7 @@ export function Vendas() {
         </div>
       )}
 
+      {/* MODAL SOLICITAR EDIÇÃO */}
       {isEditModalOpen && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="bg-zinc-900 border border-blue-500/30 rounded-2xl w-full max-w-xl shadow-[0_0_30px_rgba(59,130,246,0.15)] animate-in zoom-in duration-150">
