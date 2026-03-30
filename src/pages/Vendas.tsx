@@ -33,7 +33,9 @@ export function Vendas() {
 
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [vendas, setVendas] = useState<Venda[]>([]);
-  const [filtro, setFiltro] = useState<'dia' | 'semana' | 'mes'>('mes');
+  
+  // 🔥 FILTRO COM A ABA DE REEMBOLSOS
+  const [filtro, setFiltro] = useState<'dia' | 'semana' | 'mes' | 'reembolsos'>('mes');
 
   const [productName, setProductName] = useState('');
   const [customerName, setCustomerName] = useState('');
@@ -47,8 +49,6 @@ export function Vendas() {
   const [editReason, setEditReason] = useState('');
 
   const [isLoading, setIsLoading] = useState(false);
-
-  // 🔥 ESTADO DA TRAVA DE PRIVACIDADE DO BANCO (O OLHINHO)
   const [mostrarComissao, setMostrarComissao] = useState(false);
 
   useEffect(() => {
@@ -83,7 +83,6 @@ export function Vendas() {
   function handleProductChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const nomeSelecionado = e.target.value;
     setProductName(nomeSelecionado);
-
     const produtoEscolhido = produtos.find(p => p.nome === nomeSelecionado);
     if (produtoEscolhido) {
       setSaleValue(String(produtoEscolhido.valor));
@@ -103,7 +102,6 @@ export function Vendas() {
     if (venda.created_at) {
       setSaleDate(new Date(venda.created_at).toISOString().split('T')[0]);
     }
-
     setIsEditModalOpen(true);
   }
 
@@ -122,14 +120,12 @@ export function Vendas() {
   async function handleRegisterSale(e: React.FormEvent) {
     e.preventDefault();
     setIsLoading(true);
-
     try {
       await api.post('/sales', {
         seller_id: user.id, product_name: productName, customer_name: customerName,
         customer_email: customerEmail, customer_phone: customerPhone, payment_method: paymentMethod,
         sale_value: Number(saleValue), sale_date: saleDate
       });
-
       alert('⚡ Venda registrada com sucesso!');
       resetForm();
       setIsModalOpen(false);
@@ -144,40 +140,57 @@ export function Vendas() {
   async function handleRequestEdit(e: React.FormEvent) {
     e.preventDefault();
     setIsLoading(true);
-
     try {
       const novaDataFormatada = new Date(`${saleDate}T12:00:00Z`).toISOString();
-
       const newData = {
-        product_name: productName,
-        sale_value: Number(saleValue),
-        customer_name: customerName,
-        customer_email: customerEmail,
-        customer_phone: customerPhone,
-        payment_method: paymentMethod,
+        product_name: productName, sale_value: Number(saleValue), customer_name: customerName,
+        customer_email: customerEmail, customer_phone: customerPhone, payment_method: paymentMethod,
         created_at: novaDataFormatada 
       };
-
       await api.post(`/sales/${editingSaleId}/request-edit`, {
-        reason: editReason,
-        newData: newData
+        reason: editReason, newData: newData
       });
-
       alert('🛡️ Solicitação de edição enviada ao Comando Militar! Aguarde aprovação.');
       resetForm();
       setIsEditModalOpen(false);
       fetchData(); 
     } catch (error: any) {
-      alert('Erro ao solicitar edição. Fale com o suporte.');
+      alert('Erro ao solicitar edição.');
     } finally {
       setIsLoading(false);
     }
   }
 
+  // ========================================================
+  // 🔥 BLINDAGEM DE STATUS (Impede que reembolsos fiquem "Pendentes")
+  // ========================================================
+  const checkCancelada = (status?: string) => {
+    if (!status) return false;
+    const s = status.toLowerCase();
+    return s === 'cancelada' || s === 'cancelado' || s === 'reembolsado' || s === 'reembolsada' || s === 'estornado';
+  };
+
+  const checkAprovada = (status?: string) => {
+    if (!status) return false;
+    const s = status.toLowerCase();
+    return s === 'aprovada' || s === 'aprovado';
+  };
+
+  // 🔥 LÓGICA DO FILTRO (Separando os Reembolsos do Placar normal)
   const vendasFiltradas = vendas.filter(venda => {
     if (String(venda.seller_id) !== String(user.id)) return false;
     if (!venda.created_at) return false;
     
+    const isCancelada = checkCancelada(venda.status);
+
+    // Se a aba selecionada for a de reembolsos, mostra apenas as canceladas
+    if (filtro === 'reembolsos') {
+      return isCancelada;
+    }
+
+    // Se estiver nas abas normais (Dia/Semana/Mês), esconde as vendas canceladas
+    if (isCancelada) return false;
+
     const dataVenda = new Date(venda.created_at);
     const hoje = new Date();
     
@@ -191,11 +204,11 @@ export function Vendas() {
   });
 
   // ========================================================
-  // 🔥 MOTOR DE GAMIFICAÇÃO: CÁLCULO DE COMISSÃO DO SOLDADO
+  // 🔥 CÁLCULO DE COMISSÃO DO SOLDADO
   // ========================================================
   const vendasAprovadasMes = vendas.filter(v => {
     if (String(v.seller_id) !== String(user.id)) return false;
-    if (v.status !== 'aprovada') return false; // Regra: Só ganha comissão se a venda for aprovada
+    if (!checkAprovada(v.status)) return false; // Regra: Só ganha comissão se a venda for aprovada
     if (!v.created_at) return false;
     
     const dataVenda = new Date(v.created_at);
@@ -208,21 +221,18 @@ export function Vendas() {
   const qtdVendasMes = vendasAprovadasMes.length;
   const valorTotalMes = vendasAprovadasMes.reduce((acc, v) => acc + Number(v.sale_value), 0);
 
-  // Definição dos degraus da gamificação
   let percentualComissao = 0;
-  if (qtdVendasMes <= 60) {
-    percentualComissao = 1;
-  } else if (qtdVendasMes <= 100) {
-    percentualComissao = 2;
-  } else if (qtdVendasMes <= 150) {
-    percentualComissao = 2.5;
-  } else {
-    percentualComissao = 3; // Acima de 150 rumo a 300
-  }
+  if (qtdVendasMes <= 60) percentualComissao = 1;
+  else if (qtdVendasMes <= 100) percentualComissao = 2;
+  else if (qtdVendasMes <= 150) percentualComissao = 2.5;
+  else percentualComissao = 3; 
 
   const valorComissao = (valorTotalMes * percentualComissao) / 100;
   const formataBRL = (valor: number) => valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
+  // 🔥 DADOS DO ALERTA DE BAIXA
+  const minhasVendasCanceladas = vendas.filter(v => String(v.seller_id) === String(user.id) && checkCancelada(v.status));
+  const totalArrecadacaoPerdida = minhasVendasCanceladas.reduce((acc, v) => acc + Number(v.sale_value), 0);
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans p-4 md:p-8 relative">
@@ -240,9 +250,26 @@ export function Vendas() {
           </button>
         </div>
 
-        {/* ======================================================== */}
-        {/* 🔥 PAINEL GAMIFICADO DE COMISSÃO DO SOLDADO COM PRIVACIDADE */}
-        {/* ======================================================== */}
+        {/* ALERTA DE BAIXAS EM COMBATE */}
+        {minhasVendasCanceladas.length > 0 && (
+          <div className="bg-red-950/40 border border-red-500/50 rounded-xl p-4 md:p-6 mb-8 shadow-[0_0_20px_rgba(239,68,68,0.2)] animate-in fade-in flex flex-col md:flex-row justify-between items-center gap-4">
+            <div className="flex items-start gap-4">
+              <span className="text-4xl">🚨</span>
+              <div>
+                <h3 className="text-red-400 font-black uppercase tracking-widest text-lg">Aviso de Baixa em Combate</h3>
+                <p className="text-zinc-300 text-sm mt-1">
+                  Você possui <span className="font-black text-white bg-red-600/30 px-2 py-0.5 rounded">{minhasVendasCanceladas.length} reembolsos</span> registrados. Estes valores foram removidos do seu placar.
+                </p>
+              </div>
+            </div>
+            <div className="text-center md:text-right bg-red-950/80 p-3 rounded-lg border border-red-500/30 w-full md:w-auto">
+              <p className="text-red-500/70 text-[10px] font-black uppercase mb-1 tracking-widest">Valor Estornado</p>
+              <p className="text-red-400 font-black text-xl">{formataBRL(totalArrecadacaoPerdida)}</p>
+            </div>
+          </div>
+        )}
+
+        {/* PAINEL DE COMISSÃO */}
         <div className="bg-gradient-to-r from-green-950 to-zinc-900 border border-green-500/30 rounded-xl p-6 shadow-[0_0_20px_rgba(34,197,94,0.1)] mb-8 flex flex-col md:flex-row justify-between items-center gap-6 animate-in fade-in slide-in-from-top-4">
           <div className="text-center md:text-left">
             <h3 className="text-green-400 font-black uppercase tracking-widest text-lg flex items-center justify-center md:justify-start gap-2">
@@ -263,7 +290,7 @@ export function Vendas() {
               <p className="text-2xl font-black text-yellow-400">{percentualComissao}%</p>
             </div>
             
-            {/* 🔥 QUADRO DE COMISSÃO BLINDADO */}
+            {/* TRAVA DE SEGURANÇA (OLHINHO) */}
             <div className="bg-green-950/50 p-4 rounded-lg border border-green-500/50 min-w-[170px] text-center shadow-[0_0_15px_rgba(34,197,94,0.2)]">
               <div className="flex items-center justify-center gap-2 mb-1">
                 <p className="text-green-500 text-[10px] font-black uppercase">Comissão Estimada</p>
@@ -277,76 +304,92 @@ export function Vendas() {
               </div>
               <p className="text-2xl font-black text-green-400">{mostrarComissao ? formataBRL(valorComissao) : 'R$ •••••••'}</p>
             </div>
-            
           </div>
         </div>
 
         <div className="mb-10">
-           {/* 🔥 CORREÇÃO DA VERCEL APLICADA AQUI */}
            <GuerraEquipes refreshTrigger={0} />
         </div>
 
         <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 shadow-2xl">
-          <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
-            <div className="flex gap-2">
-              <button onClick={() => setFiltro('dia')} className={`px-4 py-2 rounded-lg font-bold text-xs uppercase transition-all ${filtro === 'dia' ? 'bg-yellow-400 text-black' : 'bg-zinc-800 text-zinc-400'}`}>Hoje</button>
-              <button onClick={() => setFiltro('semana')} className={`px-4 py-2 rounded-lg font-bold text-xs uppercase transition-all ${filtro === 'semana' ? 'bg-yellow-400 text-black' : 'bg-zinc-800 text-zinc-400'}`}>Semana</button>
-              <button onClick={() => setFiltro('mes')} className={`px-4 py-2 rounded-lg font-bold text-xs uppercase transition-all ${filtro === 'mes' ? 'bg-yellow-400 text-black' : 'bg-zinc-800 text-zinc-400'}`}>Mês</button>
+          <div className="flex flex-col lg:flex-row justify-between items-center mb-8 gap-4 border-b border-zinc-800 pb-6">
+            
+            {/* ABA DE FILTROS COM A OPÇÃO DE REEMBOLSOS */}
+            <div className="flex flex-wrap justify-center gap-2">
+              <button onClick={() => setFiltro('dia')} className={`px-4 py-2 rounded-lg font-bold text-[10px] sm:text-xs uppercase tracking-widest transition-all ${filtro === 'dia' ? 'bg-yellow-400 text-black' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}>Hoje</button>
+              <button onClick={() => setFiltro('semana')} className={`px-4 py-2 rounded-lg font-bold text-[10px] sm:text-xs uppercase tracking-widest transition-all ${filtro === 'semana' ? 'bg-yellow-400 text-black' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}>Semana</button>
+              <button onClick={() => setFiltro('mes')} className={`px-4 py-2 rounded-lg font-bold text-[10px] sm:text-xs uppercase tracking-widest transition-all ${filtro === 'mes' ? 'bg-yellow-400 text-black' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}>Mês</button>
+              <button onClick={() => setFiltro('reembolsos')} className={`px-4 py-2 rounded-lg font-bold text-[10px] sm:text-xs uppercase tracking-widest transition-all flex items-center gap-1.5 ${filtro === 'reembolsos' ? 'bg-red-600 text-white shadow-[0_0_10px_rgba(220,38,38,0.5)]' : 'bg-red-950/30 text-red-500 border border-red-900/50 hover:bg-red-900/50'}`}>
+                Reembolsos <span className="bg-black/30 px-1.5 py-0.5 rounded text-[9px]">{minhasVendasCanceladas.length}</span>
+              </button>
             </div>
             
             <button 
               onClick={() => { resetForm(); setIsModalOpen(true); }}
-              className="w-full md:w-auto bg-green-500 hover:bg-green-600 text-black font-black px-8 py-3 rounded-lg shadow-lg transition-transform hover:scale-105"
+              className="w-full lg:w-auto bg-green-500 hover:bg-green-600 text-black font-black px-8 py-3 rounded-lg shadow-lg transition-transform hover:scale-105 tracking-widest text-xs uppercase"
             >
-              + LANÇAR NOVA VENDA
+              + Lançar Nova Venda
             </button>
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead>
-                <tr className="border-b border-zinc-800 text-zinc-500 text-xs uppercase tracking-widest">
-                  <th className="pb-4">Data</th>
-                  <th className="pb-4">Cliente</th>
-                  <th className="pb-4">Produto</th>
-                  <th className="pb-4">Valor</th>
-                  <th className="pb-4">Status</th>
-                  <th className="pb-4 text-center">Ação</th>
+                <tr className="border-b border-zinc-800 text-zinc-500 text-[10px] uppercase tracking-widest">
+                  <th className="pb-4 font-black">Data</th>
+                  <th className="pb-4 font-black">Cliente</th>
+                  <th className="pb-4 font-black">Produto</th>
+                  <th className="pb-4 font-black">Valor</th>
+                  <th className="pb-4 font-black text-center">Status</th>
+                  <th className="pb-4 font-black text-center">Ação</th>
                 </tr>
               </thead>
               <tbody className="text-sm">
-                {vendasFiltradas.length > 0 ? vendasFiltradas.map(venda => (
-                  <tr key={venda.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors">
-                    <td className="py-4 text-zinc-400">
-                      {venda.created_at ? new Date(venda.created_at).toLocaleDateString('pt-BR') : '--/--/----'}
-                    </td>
-                    <td className="py-4 font-bold">{venda.customer_name}</td>
-                    <td className="py-4 text-zinc-300">{venda.product_name}</td>
-                    <td className="py-4 text-green-400 font-bold">R$ {(Number(venda.sale_value) || 0).toFixed(2)}</td>
-                    <td className="py-4">
-                      <span className={`px-2 py-1 rounded-full text-[10px] font-black uppercase ${venda.status === 'aprovada' ? 'bg-green-500/10 text-green-500' : 'bg-yellow-500/10 text-yellow-500'}`}>
-                        {venda.status === 'aprovada' ? 'Aprovada' : 'Pendente'}
-                      </span>
-                    </td>
-                    <td className="py-4 text-center">
-                      {venda.edit_status === 'pendente' ? (
-                        <span className="text-[10px] font-black text-yellow-500 bg-yellow-500/10 px-2 py-1 rounded border border-yellow-500/30">
-                          ⏳ EM ANÁLISE
-                        </span>
-                      ) : (
-                        <button 
-                          onClick={() => handleOpenEdit(venda)}
-                          className="text-blue-400 hover:text-blue-300 text-xs font-bold underline transition-colors"
+                {vendasFiltradas.length > 0 ? vendasFiltradas.map(venda => {
+                  const isCancelada = checkCancelada(venda.status);
+                  const isAprovada = checkAprovada(venda.status);
+                  
+                  return (
+                    <tr key={venda.id} className={`border-b border-zinc-800/50 transition-colors ${isCancelada ? 'bg-red-950/10 opacity-80' : 'hover:bg-zinc-800/30'}`}>
+                      <td className="py-4 text-zinc-400">
+                        {venda.created_at ? new Date(venda.created_at).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '--/--/----'}
+                      </td>
+                      <td className="py-4 font-bold">{venda.customer_name}</td>
+                      <td className="py-4 text-zinc-300 text-xs uppercase tracking-wider">{venda.product_name}</td>
+                      <td className={`py-4 font-bold ${isCancelada ? 'text-red-400 line-through' : 'text-green-400'}`}>
+                        R$ {(Number(venda.sale_value) || 0).toFixed(2)}
+                      </td>
+                      <td className="py-4 text-center">
+                        <span className={`px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-widest 
+                          ${isAprovada ? 'bg-green-500/10 text-green-500 border border-green-500/20' : 
+                            isCancelada ? 'bg-red-500/10 text-red-500 border border-red-500/20' : 
+                            'bg-yellow-500/10 text-yellow-500 border border-yellow-500/20'}`}
                         >
-                          Corrigir Erro
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                )) : (
+                          {isCancelada ? 'REEMBOLSADO' : isAprovada ? 'Aprovada' : 'Pendente'}
+                        </span>
+                      </td>
+                      <td className="py-4 text-center">
+                        {isCancelada ? (
+                          <span className="text-[10px] font-bold text-red-500/50 uppercase tracking-widest">Estornado</span>
+                        ) : venda.edit_status === 'pendente' ? (
+                          <span className="text-[10px] font-black text-yellow-500 bg-yellow-500/10 px-2 py-1 rounded border border-yellow-500/30">
+                            ⏳ EM ANÁLISE
+                          </span>
+                        ) : (
+                          <button 
+                            onClick={() => handleOpenEdit(venda)}
+                            className="text-blue-400 hover:text-blue-300 text-[10px] font-bold uppercase tracking-widest transition-colors border border-blue-400/30 bg-blue-950/20 px-3 py-1.5 rounded"
+                          >
+                            Corrigir Erro
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                }) : (
                   <tr>
-                    <td colSpan={6} className="py-10 text-center text-zinc-600 uppercase font-bold tracking-widest italic">
-                      Nenhuma venda sua foi encontrada neste período.
+                    <td colSpan={6} className="py-12 text-center text-zinc-600 uppercase font-black tracking-widest italic">
+                      {filtro === 'reembolsos' ? 'Ótimo trabalho! Nenhuma baixa registrada. 🛡️' : 'Nenhuma venda sua foi encontrada neste período.'}
                     </td>
                   </tr>
                 )}
@@ -356,6 +399,7 @@ export function Vendas() {
         </div>
       </div>
 
+      {/* MODAL DE REGISTRAR VENDA */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="bg-zinc-900 border border-zinc-700 rounded-2xl w-full max-w-xl shadow-2xl animate-in zoom-in duration-150">
@@ -364,6 +408,7 @@ export function Vendas() {
               <button onClick={() => setIsModalOpen(false)} className="text-zinc-500 hover:text-white text-2xl">&times;</button>
             </div>
             <form onSubmit={handleRegisterSale} className="p-6 space-y-4">
+                
                 <div className="grid grid-cols-2 gap-4">
                     <div>
                         <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">Produto</label>
@@ -376,14 +421,17 @@ export function Vendas() {
                         <input type="number" step="0.01" value={saleValue} onChange={(e) => setSaleValue(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm text-yellow-400 font-bold" />
                     </div>
                 </div>
+                
                 <div>
                     <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">Data</label>
                     <input type="date" value={saleDate} onChange={(e) => setSaleDate(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm text-white [color-scheme:dark]" />
                 </div>
+                
                 <div>
                     <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">Nome do Cliente</label>
                     <input type="text" required value={customerName} onChange={(e) => setCustomerName(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm text-white" />
                 </div>
+                
                 <div className="grid grid-cols-2 gap-4">
                     <div>
                         <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">WhatsApp / Telefone</label>
@@ -394,6 +442,7 @@ export function Vendas() {
                         <input type="email" required value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm text-white" placeholder="Ex: email@cliente.com" />
                     </div>
                 </div>
+                
                 <div>
                     <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">Método de Pagamento</label>
                     <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm text-white">
@@ -404,6 +453,7 @@ export function Vendas() {
                         <option value="Boleto Parcelado">Boleto Parcelado</option>
                     </select>
                 </div>
+                
                 <button disabled={isLoading} className="w-full bg-green-500 hover:bg-green-400 text-black font-black py-4 rounded-xl mt-4 uppercase tracking-widest shadow-lg transition-colors">
                     {isLoading ? 'ENVIANDO...' : 'CONFIRMAR LANÇAMENTO ⚡'}
                 </button>
@@ -412,9 +462,7 @@ export function Vendas() {
         </div>
       )}
 
-      {/* ========================================= */}
-      {/* 🔥 MODAL DE SOLICITAR EDIÇÃO ATUALIZADO   */}
-      {/* ========================================= */}
+      {/* MODAL SOLICITAR EDIÇÃO */}
       {isEditModalOpen && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="bg-zinc-900 border border-blue-500/30 rounded-2xl w-full max-w-xl shadow-[0_0_30px_rgba(59,130,246,0.15)] animate-in zoom-in duration-150">
@@ -472,6 +520,7 @@ export function Vendas() {
                         <input type="email" required value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm text-white" />
                     </div>
                 </div>
+                
                 <div>
                     <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">Método de Pagamento</label>
                     <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm text-white">
