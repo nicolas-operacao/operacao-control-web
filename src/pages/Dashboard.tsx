@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { GuerraEquipes } from '../components/GuerraEquipes'; 
@@ -69,6 +69,17 @@ export function Dashboard() {
   // 🔥 ESTADOS DE APROVAÇÃO EM MASSA
   const [selectedEdits, setSelectedEdits] = useState<string[]>([]);
   const [selectedSales, setSelectedSales] = useState<string[]>([]);
+
+  // 🔥 ESTADOS DO RADAR GLOBAL E AÇÕES RÁPIDAS
+  const [globalSearchTerm, setGlobalSearchTerm] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isRefundModalOpen, setIsRefundModalOpen] = useState(false);
+  const [refundReason, setRefundReason] = useState('');
+  const [selectedSaleToAction, setSelectedSaleToAction] = useState<Venda | null>(null);
+  const [isAdminEditModalOpen, setIsAdminEditModalOpen] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    product_name: '', sale_value: '', customer_name: '', customer_email: '', customer_phone: '', payment_method: 'PIX', sale_date: ''
+  });
 
   // 🔥 ESTADO DO NOVO MODAL TÁTICO DE CONFIRMAÇÃO
   const [confirmDialog, setConfirmDialog] = useState({
@@ -141,6 +152,12 @@ export function Dashboard() {
     } catch (error) { console.error('Erro ao calcular placar:', error); }
   }
 
+  function copiarTexto(texto?: string) {
+    if (!texto) return;
+    navigator.clipboard.writeText(texto);
+    alert(`📋 Copiado para a área de transferência:\n${texto}`);
+  }
+
   // ==========================================
   // 🔥 FUNÇÃO PARA ABRIR O MODAL TÁTICO
   // ==========================================
@@ -152,6 +169,71 @@ export function Dashboard() {
     setConfirmDialog(prev => ({ ...prev, isOpen: false })); // Fecha o modal visualmente
     await confirmDialog.action(); // Executa a ação da API
   };
+
+  // ==========================================
+  // 🔥 AÇÕES DIRETAS DO RADAR (REEMBOLSO E EDIÇÃO)
+  // ==========================================
+  function openRefundModal(venda: Venda) {
+    setSelectedSaleToAction(venda);
+    setRefundReason('');
+    setIsRefundModalOpen(true);
+  }
+
+  async function handleConfirmRefund(e: React.FormEvent) {
+    e.preventDefault();
+    if (!selectedSaleToAction) return;
+    setIsLoading(true);
+    try {
+      await api.post(`/sales/${selectedSaleToAction.id}/cancel`, { reason: refundReason });
+      somAlerta();
+      alert('🔴 Reembolso efetuado com sucesso!');
+      setIsRefundModalOpen(false);
+      setSelectedSaleToAction(null);
+      fetchVendasPlacar(); 
+    } catch (error: any) {
+      alert(`🚨 Erro: ${error.response?.data?.error || error.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  function openAdminEditModal(venda: Venda) {
+    setSelectedSaleToAction(venda);
+    setEditFormData({
+      product_name: venda.product_name,
+      sale_value: String(venda.sale_value),
+      customer_name: venda.customer_name,
+      customer_email: venda.customer_email || '',
+      customer_phone: venda.customer_phone || '',
+      payment_method: venda.payment_method || 'PIX',
+      sale_date: venda.created_at ? new Date(venda.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
+    });
+    setIsAdminEditModalOpen(true);
+  }
+
+  async function handleAdminEditSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!selectedSaleToAction) return;
+    setIsLoading(true);
+    try {
+      const novaData = new Date(`${editFormData.sale_date}T12:00:00Z`).toISOString();
+      const payload = { 
+        ...editFormData, 
+        sale_value: Number(editFormData.sale_value), 
+        created_at: novaData 
+      };
+      await api.put(`/sales/${selectedSaleToAction.id}`, payload);
+      somSucesso();
+      alert('✅ Venda atualizada com sucesso!');
+      setIsAdminEditModalOpen(false);
+      setSelectedSaleToAction(null);
+      fetchVendasPlacar();
+    } catch (error: any) {
+      alert(`🚨 Erro ao editar: Verifique se a API possui a rota PUT /sales/:id configurada.`);
+    } finally {
+      setIsLoading(false);
+    }
+  }
 
   // ==========================================
   // 🔥 AÇÕES INDIVIDUAIS (COM MODAL TÁTICO)
@@ -348,6 +430,17 @@ export function Dashboard() {
     return true;
   }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
+  // 🔥 LÓGICA DO RADAR GLOBAL DE BUSCA
+  const searchResults = useMemo(() => {
+    if (globalSearchTerm.length < 3) return [];
+    const termo = globalSearchTerm.toLowerCase();
+    return todasVendas.filter(v => 
+      (v.customer_name && v.customer_name.toLowerCase().includes(termo)) ||
+      (v.customer_email && v.customer_email.toLowerCase().includes(termo)) ||
+      (v.customer_phone && v.customer_phone.toLowerCase().includes(termo))
+    ).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }, [globalSearchTerm, todasVendas]);
+
   const progressoMeta = Math.min((vendasMes / META_MENSAL) * 100, 100);
   const formataBRL = (valor: number) => valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -390,11 +483,145 @@ export function Dashboard() {
             <button onClick={handleLogout} className="bg-zinc-900 border border-zinc-700 hover:bg-red-600 hover:border-red-500 text-zinc-400 hover:text-white px-5 py-2.5 rounded font-bold uppercase text-[10px] tracking-widest transition-all">Sair</button>
           </div>
         </div>
+
+        {/* ======================================================== */}
+        {/* 🔥 NOVO: RADAR GLOBAL DE BUSCA                           */}
+        {/* ======================================================== */}
+        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 shadow-xl relative z-10">
+          <div className="flex flex-col md:flex-row items-center gap-4">
+            
+            <div className="flex-1 w-full relative">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <span className="text-zinc-500 text-lg">🔍</span>
+              </div>
+              <input
+                type="text"
+                value={globalSearchTerm}
+                onChange={(e) => setGlobalSearchTerm(e.target.value)}
+                placeholder="Radar Global: Digite o nome do cliente, e-mail ou telefone para caçar a venda..."
+                className="w-full bg-zinc-950 border border-zinc-700 text-white rounded-lg pl-12 p-4 focus:outline-none focus:border-yellow-400 transition-colors shadow-inner placeholder:text-zinc-600"
+              />
+            </div>
+            
+            {globalSearchTerm && (
+              <button 
+                onClick={() => setGlobalSearchTerm('')} 
+                className="w-full md:w-auto bg-zinc-800 hover:bg-red-900/50 hover:text-red-400 text-zinc-300 px-6 py-4 rounded-lg font-bold uppercase tracking-widest text-xs transition-colors border border-zinc-700 hover:border-red-500/50"
+              >
+                Limpar Radar
+              </button>
+            )}
+          </div>
+
+          {/* TABELA DE RESULTADOS DO RADAR GLOBAL */}
+          {globalSearchTerm.length > 2 && (
+            <div className="mt-6 animate-in fade-in slide-in-from-top-4">
+              <h3 className="text-yellow-400 font-black uppercase tracking-widest mb-4 flex items-center gap-2">
+                🎯 Alvos Localizados ({searchResults.length})
+              </h3>
+              
+              {searchResults.length === 0 ? (
+                <div className="p-8 text-center text-zinc-500 border border-zinc-800 border-dashed rounded-lg bg-zinc-950/50 uppercase tracking-widest text-xs font-bold">
+                  Nenhum alvo encontrado no sistema com este dado.
+                </div>
+              ) : (
+                <div className="overflow-x-auto border border-zinc-800 rounded-lg">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="border-b border-zinc-800 text-zinc-500 text-[10px] uppercase tracking-widest bg-zinc-950/80">
+                        <th className="p-4 font-black">Data</th>
+                        <th className="p-4 font-black">Soldado</th>
+                        <th className="p-4 font-black">Cliente / Contato</th>
+                        <th className="p-4 font-black">Produto</th>
+                        <th className="p-4 font-black">Pagamento</th>
+                        <th className="p-4 font-black text-right">Valor</th>
+                        <th className="p-4 font-black text-center">Status</th>
+                        <th className="p-4 font-black text-center">Ações Táticas</th>
+                      </tr>
+                    </thead>
+                    <tbody className="text-sm">
+                      {searchResults.map(venda => (
+                        <tr key={venda.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/50 transition-colors bg-zinc-950/30">
+                          
+                          <td className="p-4 text-zinc-400 whitespace-nowrap">
+                            {venda.created_at ? new Date(venda.created_at).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '--'}
+                          </td>
+                          
+                          <td className="p-4 font-black text-blue-400 uppercase text-[10px]">
+                            {venda.seller_name}
+                          </td>
+                          
+                          <td className="p-4 text-zinc-200">
+                            <span className="font-bold block">{venda.customer_name}</span>
+                            <span 
+                              className="text-[10px] text-zinc-500 block mt-1 cursor-pointer hover:text-white transition-colors w-max" 
+                              onClick={()=>copiarTexto(venda.customer_email)}
+                              title="Copiar E-mail"
+                            >
+                              📧 {venda.customer_email || '--'}
+                            </span>
+                            <span 
+                              className="text-[10px] text-zinc-500 block cursor-pointer hover:text-white transition-colors w-max" 
+                              onClick={()=>copiarTexto(venda.customer_phone)}
+                              title="Copiar Telefone"
+                            >
+                              📞 {venda.customer_phone || '--'}
+                            </span>
+                          </td>
+                          
+                          <td className="p-4 text-zinc-400 text-xs uppercase">{venda.product_name}</td>
+                          
+                          <td className="p-4 text-zinc-400 text-[10px] uppercase font-bold">{venda.payment_method || '--'}</td>
+                          
+                          <td className="p-4 font-black text-green-400 text-right whitespace-nowrap">
+                            {formataBRL(Number(venda.sale_value))}
+                          </td>
+                          
+                          <td className="p-4 text-center">
+                            <span className={`px-2 py-1 rounded text-[9px] font-black uppercase tracking-wider ${venda.status === 'aprovada' ? 'bg-green-500/10 text-green-500' : venda.status === 'cancelada' ? 'bg-red-500/10 text-red-500' : 'bg-yellow-500/10 text-yellow-500'}`}>
+                              {venda.status}
+                            </span>
+                          </td>
+                          
+                          <td className="p-4 text-center">
+                            <div className="flex justify-center gap-2">
+                              <button 
+                                onClick={() => openAdminEditModal(venda)} 
+                                title="Editar Venda" 
+                                className="bg-blue-600/10 text-blue-400 hover:bg-blue-600 hover:text-white border border-blue-600/30 px-3 py-1.5 rounded text-[10px] font-black uppercase transition-all"
+                              >
+                                ✏️ Editar
+                              </button>
+                              <button 
+                                onClick={() => openRefundModal(venda)} 
+                                title="Forçar Reembolso" 
+                                className="bg-red-600/10 text-red-500 hover:bg-red-600 hover:text-white border border-red-600/30 px-3 py-1.5 rounded text-[10px] font-black uppercase transition-all"
+                              >
+                                🔴 Estorno
+                              </button>
+                              <button 
+                                onClick={() => handleDeleteVenda(venda.id)} 
+                                title="Excluir Venda" 
+                                className="bg-zinc-800 text-zinc-500 hover:bg-red-600 hover:text-white px-3 py-1.5 rounded text-[10px] font-black uppercase transition-all"
+                              >
+                                🗑️
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
         
         <div className="space-y-4">
           
           {/* ======================================================== */}
-          {/* 🔥 PAINEL DE RAIO-X DE EDIÇÕES (COM CHECKBOX E MASSA)    */}
+          {/* 🔥 PAINEL DE RAIO-X DE EDIÇÕES (COM CHECKBOX E MASSA)    */}
           {/* ======================================================== */}
           {edicoesPendentes.length > 0 && (
             <div className="bg-blue-950/20 border border-blue-500/30 rounded-xl p-6 shadow-2xl animate-in fade-in">
@@ -519,7 +746,7 @@ export function Dashboard() {
           )}
 
           {/* ======================================================== */}
-          {/* 🔥 VENDAS AGUARDANDO LIBERAÇÃO (COM CHECKBOX E MASSA)    */}
+          {/* 🔥 VENDAS AGUARDANDO LIBERAÇÃO (COM CHECKBOX E MASSA)    */}
           {/* ======================================================== */}
           {vendasPendentes.length > 0 && (
             <div className="bg-yellow-900/10 border border-yellow-500/30 rounded-xl p-6 shadow-2xl animate-in fade-in">
@@ -575,7 +802,7 @@ export function Dashboard() {
                           </p>
                           <p className="text-zinc-300 text-sm mt-1">
                             Cliente: <span className="font-bold text-white">{venda.customer_name}</span> | 
-                            <span className="text-zinc-400 mx-1">E-mail:</span> <span className="font-bold text-blue-300 select-all cursor-pointer bg-blue-900/20 px-1 rounded">{venda.customer_email || 'Não informado'}</span> | 
+                            <span className="text-zinc-400 mx-1">E-mail:</span> <span className="font-bold text-blue-300 select-all cursor-pointer bg-blue-900/20 px-1 rounded" onClick={()=>copiarTexto(venda.customer_email)} title="Copiar E-mail">{venda.customer_email || 'Não informado'}</span> | 
                             Produto: <span className="font-bold text-yellow-400">{venda.product_name}</span>
                           </p>
                           <p className="text-zinc-500 text-xs mt-1 uppercase tracking-widest">
@@ -667,9 +894,6 @@ export function Dashboard() {
             </div>
           </div>
 
-          {/* ======================================================== */}
-          {/* 🔥 QUADRO DE COMISSÃO DO SUPERVISOR COM PRIVACIDADE      */}
-          {/* ======================================================== */}
           <div className="bg-zinc-900 border-l-4 border-green-500 p-6 rounded-lg shadow-2xl relative overflow-hidden group cursor-default">
             <div className="absolute top-0 right-0 p-4 opacity-10 text-green-500 text-8xl">💰</div>
             
@@ -739,7 +963,7 @@ export function Dashboard() {
                     <tr key={venda.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/40 transition-colors">
                       <td className="py-4 text-zinc-400 whitespace-nowrap">{venda.created_at ? new Date(venda.created_at).toLocaleDateString('pt-BR') : '--'}</td>
                       <td className="py-4 text-zinc-200 font-medium">{venda.customer_name}</td>
-                      <td className="py-4 text-zinc-400 select-all cursor-pointer hover:text-blue-300 transition-colors" title="Clique para copiar">{venda.customer_email || '--'}</td>
+                      <td className="py-4 text-zinc-400 select-all cursor-pointer hover:text-blue-300 transition-colors" title="Clique para copiar" onClick={()=>copiarTexto(venda.customer_email)}>{venda.customer_email || '--'}</td>
                       <td className="py-4 text-zinc-400 text-xs">{venda.product_name}</td>
                       <td className="py-4 text-green-400 font-black text-right whitespace-nowrap">{formataBRL(Number(venda.sale_value))}</td>
                       <td className="py-4 text-center text-zinc-400 text-[10px] font-bold uppercase">{venda.payment_method || '--'}</td>
@@ -777,6 +1001,121 @@ export function Dashboard() {
       
       <ModalGerenciarProdutos isOpen={isModalProdutoOpen} onClose={() => setIsModalProdutoOpen(false)} produtos={produtos} onAtualizarLista={fetchProdutos} />
       <ModalRegistrarVenda isOpen={isModalVendaOpen} onClose={() => setIsModalVendaOpen(false)} produtos={produtos} user={user} onVendaRegistrada={() => { setIsModalVendaOpen(false); fetchVendasPlacar(); }} />
+
+      {/* 🔥 MODAL DE EDIÇÃO DO ADMIN */}
+      {isAdminEditModalOpen && selectedSaleToAction && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-zinc-900 border border-blue-500/30 rounded-2xl w-full max-w-xl shadow-2xl animate-in zoom-in duration-150">
+            <div className="p-6 border-b border-zinc-800 flex justify-between items-center bg-blue-900/10">
+              <h2 className="text-xl font-black text-blue-400 uppercase flex items-center gap-2">✏️ Editar Venda Global</h2>
+              <button onClick={() => setIsAdminEditModalOpen(false)} className="text-zinc-500 hover:text-white text-2xl">&times;</button>
+            </div>
+            <form onSubmit={handleAdminEditSubmit} className="p-6 space-y-4">
+                
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">Produto</label>
+                        <select value={editFormData.product_name} onChange={(e) => setEditFormData({...editFormData, product_name: e.target.value})} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm text-white cursor-pointer">
+                            {produtos.map(p => <option key={p.id} value={p.nome}>{p.nome}</option>)}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">Valor R$</label>
+                        <input type="number" step="0.01" value={editFormData.sale_value} onChange={(e) => setEditFormData({...editFormData, sale_value: e.target.value})} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm text-yellow-400 font-bold" />
+                    </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">Data da Venda</label>
+                        <input type="date" value={editFormData.sale_date} onChange={(e) => setEditFormData({...editFormData, sale_date: e.target.value})} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm text-white [color-scheme:dark]" />
+                    </div>
+                    <div>
+                        <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">Pagamento</label>
+                        <select value={editFormData.payment_method} onChange={(e) => setEditFormData({...editFormData, payment_method: e.target.value})} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm text-white">
+                            <option value="PIX">PIX</option>
+                            <option value="Cartão de Crédito (até 12x)">Cartão de Crédito (até 12x)</option>
+                            <option value="Crédito à vista">Crédito à vista</option>
+                            <option value="Débito à vista">Débito à vista</option>
+                            <option value="Boleto Parcelado">Boleto Parcelado</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div>
+                    <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">Nome do Cliente</label>
+                    <input type="text" required value={editFormData.customer_name} onChange={(e) => setEditFormData({...editFormData, customer_name: e.target.value})} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm text-white" />
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">WhatsApp / Telefone</label>
+                        <input type="text" required value={editFormData.customer_phone} onChange={(e) => setEditFormData({...editFormData, customer_phone: e.target.value})} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm text-white" />
+                    </div>
+                    <div>
+                        <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">E-mail do Cliente</label>
+                        <input type="email" required value={editFormData.customer_email} onChange={(e) => setEditFormData({...editFormData, customer_email: e.target.value})} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm text-white" />
+                    </div>
+                </div>
+                
+                <div className="flex gap-3 pt-4">
+                  <button type="button" onClick={() => setIsAdminEditModalOpen(false)} className="w-1/3 border border-zinc-700 hover:bg-zinc-800 text-white font-bold py-4 rounded-xl uppercase tracking-widest transition-colors text-xs">
+                      Cancelar
+                  </button>
+                  <button disabled={isLoading} className="w-2/3 bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-xl uppercase tracking-widest shadow-[0_0_15px_rgba(37,99,235,0.3)] transition-all text-xs">
+                      {isLoading ? 'SALVANDO...' : 'SALVAR ALTERAÇÕES'}
+                  </button>
+                </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 🔥 MODAL DE REEMBOLSO DO ADMIN */}
+      {isRefundModalOpen && selectedSaleToAction && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-zinc-900 border border-red-500/30 rounded-2xl w-full max-w-md shadow-[0_0_30px_rgba(220,38,38,0.15)] animate-in zoom-in duration-150">
+            <div className="p-6 border-b border-zinc-800 flex justify-between items-center bg-red-950/30">
+              <h2 className="text-xl font-black text-red-500 uppercase flex items-center gap-2">🔴 Forçar Reembolso</h2>
+              <button onClick={() => setIsRefundModalOpen(false)} className="text-zinc-500 hover:text-white text-2xl">&times;</button>
+            </div>
+            
+            <form onSubmit={handleConfirmRefund} className="p-6 space-y-6">
+                <div className="bg-zinc-950 p-4 rounded border border-zinc-800">
+                  <p className="text-zinc-400 text-xs uppercase tracking-widest mb-1">Estornar venda de:</p>
+                  <p className="text-white font-black text-lg">{selectedSaleToAction.customer_name}</p>
+                  <p className="text-zinc-500 text-sm mt-1">Valor: <span className="text-red-400 font-bold">{formataBRL(Number(selectedSaleToAction.sale_value))}</span></p>
+                  <p className="text-zinc-500 text-xs mt-1">Vendedor: <span className="text-blue-400 font-bold">{selectedSaleToAction.seller_name}</span></p>
+                </div>
+
+                <div>
+                  <label className="block text-zinc-400 text-xs font-black uppercase tracking-widest mb-2">
+                    Motivo do Reembolso
+                  </label>
+                  <textarea 
+                    required 
+                    value={refundReason} 
+                    onChange={(e) => setRefundReason(e.target.value)} 
+                    placeholder="Ex: Cliente desistiu..."
+                    className="w-full bg-zinc-950 border border-zinc-800 text-white rounded p-3 focus:outline-none focus:border-red-500 min-h-[100px]" 
+                  />
+                  <p className="text-red-500/70 text-[10px] mt-2 font-bold">
+                    O valor será deduzido da meta do vendedor.
+                  </p>
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button type="button" onClick={() => setIsRefundModalOpen(false)} className="w-1/3 border border-zinc-700 hover:bg-zinc-800 text-white font-bold py-3 rounded-lg uppercase tracking-widest transition-colors text-xs">
+                      Cancelar
+                  </button>
+                  <button disabled={isLoading} className="w-2/3 bg-red-600 hover:bg-red-500 text-white font-black py-3 rounded-lg uppercase tracking-widest shadow-[0_0_15px_rgba(220,38,38,0.3)] transition-all text-xs">
+                      {isLoading ? 'PROCESSANDO...' : 'CONFIRMAR ESTORNO'}
+                  </button>
+                </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* ========================================= */}
       {/* 🔥 MODAL TÁTICO DE CONFIRMAÇÃO (SUBSTITUI O WINDOW.CONFIRM) */}
