@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { GuerraEquipes } from '../components/GuerraEquipes'; 
@@ -23,10 +23,25 @@ type Venda = {
   edit_status?: string; 
 };
 
+// 🔥 FUNÇÕES BLINDADAS FORA DO COMPONENTE PARA NÃO PESAR A MEMÓRIA
+const checkCancelada = (status?: string) => {
+  if (!status) return false;
+  const s = status.toLowerCase();
+  return s === 'cancelada' || s === 'cancelado' || s === 'reembolsado' || s === 'reembolsada' || s === 'estornado';
+};
+
+const checkAprovada = (status?: string) => {
+  if (!status) return false;
+  const s = status.toLowerCase();
+  return s === 'aprovada' || s === 'aprovado';
+};
+
 export function Vendas() {
   const navigate = useNavigate();
   const userString = localStorage.getItem('user');
-  const user = userString ? JSON.parse(userString) : { name: 'Vendedor', id: '' };
+  
+  // 🔥 USEMEMO: Guarda o usuário na memória
+  const user = useMemo(() => userString ? JSON.parse(userString) : { name: 'Vendedor', id: '' }, [userString]);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false); 
@@ -34,7 +49,6 @@ export function Vendas() {
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [vendas, setVendas] = useState<Venda[]>([]);
   
-  // 🔥 FILTRO COM A ABA DE REEMBOLSOS
   const [filtro, setFiltro] = useState<'dia' | 'semana' | 'mes' | 'reembolsos'>('mes');
 
   const [productName, setProductName] = useState('');
@@ -55,7 +69,8 @@ export function Vendas() {
     fetchData();
   }, []);
 
-  async function fetchData() {
+  // 🔥 USECALLBACK: Congela a função para não recriar a cada clique
+  const fetchData = useCallback(async () => {
     try {
       const [prodRes, salesRes] = await Promise.all([
         api.get('/products'),
@@ -72,24 +87,25 @@ export function Vendas() {
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
     }
-  }
+  }, []);
 
-  function handleLogout() {
+  const handleLogout = useCallback(() => {
     localStorage.removeItem('user');
     localStorage.removeItem('token');
     navigate('/');
-  }
+  }, [navigate]);
 
-  function handleProductChange(e: React.ChangeEvent<HTMLSelectElement>) {
+  const handleProductChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
     const nomeSelecionado = e.target.value;
     setProductName(nomeSelecionado);
+
     const produtoEscolhido = produtos.find(p => p.nome === nomeSelecionado);
     if (produtoEscolhido) {
       setSaleValue(String(produtoEscolhido.valor));
     }
-  }
+  }, [produtos]);
 
-  function handleOpenEdit(venda: Venda) {
+  const handleOpenEdit = useCallback((venda: Venda) => {
     setEditingSaleId(venda.id);
     setProductName(venda.product_name);
     setSaleValue(String(venda.sale_value));
@@ -102,10 +118,11 @@ export function Vendas() {
     if (venda.created_at) {
       setSaleDate(new Date(venda.created_at).toISOString().split('T')[0]);
     }
-    setIsEditModalOpen(true);
-  }
 
-  function resetForm() {
+    setIsEditModalOpen(true);
+  }, []);
+
+  const resetForm = useCallback(() => {
     setCustomerName('');
     setCustomerEmail('');
     setCustomerPhone('');
@@ -115,17 +132,19 @@ export function Vendas() {
       setProductName(produtos[0].nome);
       setSaleValue(String(produtos[0].valor));
     }
-  }
+  }, [produtos]);
 
   async function handleRegisterSale(e: React.FormEvent) {
     e.preventDefault();
     setIsLoading(true);
+
     try {
       await api.post('/sales', {
         seller_id: user.id, product_name: productName, customer_name: customerName,
         customer_email: customerEmail, customer_phone: customerPhone, payment_method: paymentMethod,
         sale_value: Number(saleValue), sale_date: saleDate
       });
+
       alert('⚡ Venda registrada com sucesso!');
       resetForm();
       setIsModalOpen(false);
@@ -140,99 +159,103 @@ export function Vendas() {
   async function handleRequestEdit(e: React.FormEvent) {
     e.preventDefault();
     setIsLoading(true);
+
     try {
       const novaDataFormatada = new Date(`${saleDate}T12:00:00Z`).toISOString();
+
       const newData = {
-        product_name: productName, sale_value: Number(saleValue), customer_name: customerName,
-        customer_email: customerEmail, customer_phone: customerPhone, payment_method: paymentMethod,
+        product_name: productName,
+        sale_value: Number(saleValue),
+        customer_name: customerName,
+        customer_email: customerEmail,
+        customer_phone: customerPhone,
+        payment_method: paymentMethod,
         created_at: novaDataFormatada 
       };
+
       await api.post(`/sales/${editingSaleId}/request-edit`, {
-        reason: editReason, newData: newData
+        reason: editReason,
+        newData: newData
       });
+
       alert('🛡️ Solicitação de edição enviada ao Comando Militar! Aguarde aprovação.');
       resetForm();
       setIsEditModalOpen(false);
       fetchData(); 
     } catch (error: any) {
-      alert('Erro ao solicitar edição.');
+      alert('Erro ao solicitar edição. Fale com o suporte.');
     } finally {
       setIsLoading(false);
     }
   }
 
   // ========================================================
-  // 🔥 BLINDAGEM DE STATUS (Impede que reembolsos fiquem "Pendentes")
+  // 🔥 MOTOR DE ALTA PERFORMANCE (USEMEMO)
+  // Só refaz as contas se entrar uma venda nova
   // ========================================================
-  const checkCancelada = (status?: string) => {
-    if (!status) return false;
-    const s = status.toLowerCase();
-    return s === 'cancelada' || s === 'cancelado' || s === 'reembolsado' || s === 'reembolsada' || s === 'estornado';
-  };
+  const vendasFiltradas = useMemo(() => {
+    return vendas.filter(venda => {
+      if (String(venda.seller_id) !== String(user.id)) return false;
+      if (!venda.created_at) return false;
+      
+      const isCancelada = checkCancelada(venda.status);
 
-  const checkAprovada = (status?: string) => {
-    if (!status) return false;
-    const s = status.toLowerCase();
-    return s === 'aprovada' || s === 'aprovado';
-  };
+      if (filtro === 'reembolsos') return isCancelada;
+      if (isCancelada) return false;
 
-  // 🔥 LÓGICA DO FILTRO (Separando os Reembolsos do Placar normal)
-  const vendasFiltradas = vendas.filter(venda => {
-    if (String(venda.seller_id) !== String(user.id)) return false;
-    if (!venda.created_at) return false;
-    
-    const isCancelada = checkCancelada(venda.status);
+      const dataVenda = new Date(venda.created_at);
+      const hoje = new Date();
+      
+      if (filtro === 'dia') return dataVenda.toDateString() === hoje.toDateString();
+      if (filtro === 'semana') {
+        const umaSemanaAtras = new Date();
+        umaSemanaAtras.setDate(hoje.getDate() - 7);
+        return dataVenda >= umaSemanaAtras;
+      }
+      return true; 
+    });
+  }, [vendas, filtro, user.id]);
 
-    // Se a aba selecionada for a de reembolsos, mostra apenas as canceladas
-    if (filtro === 'reembolsos') {
-      return isCancelada;
-    }
+  const { qtdVendasMes, percentualComissao, valorComissao } = useMemo(() => {
+    const aprovadasMes = vendas.filter(v => {
+      if (String(v.seller_id) !== String(user.id)) return false;
+      if (!checkAprovada(v.status)) return false; 
+      if (!v.created_at) return false;
+      
+      const dataVenda = new Date(v.created_at);
+      const hoje = new Date();
+      const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+      
+      return dataVenda >= inicioMes;
+    });
 
-    // Se estiver nas abas normais (Dia/Semana/Mês), esconde as vendas canceladas
-    if (isCancelada) return false;
+    const qtd = aprovadasMes.length;
+    const total = aprovadasMes.reduce((acc, v) => acc + Number(v.sale_value), 0);
 
-    const dataVenda = new Date(venda.created_at);
-    const hoje = new Date();
-    
-    if (filtro === 'dia') return dataVenda.toDateString() === hoje.toDateString();
-    if (filtro === 'semana') {
-      const umaSemanaAtras = new Date();
-      umaSemanaAtras.setDate(hoje.getDate() - 7);
-      return dataVenda >= umaSemanaAtras;
-    }
-    return true; 
-  });
+    let percentual = 0;
+    if (qtd <= 60) percentual = 1;
+    else if (qtd <= 100) percentual = 2;
+    else if (qtd <= 150) percentual = 2.5;
+    else percentual = 3; 
 
-  // ========================================================
-  // 🔥 CÁLCULO DE COMISSÃO DO SOLDADO
-  // ========================================================
-  const vendasAprovadasMes = vendas.filter(v => {
-    if (String(v.seller_id) !== String(user.id)) return false;
-    if (!checkAprovada(v.status)) return false; // Regra: Só ganha comissão se a venda for aprovada
-    if (!v.created_at) return false;
-    
-    const dataVenda = new Date(v.created_at);
-    const hoje = new Date();
-    const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
-    
-    return dataVenda >= inicioMes;
-  });
+    return {
+      qtdVendasMes: qtd,
+      percentualComissao: percentual,
+      valorComissao: (total * percentual) / 100
+    };
+  }, [vendas, user.id]);
 
-  const qtdVendasMes = vendasAprovadasMes.length;
-  const valorTotalMes = vendasAprovadasMes.reduce((acc, v) => acc + Number(v.sale_value), 0);
+  const { minhasVendasCanceladas, totalArrecadacaoPerdida } = useMemo(() => {
+    const canceladas = vendas.filter(v => String(v.seller_id) === String(user.id) && checkCancelada(v.status));
+    const totalPerdido = canceladas.reduce((acc, v) => acc + Number(v.sale_value), 0);
+    return {
+      minhasVendasCanceladas: canceladas,
+      totalArrecadacaoPerdida: totalPerdido
+    };
+  }, [vendas, user.id]);
 
-  let percentualComissao = 0;
-  if (qtdVendasMes <= 60) percentualComissao = 1;
-  else if (qtdVendasMes <= 100) percentualComissao = 2;
-  else if (qtdVendasMes <= 150) percentualComissao = 2.5;
-  else percentualComissao = 3; 
+  const formataBRL = useCallback((valor: number) => valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), []);
 
-  const valorComissao = (valorTotalMes * percentualComissao) / 100;
-  const formataBRL = (valor: number) => valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-
-  // 🔥 DADOS DO ALERTA DE BAIXA
-  const minhasVendasCanceladas = vendas.filter(v => String(v.seller_id) === String(user.id) && checkCancelada(v.status));
-  const totalArrecadacaoPerdida = minhasVendasCanceladas.reduce((acc, v) => acc + Number(v.sale_value), 0);
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans p-4 md:p-8 relative">
@@ -250,7 +273,7 @@ export function Vendas() {
           </button>
         </div>
 
-        {/* ALERTA DE BAIXAS EM COMBATE */}
+        {/* 🔥 ALERTA DE BAIXAS */}
         {minhasVendasCanceladas.length > 0 && (
           <div className="bg-red-950/40 border border-red-500/50 rounded-xl p-4 md:p-6 mb-8 shadow-[0_0_20px_rgba(239,68,68,0.2)] animate-in fade-in flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="flex items-start gap-4">
@@ -269,7 +292,7 @@ export function Vendas() {
           </div>
         )}
 
-        {/* PAINEL DE COMISSÃO */}
+        {/* 🔥 PAINEL DE COMISSÃO DO SOLDADO */}
         <div className="bg-gradient-to-r from-green-950 to-zinc-900 border border-green-500/30 rounded-xl p-6 shadow-[0_0_20px_rgba(34,197,94,0.1)] mb-8 flex flex-col md:flex-row justify-between items-center gap-6 animate-in fade-in slide-in-from-top-4">
           <div className="text-center md:text-left">
             <h3 className="text-green-400 font-black uppercase tracking-widest text-lg flex items-center justify-center md:justify-start gap-2">
@@ -304,6 +327,7 @@ export function Vendas() {
               </div>
               <p className="text-2xl font-black text-green-400">{mostrarComissao ? formataBRL(valorComissao) : 'R$ •••••••'}</p>
             </div>
+
           </div>
         </div>
 
@@ -314,7 +338,7 @@ export function Vendas() {
         <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 shadow-2xl">
           <div className="flex flex-col lg:flex-row justify-between items-center mb-8 gap-4 border-b border-zinc-800 pb-6">
             
-            {/* ABA DE FILTROS COM A OPÇÃO DE REEMBOLSOS */}
+            {/* ABA DE FILTROS */}
             <div className="flex flex-wrap justify-center gap-2">
               <button onClick={() => setFiltro('dia')} className={`px-4 py-2 rounded-lg font-bold text-[10px] sm:text-xs uppercase tracking-widest transition-all ${filtro === 'dia' ? 'bg-yellow-400 text-black' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}>Hoje</button>
               <button onClick={() => setFiltro('semana')} className={`px-4 py-2 rounded-lg font-bold text-[10px] sm:text-xs uppercase tracking-widest transition-all ${filtro === 'semana' ? 'bg-yellow-400 text-black' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}>Semana</button>
