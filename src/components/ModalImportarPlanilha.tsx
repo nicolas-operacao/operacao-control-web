@@ -193,7 +193,10 @@ export function ModalImportarPlanilha({ isOpen, onClose, vendasAtuais, onSuccess
     <div className="fixed inset-0 bg-black/95 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-zinc-900 border border-blue-500/30 rounded-2xl w-full max-w-5xl shadow-2xl animate-in zoom-in duration-150 flex flex-col max-h-[90vh]">
         <div className="p-6 border-b border-zinc-800 flex justify-between items-center bg-blue-900/10">
-          <h2 className="text-xl font-black text-blue-400 uppercase flex items-center gap-2">📥 Sincronizador de Plataformas (Ignora Hubla, Guru e < R$70)</h2>
+          <h2 className="text-xl font-black text-blue-400 uppercase flex items-center gap-2">
+            {/* 🔥 ERRO CORRIGIDO AQUI ABAIXO: envolvi o < com chaves {'<'} */}
+            📥 Sincronizador de Plataformas (Ignora Hubla, Guru e {'<'} R$70)
+          </h2>
           <button onClick={onClose} className="text-zinc-500 hover:text-white text-2xl">&times;</button>
         </div>
 
