@@ -14,6 +14,18 @@ type LinhaPlanilha = {
   statusImportacao: 'NOVA' | 'DUPLICADA';
 };
 
+// 🔥 MOTOR DE LIMPEZA DE CSV (Remove aspas que o Excel coloca ao redor dos textos)
+const unquote = (str: string | undefined) => {
+  if (!str) return '';
+  let cleanStr = str.trim();
+  if (cleanStr.startsWith('"') && cleanStr.endsWith('"')) {
+    cleanStr = cleanStr.slice(1, -1).trim();
+  } else if (cleanStr.startsWith("'") && cleanStr.endsWith("'")) {
+    cleanStr = cleanStr.slice(1, -1).trim();
+  }
+  return cleanStr;
+};
+
 export function ModalImportarPlanilha({ isOpen, onClose, vendasAtuais, onSuccess }: Props) {
   const [linhas, setLinhas] = useState<LinhaPlanilha[]>([]);
   const [isUploading, setIsUploading] = useState(false);
@@ -22,6 +34,26 @@ export function ModalImportarPlanilha({ isOpen, onClose, vendasAtuais, onSuccess
 
   if (!isOpen) return null;
 
+  // Analisador Inteligente que não quebra quando há ponto-e-vírgula dentro das aspas
+  const parseCSVLine = (text: string) => {
+    const result: string[] = [];
+    let current = '';
+    let inQuotes = false;
+    for (let i = 0; i < text.length; i++) {
+      const char = text[i];
+      if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === ';' && !inQuotes) {
+        result.push(unquote(current));
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    result.push(unquote(current));
+    return result;
+  };
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -29,34 +61,97 @@ export function ModalImportarPlanilha({ isOpen, onClose, vendasAtuais, onSuccess
     const reader = new FileReader();
     reader.onload = (event) => {
       const text = event.target?.result as string;
-      const rows = text.split('\n');
+      const rows = text.split(/\r?\n/);
+      if (rows.length < 2) {
+        alert("O arquivo parece vazio ou inválido.");
+        return;
+      }
+
+      // Lê a primeira linha para descobrir a posição exata das colunas
+      const headers = parseCSVLine(rows[0]).map(h => h.toLowerCase());
       
+      const idxNome = headers.findIndex(h => h.includes('nome'));
+      const idxEmail = headers.findIndex(h => h.includes('email'));
+      const idxValor = headers.findIndex(h => h.includes('bruto') || h.includes('valor'));
+      const idxData = headers.findIndex(h => h.includes('data'));
+      const idxPagamento = headers.findIndex(h => h.includes('pagamento'));
+      
+      // 🔥 AGORA PROCURAMOS A COLUNA "CONTEÚDO" (Nome do Curso)
+      const idxProduto = headers.findIndex(h => h.includes('conteúdo') || h.includes('conteudo') || h.includes('produto') || h.includes('curso'));
+      
+      if (idxNome === -1 || idxEmail === -1 || idxValor === -1) {
+        alert("Erro: A planilha precisa ter as colunas 'Nome', 'Email' e 'Preço Bruto' ou 'Valor'.");
+        return;
+      }
+
       const dadosExtraidos: LinhaPlanilha[] = [];
 
       for (let i = 1; i < rows.length; i++) {
-        const row = rows[i].trim();
-        if (!row) continue;
+        const row = rows[i];
+        if (!row || !row.trim()) continue;
 
-        const cols = row.split(';');
+        const cols = parseCSVLine(row);
         
-        if (cols.length >= 6) {
-          const emailPlanilha = cols[1]?.trim().toLowerCase() || '';
-          
-          const isDuplicada = vendasAtuais.some(v => 
-            v.customer_email && v.customer_email.toLowerCase() === emailPlanilha
-          );
-
-          dadosExtraidos.push({
-            cliente: cols[0]?.trim() || 'Sem Nome',
-            email: emailPlanilha,
-            telefone: cols[2]?.trim() || '',
-            produto: cols[3]?.trim() || 'Curso',
-            valor: parseFloat(cols[4]?.replace(',', '.') || '0'),
-            pagamento: cols[5]?.trim() || 'PIX',
-            data: cols[6]?.trim() ? new Date(cols[6].trim().split('/').reverse().join('-')).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-            statusImportacao: isDuplicada ? 'DUPLICADA' : 'NOVA'
-          });
+        const emailPlanilha = (cols[idxEmail] || '').toLowerCase().trim();
+        if (!emailPlanilha) continue; // Pula a linha se não tiver e-mail de cliente
+        
+        const cliente = cols[idxNome] || 'Sem Nome';
+        const pagamento = idxPagamento !== -1 ? (cols[idxPagamento] || 'N/A') : 'N/A';
+        const rawDate = idxData !== -1 ? cols[idxData] : '';
+        
+        // 🔥 PUXANDO O NOME REAL DO CURSO DA PLANILHA
+        const produto = idxProduto !== -1 && cols[idxProduto] ? cols[idxProduto] : 'Curso/Plataforma';
+        
+        // Conversão de moeda inteligente blindada
+        let valorStr = (cols[idxValor] || '').replace('R$', '').trim();
+        if (valorStr.includes(',') && !valorStr.includes('.')) {
+            valorStr = valorStr.replace(',', '.');
+        } else if (valorStr.includes(',') && valorStr.includes('.')) {
+            valorStr = valorStr.replace(/\./g, '').replace(',', '.');
         }
+        
+        // 🔥 AQUI ESTÁ A CORREÇÃO: Força a ser um número, e se der NaN vira 0
+        let valorConvertido = parseFloat(valorStr);
+        if (isNaN(valorConvertido)) {
+          valorConvertido = 0;
+        }
+        
+        // Conversor Universal de Datas
+        let dataFinal = new Date().toISOString().split('T')[0];
+        if (rawDate) {
+          try {
+            if (rawDate.includes('/') && rawDate.length <= 10) {
+              const parts = rawDate.split('/');
+              if (parts.length === 3) {
+                const isoDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
+                if (!isNaN(new Date(isoDate).getTime())) dataFinal = isoDate;
+              }
+            } else {
+              const parsed = new Date(rawDate);
+              if (!isNaN(parsed.getTime())) {
+                dataFinal = parsed.toISOString().split('T')[0];
+              }
+            }
+          } catch(e) {
+            // Ignora erro
+          }
+        }
+
+        // Radar Anti-Duplicidade
+        const isDuplicada = vendasAtuais.some(v => 
+          v.customer_email && v.customer_email.toLowerCase() === emailPlanilha
+        );
+
+        dadosExtraidos.push({
+          cliente,
+          email: emailPlanilha,
+          telefone: '--',
+          produto, 
+          valor: valorConvertido, // <-- Agora o TypeScript sabe que isso sempre será um número!
+          pagamento,
+          data: dataFinal,
+          statusImportacao: isDuplicada ? 'DUPLICADA' : 'NOVA'
+        });
       }
       setLinhas(dadosExtraidos);
     };
@@ -75,7 +170,7 @@ export function ModalImportarPlanilha({ isOpen, onClose, vendasAtuais, onSuccess
     try {
       for (const venda of vendasNovas) {
         await api.post('/sales', {
-          seller_id: 99999,
+          seller_id: 99999, // ⚠️ Lembre-se de colocar o ID real do usuário "Checkout Automático" aqui
           seller_name: 'Checkout Automático', 
           product_name: venda.produto, 
           customer_name: venda.cliente,
@@ -89,11 +184,11 @@ export function ModalImportarPlanilha({ isOpen, onClose, vendasAtuais, onSuccess
       }
 
       somSucesso();
-      alert(`✅ ${vendasNovas.length} vendas de Checkout importadas com sucesso!`);
+      alert(`✅ ${vendasNovas.length} vendas de Checkout importadas com sucesso! Sua meta acabou de subir!`);
       setLinhas([]);
       onSuccess();
     } catch {
-      alert('🚨 Erro ao enviar algumas vendas. Verifique a conexão.');
+      alert('🚨 Erro ao enviar algumas vendas. Verifique se o ID do Checkout existe no banco.');
     } finally {
       setIsUploading(false);
     }
@@ -106,7 +201,7 @@ export function ModalImportarPlanilha({ isOpen, onClose, vendasAtuais, onSuccess
     <div className="fixed inset-0 bg-black/95 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-zinc-900 border border-blue-500/30 rounded-2xl w-full max-w-4xl shadow-2xl animate-in zoom-in duration-150 flex flex-col max-h-[90vh]">
         <div className="p-6 border-b border-zinc-800 flex justify-between items-center bg-blue-900/10">
-          <h2 className="text-xl font-black text-blue-400 uppercase flex items-center gap-2">📥 Sincronizador de Plataformas (Cursa Educa / TMB)</h2>
+          <h2 className="text-xl font-black text-blue-400 uppercase flex items-center gap-2">📥 Sincronizador (Cursa Educa / TMB)</h2>
           <button onClick={onClose} className="text-zinc-500 hover:text-white text-2xl">&times;</button>
         </div>
 
@@ -115,22 +210,26 @@ export function ModalImportarPlanilha({ isOpen, onClose, vendasAtuais, onSuccess
             <div className="border-2 border-dashed border-zinc-700 rounded-xl p-10 text-center">
               <span className="text-4xl mb-4 block">📊</span>
               <h3 className="text-white font-bold mb-2">Faça o Upload do arquivo CSV</h3>
-              <p className="text-zinc-500 text-xs uppercase tracking-widest mb-6">Padrão esperado: Cliente ; Email ; Telefone ; Produto ; Valor ; Pagamento ; Data</p>
+              <p className="text-zinc-500 text-xs uppercase tracking-widest mb-6">Nós leremos: Nome, Email, Curso, Pagamento, Preço e Data.</p>
               <input type="file" accept=".csv" onChange={handleFileUpload} className="block w-full text-sm text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-black file:uppercase file:bg-blue-600 file:text-white hover:file:bg-blue-500 cursor-pointer" />
             </div>
           ) : (
             <div>
               <div className="flex gap-4 mb-4">
-                <div className="bg-green-950/30 border border-green-500/30 p-4 rounded-lg flex-1 text-center"><p className="text-green-500 font-black text-2xl">{qtdNovas}</p><p className="text-zinc-400 text-[10px] uppercase tracking-widest">Novas (Prontas para o Placar)</p></div>
-                <div className="bg-red-950/30 border border-red-500/30 p-4 rounded-lg flex-1 text-center"><p className="text-red-500 font-black text-2xl">{qtdDuplicadas}</p><p className="text-zinc-400 text-[10px] uppercase tracking-widest">Duplicadas (Lançadas pela Tropa)</p></div>
+                <div className="bg-green-950/30 border border-green-500/30 p-4 rounded-lg flex-1 text-center"><p className="text-green-500 font-black text-2xl">{qtdNovas}</p><p className="text-zinc-400 text-[10px] uppercase tracking-widest">Novas (Prontas para a Meta)</p></div>
+                <div className="bg-red-950/30 border border-red-500/30 p-4 rounded-lg flex-1 text-center"><p className="text-red-500 font-black text-2xl">{qtdDuplicadas}</p><p className="text-zinc-400 text-[10px] uppercase tracking-widest">Duplicadas (Da Tropa)</p></div>
               </div>
               <div className="overflow-x-auto border border-zinc-800 rounded-lg max-h-64">
                 <table className="w-full text-left">
-                  <thead className="sticky top-0 bg-zinc-950/90 backdrop-blur"><tr className="text-zinc-500 text-[10px] uppercase tracking-widest border-b border-zinc-800"><th className="p-3 font-black">Cliente</th><th className="p-3 font-black">Email</th><th className="p-3 font-black">Produto</th><th className="p-3 font-black">Pagamento</th><th className="p-3 font-black">Valor</th><th className="p-3 font-black text-center">Análise</th></tr></thead>
+                  <thead className="sticky top-0 bg-zinc-950/90 backdrop-blur"><tr className="text-zinc-500 text-[10px] uppercase tracking-widest border-b border-zinc-800"><th className="p-3 font-black">Data</th><th className="p-3 font-black">Cliente / Email</th><th className="p-3 font-black">Curso</th><th className="p-3 font-black">Pagamento</th><th className="p-3 font-black">Valor</th><th className="p-3 font-black text-center">Análise</th></tr></thead>
                   <tbody className="text-xs">
                     {linhas.map((linha, i) => (
                       <tr key={i} className={`border-b border-zinc-800/50 ${linha.statusImportacao === 'DUPLICADA' ? 'opacity-50' : 'bg-green-950/10'}`}>
-                        <td className="p-3 text-white font-bold">{linha.cliente}</td><td className="p-3 text-zinc-400">{linha.email}</td><td className="p-3 text-zinc-400 uppercase">{linha.produto}</td><td className="p-3 text-yellow-400 font-bold uppercase text-[10px]">{linha.pagamento}</td><td className="p-3 text-green-400 font-bold">R$ {linha.valor.toFixed(2)}</td>
+                        <td className="p-3 text-zinc-400">{linha.data.split('-').reverse().join('/')}</td>
+                        <td className="p-3"><p className="text-white font-bold">{linha.cliente}</p><p className="text-zinc-400 text-[10px]">{linha.email}</p></td>
+                        <td className="p-3 text-zinc-300 font-bold uppercase text-[10px]">{linha.produto}</td>
+                        <td className="p-3 text-yellow-400 font-bold uppercase text-[10px]">{linha.pagamento}</td>
+                        <td className="p-3 text-green-400 font-bold">R$ {linha.valor.toFixed(2)}</td>
                         <td className="p-3 text-center">{linha.statusImportacao === 'NOVA' ? (<span className="bg-green-500/20 text-green-500 border border-green-500/30 px-2 py-1 rounded text-[9px] font-black uppercase tracking-widest">NOVA - CHECKOUT</span>) : (<span className="bg-red-500/20 text-red-500 border border-red-500/30 px-2 py-1 rounded text-[9px] font-black uppercase tracking-widest">JÁ REGISTRADA</span>)}</td>
                       </tr>
                     ))}
