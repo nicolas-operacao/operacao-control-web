@@ -7,15 +7,15 @@ import { ModalGerenciarProdutos } from '../components/ModalGerenciarProdutos';
 import { ModalRegistrarVenda } from '../components/ModalRegistrarVenda'; 
 import { ModalGerenciarDesafios } from '../components/ModalGerenciarDesafios'; 
 
-// 🔥 IMPORTANDO OS NOVOS MÓDULOS QUE CRIAMOS
 import { ModalConfirmacao } from '../components/ModalConfirmacao';
 import { ModalReembolsoAdmin } from '../components/ModalReembolsoAdmin';
 import { ModalEdicaoAdmin } from '../components/ModalEdicaoAdmin';
+import { ModalImportarPlanilha } from '../components/ModalImportarPlanilha'; 
 
 import confetti from 'canvas-confetti'; 
 
 type Produto = { id: number; nome: string; valor: number; };
-type Venda = { id: string; product_name: string; customer_name: string; customer_phone?: string; customer_email?: string; payment_method?: string; sale_value: number; status: string; created_at: string; seller_name?: string; edit_status?: string; edit_reason?: string; edit_data?: any; };
+type Venda = { id: string; product_name: string; customer_name: string; customer_phone?: string; customer_email?: string; payment_method?: string; sale_value: number; status: string; created_at: string; seller_name?: string; edit_status?: string; edit_reason?: string; edit_data?: string; };
 
 export function Dashboard() {
   const navigate = useNavigate();
@@ -29,9 +29,11 @@ export function Dashboard() {
   const [isModalProdutoOpen, setIsModalProdutoOpen] = useState(false);
   const [isModalVendaOpen, setIsModalVendaOpen] = useState(false);
   const [isModalDesafioOpen, setIsModalDesafioOpen] = useState(false); 
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+
   const [mainRefreshTrigger, setMainRefreshTrigger] = useState(0);
 
-  const [desafioAtivo, setDesafioAtivo] = useState<any>(null);
+  const [desafioAtivo, setDesafioAtivo] = useState<{goal_amount: number; name: string} | null>(null);
   const META_MENSAL = desafioAtivo ? Number(desafioAtivo.goal_amount) : 400000;
 
   const [vendasHoje, setVendasHoje] = useState(0);
@@ -51,7 +53,6 @@ export function Dashboard() {
   const [selectedEdits, setSelectedEdits] = useState<string[]>([]);
   const [selectedSales, setSelectedSales] = useState<string[]>([]);
 
-  // 🔥 ESTADOS DOS NOVOS MODAIS INDEPENDENTES
   const [globalSearchTerm, setGlobalSearchTerm] = useState('');
   const [isRefundModalOpen, setIsRefundModalOpen] = useState(false);
   const [isAdminEditModalOpen, setIsAdminEditModalOpen] = useState(false);
@@ -66,8 +67,8 @@ export function Dashboard() {
 
   useEffect(() => { fetchProdutos(); fetchVendasPlacar(); fetchDesafioAtivo(); }, []);
 
-  async function fetchDesafioAtivo() { try { const response = await api.get('/challenges'); setDesafioAtivo(response.data.find((c: any) => c.is_active) || null); } catch (error) {} }
-  async function fetchProdutos() { try { const response = await api.get('/products'); setProdutos(response.data); } catch (error) {} }
+  async function fetchDesafioAtivo() { try { const response = await api.get('/challenges'); setDesafioAtivo(response.data.find((c: {is_active: boolean}) => c.is_active) || null); } catch { /* erro ignorado */ } }
+  async function fetchProdutos() { try { const response = await api.get('/products'); setProdutos(response.data); } catch { /* erro ignorado */ } }
 
   async function fetchVendasPlacar() {
     try {
@@ -86,7 +87,7 @@ export function Dashboard() {
       });
       setVendasHoje(tHoje); setVendasSemana(tSemana); setVendasMes(tMes); setQtdHoje(qHoje); setQtdSemana(qSemana); setQtdMes(qMes);
       setSelectedEdits([]); setSelectedSales([]);
-    } catch (error) {}
+    } catch { /* erro ignorado */ }
   }
 
   function copiarTexto(texto?: string) { if (!texto) return; navigator.clipboard.writeText(texto); alert(`📋 Copiado: ${texto}`); }
@@ -97,14 +98,14 @@ export function Dashboard() {
   function openRefundModal(venda: Venda) { setSelectedSaleToAction(venda); setIsRefundModalOpen(true); }
   function openAdminEditModal(venda: Venda) { setSelectedSaleToAction(venda); setIsAdminEditModalOpen(true); }
 
-  const handleAprovarEdicao = (id: string) => openConfirm('APROVAR CORREÇÃO', 'Confirma a alteração desta venda?', 'blue', async () => { try { await api.post(`/sales/${id}/approve-edit`); somSucesso(); fetchVendasPlacar(); } catch (error) { alert("Erro ao aprovar."); }});
-  const handleRejeitarEdicao = (id: string) => openConfirm('REJEITAR CORREÇÃO', 'O vendedor será notificado.', 'red', async () => { try { await api.post(`/sales/${id}/reject-edit`); somAlerta(); fetchVendasPlacar(); } catch (error) { alert("Erro ao rejeitar."); }});
-  const handleAprovarVenda = (id: string) => openConfirm('LIBERAR VENDA', 'Esta venda será creditada.', 'green', async () => { try { await api.post(`/sales/${id}/approve`); somDinheiro(); lancarConfetes(); fetchVendasPlacar(); } catch (error) { alert("Erro ao liberar."); }});
-  const handleDeleteVenda = (id: string) => openConfirm('EXCLUIR VENDA', '⚠️ ALERTA: Esta venda será apagada. Confirma?', 'red', async () => { try { await api.delete(`/sales/${id}`); somAlerta(); fetchVendasPlacar(); } catch (error) { alert('Erro ao excluir.'); }});
-  const batchApproveEdits = () => openConfirm('APROVAR SELECIONADOS', `Aprovar ${selectedEdits.length} correções?`, 'blue', async () => { try { await Promise.all(selectedEdits.map(id => api.post(`/sales/${id}/approve-edit`))); somSucesso(); fetchVendasPlacar(); } catch (error) { alert("Erro."); }});
-  const batchRejectEdits = () => openConfirm('REJEITAR SELECIONADOS', `Rejeitar ${selectedEdits.length} correções?`, 'red', async () => { try { await Promise.all(selectedEdits.map(id => api.post(`/sales/${id}/reject-edit`))); somAlerta(); fetchVendasPlacar(); } catch (error) { alert("Erro."); }});
-  const batchApproveSales = () => openConfirm('LIBERAR SELECIONADAS', `Liberar ${selectedSales.length} vendas?`, 'green', async () => { try { await Promise.all(selectedSales.map(id => api.post(`/sales/${id}/approve`))); somDinheiro(); lancarConfetes(); fetchVendasPlacar(); } catch (error) { alert("Erro."); }});
-  const batchDeleteSales = () => openConfirm('EXCLUIR SELECIONADAS', `⚠️ ALERTA: APAGAR ${selectedSales.length} vendas?`, 'red', async () => { try { await Promise.all(selectedSales.map(id => api.delete(`/sales/${id}`))); somAlerta(); fetchVendasPlacar(); } catch (error) { alert("Erro."); }});
+  const handleAprovarEdicao = (id: string) => openConfirm('APROVAR CORREÇÃO', 'Confirma a alteração?', 'blue', async () => { try { await api.post(`/sales/${id}/approve-edit`); somSucesso(); fetchVendasPlacar(); } catch { alert("Erro ao aprovar."); }});
+  const handleRejeitarEdicao = (id: string) => openConfirm('REJEITAR CORREÇÃO', 'O vendedor será notificado.', 'red', async () => { try { await api.post(`/sales/${id}/reject-edit`); somAlerta(); fetchVendasPlacar(); } catch { alert("Erro ao rejeitar."); }});
+  const handleAprovarVenda = (id: string) => openConfirm('LIBERAR VENDA', 'Esta venda será creditada.', 'green', async () => { try { await api.post(`/sales/${id}/approve`); somDinheiro(); lancarConfetes(); fetchVendasPlacar(); } catch { alert("Erro ao liberar."); }});
+  const handleDeleteVenda = (id: string) => openConfirm('EXCLUIR VENDA', '⚠️ ALERTA: Esta venda será apagada.', 'red', async () => { try { await api.delete(`/sales/${id}`); somAlerta(); fetchVendasPlacar(); } catch { alert('Erro ao excluir.'); }});
+  const batchApproveEdits = () => openConfirm('APROVAR SELECIONADOS', `Aprovar ${selectedEdits.length} correções?`, 'blue', async () => { try { await Promise.all(selectedEdits.map(id => api.post(`/sales/${id}/approve-edit`))); somSucesso(); fetchVendasPlacar(); } catch { alert("Erro."); }});
+  const batchRejectEdits = () => openConfirm('REJEITAR SELECIONADOS', `Rejeitar ${selectedEdits.length} correções?`, 'red', async () => { try { await Promise.all(selectedEdits.map(id => api.post(`/sales/${id}/reject-edit`))); somAlerta(); fetchVendasPlacar(); } catch { alert("Erro."); }});
+  const batchApproveSales = () => openConfirm('LIBERAR SELECIONADAS', `Liberar ${selectedSales.length} vendas?`, 'green', async () => { try { await Promise.all(selectedSales.map(id => api.post(`/sales/${id}/approve`))); somDinheiro(); lancarConfetes(); fetchVendasPlacar(); } catch { alert("Erro."); }});
+  const batchDeleteSales = () => openConfirm('EXCLUIR SELECIONADAS', `⚠️ ALERTA: APAGAR ${selectedSales.length} vendas?`, 'red', async () => { try { await Promise.all(selectedSales.map(id => api.delete(`/sales/${id}`))); somAlerta(); fetchVendasPlacar(); } catch { alert("Erro."); }});
 
   const edicoesPendentes = todasVendas.filter(v => v.edit_status === 'pendente');
   const vendasPendentes = todasVendas.filter(v => v.status === 'pendente_liberacao' || v.status === 'pendente_boleto' || v.status === 'pendente');
@@ -158,13 +159,13 @@ export function Dashboard() {
     <div className="min-h-screen bg-zinc-950 text-zinc-100 p-4 md:p-8 font-sans relative">
       <div className="max-w-7xl mx-auto space-y-8">
         
-        {/* CABEÇALHO TÁTICO */}
         <div className="flex flex-col xl:flex-row justify-between items-center pb-6 border-b border-zinc-800 gap-6">
           <div className="flex items-center gap-4">
             <h1 className="text-3xl md:text-4xl font-black text-yellow-400 uppercase tracking-wider leading-none text-center xl:text-left">Operação Control</h1>
             <span className="bg-zinc-800 text-zinc-400 border border-zinc-700 text-[10px] px-3 py-1.5 rounded-md font-black uppercase tracking-widest hidden md:block">Admin</span>
           </div>
           <div className="flex flex-wrap justify-center xl:justify-end gap-3 w-full xl:w-auto">
+            <button onClick={() => setIsImportModalOpen(true)} className="bg-green-600 hover:bg-green-500 text-white font-bold px-4 py-2.5 rounded shadow-[0_0_15px_rgba(34,197,94,0.3)] uppercase text-[10px] tracking-widest transition-all">📥 Sincronizar Planilha</button>
             <button onClick={() => setIsModalDesafioOpen(true)} className="border border-red-500 text-red-400 hover:bg-red-500 hover:text-white px-4 py-2.5 rounded font-bold shadow-[0_0_10px_rgba(220,38,38,0.1)] uppercase text-[10px] tracking-widest transition-all">⚔️ Temporadas</button>
             <button onClick={() => navigate('/liberacoes')} className="bg-purple-600 hover:bg-purple-500 text-white font-bold px-4 py-2.5 rounded shadow-[0_0_15px_rgba(147,51,234,0.3)] uppercase text-[10px] tracking-widest transition-all">🛡️ Suporte</button>
             <button onClick={() => navigate('/admin/recrutas')} className="border border-purple-500 text-purple-400 hover:bg-purple-500 hover:text-white px-4 py-2.5 rounded font-bold shadow-[0_0_10px_rgba(147,51,234,0.1)] uppercase text-[10px] tracking-widest transition-all">⚠️ Recrutas</button>
@@ -174,7 +175,6 @@ export function Dashboard() {
           </div>
         </div>
 
-        {/* RADAR GLOBAL DE BUSCA */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 shadow-xl relative z-10">
           <div className="flex flex-col md:flex-row items-center gap-4">
             <div className="flex-1 w-full relative">
@@ -212,7 +212,6 @@ export function Dashboard() {
           )}
         </div>
 
-        {/* RESTANTE DO DASHBOARD... */}
         <div className="space-y-4">
           {edicoesPendentes.length > 0 && (
             <div className="bg-blue-950/20 border border-blue-500/30 rounded-xl p-6 shadow-2xl animate-in fade-in">
@@ -230,7 +229,8 @@ export function Dashboard() {
               </div>
               <div className="grid grid-cols-1 gap-6">
                 {edicoesPendentes.map(venda => {
-                  let newData: any = {}; try { newData = typeof venda.edit_data === 'string' ? JSON.parse(venda.edit_data) : (venda.edit_data || {}); } catch(e) {}
+                  let newData: Record<string, string | number> = {}; 
+                  try { newData = typeof venda.edit_data === 'string' ? JSON.parse(venda.edit_data) : (venda.edit_data || {}); } catch { console.error("Falha ao abrir relatório"); }
                   const isChecked = selectedEdits.includes(venda.id);
                   return (
                     <div key={venda.id} className={`bg-zinc-950 border ${isChecked ? 'border-blue-500' : 'border-zinc-800'} rounded-lg p-5 flex flex-col gap-4 shadow-inner transition-colors`}>
@@ -345,6 +345,7 @@ export function Dashboard() {
       <ModalRegistrarVenda isOpen={isModalVendaOpen} onClose={() => setIsModalVendaOpen(false)} produtos={produtos} user={user} onVendaRegistrada={() => { setIsModalVendaOpen(false); fetchVendasPlacar(); }} />
       
       {/* 🔥 INJETANDO OS NOVOS MODAIS AQUI */}
+      <ModalImportarPlanilha isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} vendasAtuais={todasVendas} onSuccess={() => { setIsImportModalOpen(false); fetchVendasPlacar(); }} />
       <ModalEdicaoAdmin isOpen={isAdminEditModalOpen} onClose={() => setIsAdminEditModalOpen(false)} venda={selectedSaleToAction} produtos={produtos} onSuccess={() => { setIsAdminEditModalOpen(false); setSelectedSaleToAction(null); fetchVendasPlacar(); }} />
       <ModalReembolsoAdmin isOpen={isRefundModalOpen} onClose={() => setIsRefundModalOpen(false)} venda={selectedSaleToAction} onSuccess={() => { setIsRefundModalOpen(false); setSelectedSaleToAction(null); fetchVendasPlacar(); }} />
       <ModalConfirmacao isOpen={confirmDialog.isOpen} title={confirmDialog.title} message={confirmDialog.message} type={confirmDialog.type} onCancel={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))} onConfirm={executeConfirm} />
