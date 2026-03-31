@@ -131,6 +131,7 @@ export function ModalImportarPlanilha({ isOpen, onClose, vendasAtuais, onSuccess
                 dataFinal = parsed.toISOString().split('T')[0];
               }
             }
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           } catch(e) { /* fallback para a data de hoje */ }
         }
 
