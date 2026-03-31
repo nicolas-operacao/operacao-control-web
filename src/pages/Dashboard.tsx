@@ -15,7 +15,7 @@ import { ModalImportarPlanilha } from '../components/ModalImportarPlanilha';
 import confetti from 'canvas-confetti'; 
 
 type Produto = { id: number; nome: string; valor: number; };
-type Venda = { id: string; product_name: string; customer_name: string; customer_phone?: string; customer_email?: string; payment_method?: string; sale_value: number; status: string; created_at: string; seller_name?: string; edit_status?: string; edit_reason?: string; edit_data?: string; };
+type Venda = { id: string; product_name: string; customer_name: string; customer_phone?: string; customer_email?: string; payment_method?: string; sale_value: number; status: string; created_at: string; seller_name?: string; edit_status?: string; edit_reason?: string; edit_data?: any; };
 
 export function Dashboard() {
   const navigate = useNavigate();
@@ -33,7 +33,7 @@ export function Dashboard() {
 
   const [mainRefreshTrigger, setMainRefreshTrigger] = useState(0);
 
-  const [desafioAtivo, setDesafioAtivo] = useState<{goal_amount: number; name: string} | null>(null);
+  const [desafioAtivo, setDesafioAtivo] = useState<any>(null);
   const META_MENSAL = desafioAtivo ? Number(desafioAtivo.goal_amount) : 400000;
 
   const [vendasHoje, setVendasHoje] = useState(0);
@@ -67,8 +67,8 @@ export function Dashboard() {
 
   useEffect(() => { fetchProdutos(); fetchVendasPlacar(); fetchDesafioAtivo(); }, []);
 
-  async function fetchDesafioAtivo() { try { const response = await api.get('/challenges'); setDesafioAtivo(response.data.find((c: {is_active: boolean}) => c.is_active) || null); } catch { /* erro ignorado */ } }
-  async function fetchProdutos() { try { const response = await api.get('/products'); setProdutos(response.data); } catch { /* erro ignorado */ } }
+  async function fetchDesafioAtivo() { try { const response = await api.get('/challenges'); setDesafioAtivo(response.data.find((c: any) => c.is_active) || null); } catch (error) {} }
+  async function fetchProdutos() { try { const response = await api.get('/products'); setProdutos(response.data); } catch (error) {} }
 
   async function fetchVendasPlacar() {
     try {
@@ -87,25 +87,44 @@ export function Dashboard() {
       });
       setVendasHoje(tHoje); setVendasSemana(tSemana); setVendasMes(tMes); setQtdHoje(qHoje); setQtdSemana(qSemana); setQtdMes(qMes);
       setSelectedEdits([]); setSelectedSales([]);
-    } catch { /* erro ignorado */ }
+    } catch (error) {}
   }
 
-  function copiarTexto(texto?: string) { if (!texto) return; navigator.clipboard.writeText(texto); alert(`📋 Copiado: ${texto}`); }
+  // 🔥 BOTÃO DE PÂNICO: LIMPAR FOGO AMIGO (Apaga todas as vendas do "Checkout Automático")
+  const handleLimparFogoAmigo = async () => {
+    const vendasDoRobo = todasVendas.filter(v => v.seller_name === 'Checkout Automático');
+    if (vendasDoRobo.length === 0) {
+      alert("Nenhuma venda do robô encontrada!"); return;
+    }
+    const confirma = window.confirm(`⚠️ ATENÇÃO: Isso vai apagar TODAS as ${vendasDoRobo.length} vendas importadas pelo Checkout Automático. Suas vendas originais estão seguras. Deseja prosseguir?`);
+    if (!confirma) return;
 
+    try {
+      for (const venda of vendasDoRobo) {
+        await api.delete(`/sales/${venda.id}`);
+      }
+      somSucesso();
+      alert("🧹 Base limpa! As vendas importadas erradas foram removidas.");
+      fetchVendasPlacar();
+    } catch (e) {
+      alert("Erro ao limpar algumas vendas.");
+    }
+  };
+
+  function copiarTexto(texto?: string) { if (!texto) return; navigator.clipboard.writeText(texto); alert(`📋 Copiado: ${texto}`); }
   const openConfirm = (title: string, message: string, type: 'red' | 'blue' | 'green' | 'yellow', action: () => Promise<void>) => { setConfirmDialog({ isOpen: true, title, message, type, action }); };
   const executeConfirm = async () => { setConfirmDialog(prev => ({ ...prev, isOpen: false })); await confirmDialog.action(); };
-
   function openRefundModal(venda: Venda) { setSelectedSaleToAction(venda); setIsRefundModalOpen(true); }
   function openAdminEditModal(venda: Venda) { setSelectedSaleToAction(venda); setIsAdminEditModalOpen(true); }
 
-  const handleAprovarEdicao = (id: string) => openConfirm('APROVAR CORREÇÃO', 'Confirma a alteração?', 'blue', async () => { try { await api.post(`/sales/${id}/approve-edit`); somSucesso(); fetchVendasPlacar(); } catch { alert("Erro ao aprovar."); }});
-  const handleRejeitarEdicao = (id: string) => openConfirm('REJEITAR CORREÇÃO', 'O vendedor será notificado.', 'red', async () => { try { await api.post(`/sales/${id}/reject-edit`); somAlerta(); fetchVendasPlacar(); } catch { alert("Erro ao rejeitar."); }});
-  const handleAprovarVenda = (id: string) => openConfirm('LIBERAR VENDA', 'Esta venda será creditada.', 'green', async () => { try { await api.post(`/sales/${id}/approve`); somDinheiro(); lancarConfetes(); fetchVendasPlacar(); } catch { alert("Erro ao liberar."); }});
-  const handleDeleteVenda = (id: string) => openConfirm('EXCLUIR VENDA', '⚠️ ALERTA: Esta venda será apagada.', 'red', async () => { try { await api.delete(`/sales/${id}`); somAlerta(); fetchVendasPlacar(); } catch { alert('Erro ao excluir.'); }});
-  const batchApproveEdits = () => openConfirm('APROVAR SELECIONADOS', `Aprovar ${selectedEdits.length} correções?`, 'blue', async () => { try { await Promise.all(selectedEdits.map(id => api.post(`/sales/${id}/approve-edit`))); somSucesso(); fetchVendasPlacar(); } catch { alert("Erro."); }});
-  const batchRejectEdits = () => openConfirm('REJEITAR SELECIONADOS', `Rejeitar ${selectedEdits.length} correções?`, 'red', async () => { try { await Promise.all(selectedEdits.map(id => api.post(`/sales/${id}/reject-edit`))); somAlerta(); fetchVendasPlacar(); } catch { alert("Erro."); }});
-  const batchApproveSales = () => openConfirm('LIBERAR SELECIONADAS', `Liberar ${selectedSales.length} vendas?`, 'green', async () => { try { await Promise.all(selectedSales.map(id => api.post(`/sales/${id}/approve`))); somDinheiro(); lancarConfetes(); fetchVendasPlacar(); } catch { alert("Erro."); }});
-  const batchDeleteSales = () => openConfirm('EXCLUIR SELECIONADAS', `⚠️ ALERTA: APAGAR ${selectedSales.length} vendas?`, 'red', async () => { try { await Promise.all(selectedSales.map(id => api.delete(`/sales/${id}`))); somAlerta(); fetchVendasPlacar(); } catch { alert("Erro."); }});
+  const handleAprovarEdicao = (id: string) => openConfirm('APROVAR CORREÇÃO', 'Confirma a alteração?', 'blue', async () => { try { await api.post(`/sales/${id}/approve-edit`); somSucesso(); fetchVendasPlacar(); } catch (error) { alert("Erro ao aprovar."); }});
+  const handleRejeitarEdicao = (id: string) => openConfirm('REJEITAR CORREÇÃO', 'O vendedor será notificado.', 'red', async () => { try { await api.post(`/sales/${id}/reject-edit`); somAlerta(); fetchVendasPlacar(); } catch (error) { alert("Erro ao rejeitar."); }});
+  const handleAprovarVenda = (id: string) => openConfirm('LIBERAR VENDA', 'Esta venda será creditada.', 'green', async () => { try { await api.post(`/sales/${id}/approve`); somDinheiro(); lancarConfetes(); fetchVendasPlacar(); } catch (error) { alert("Erro ao liberar."); }});
+  const handleDeleteVenda = (id: string) => openConfirm('EXCLUIR VENDA', '⚠️ ALERTA: Esta venda será apagada.', 'red', async () => { try { await api.delete(`/sales/${id}`); somAlerta(); fetchVendasPlacar(); } catch (error) { alert('Erro ao excluir.'); }});
+  const batchApproveEdits = () => openConfirm('APROVAR SELECIONADOS', `Aprovar ${selectedEdits.length} correções?`, 'blue', async () => { try { await Promise.all(selectedEdits.map(id => api.post(`/sales/${id}/approve-edit`))); somSucesso(); fetchVendasPlacar(); } catch (error) { alert("Erro."); }});
+  const batchRejectEdits = () => openConfirm('REJEITAR SELECIONADOS', `Rejeitar ${selectedEdits.length} correções?`, 'red', async () => { try { await Promise.all(selectedEdits.map(id => api.post(`/sales/${id}/reject-edit`))); somAlerta(); fetchVendasPlacar(); } catch (error) { alert("Erro."); }});
+  const batchApproveSales = () => openConfirm('LIBERAR SELECIONADAS', `Liberar ${selectedSales.length} vendas?`, 'green', async () => { try { await Promise.all(selectedSales.map(id => api.post(`/sales/${id}/approve`))); somDinheiro(); lancarConfetes(); fetchVendasPlacar(); } catch (error) { alert("Erro."); }});
+  const batchDeleteSales = () => openConfirm('EXCLUIR SELECIONADAS', `⚠️ ALERTA: APAGAR ${selectedSales.length} vendas?`, 'red', async () => { try { await Promise.all(selectedSales.map(id => api.delete(`/sales/${id}`))); somAlerta(); fetchVendasPlacar(); } catch (error) { alert("Erro."); }});
 
   const edicoesPendentes = todasVendas.filter(v => v.edit_status === 'pendente');
   const vendasPendentes = todasVendas.filter(v => v.status === 'pendente_liberacao' || v.status === 'pendente_boleto' || v.status === 'pendente');
@@ -165,6 +184,13 @@ export function Dashboard() {
             <span className="bg-zinc-800 text-zinc-400 border border-zinc-700 text-[10px] px-3 py-1.5 rounded-md font-black uppercase tracking-widest hidden md:block">Admin</span>
           </div>
           <div className="flex flex-wrap justify-center xl:justify-end gap-3 w-full xl:w-auto">
+            {/* 🔥 BOTÃO DE PÂNICO AQUI (Temporário para limpar) */}
+            {todasVendas.some(v => v.seller_name === 'Checkout Automático') && (
+              <button onClick={handleLimparFogoAmigo} className="bg-red-600 hover:bg-red-500 text-white font-black px-4 py-2.5 rounded shadow-[0_0_15px_rgba(220,38,38,0.5)] uppercase text-[10px] tracking-widest transition-all animate-pulse">
+                🧹 Apagar Checkouts Injetados
+              </button>
+            )}
+
             <button onClick={() => setIsImportModalOpen(true)} className="bg-green-600 hover:bg-green-500 text-white font-bold px-4 py-2.5 rounded shadow-[0_0_15px_rgba(34,197,94,0.3)] uppercase text-[10px] tracking-widest transition-all">📥 Sincronizar Planilha</button>
             <button onClick={() => setIsModalDesafioOpen(true)} className="border border-red-500 text-red-400 hover:bg-red-500 hover:text-white px-4 py-2.5 rounded font-bold shadow-[0_0_10px_rgba(220,38,38,0.1)] uppercase text-[10px] tracking-widest transition-all">⚔️ Temporadas</button>
             <button onClick={() => navigate('/liberacoes')} className="bg-purple-600 hover:bg-purple-500 text-white font-bold px-4 py-2.5 rounded shadow-[0_0_15px_rgba(147,51,234,0.3)] uppercase text-[10px] tracking-widest transition-all">🛡️ Suporte</button>
@@ -175,6 +201,7 @@ export function Dashboard() {
           </div>
         </div>
 
+        {/* RESTO DO DASHBOARD FICA IGUAL... */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 shadow-xl relative z-10">
           <div className="flex flex-col md:flex-row items-center gap-4">
             <div className="flex-1 w-full relative">
@@ -229,8 +256,7 @@ export function Dashboard() {
               </div>
               <div className="grid grid-cols-1 gap-6">
                 {edicoesPendentes.map(venda => {
-                  let newData: Record<string, string | number> = {}; 
-                  try { newData = typeof venda.edit_data === 'string' ? JSON.parse(venda.edit_data) : (venda.edit_data || {}); } catch { console.error("Falha ao abrir relatório"); }
+                  let newData: any = {}; try { newData = typeof venda.edit_data === 'string' ? JSON.parse(venda.edit_data) : (venda.edit_data || {}); } catch(e) {}
                   const isChecked = selectedEdits.includes(venda.id);
                   return (
                     <div key={venda.id} className={`bg-zinc-950 border ${isChecked ? 'border-blue-500' : 'border-zinc-800'} rounded-lg p-5 flex flex-col gap-4 shadow-inner transition-colors`}>
@@ -344,7 +370,6 @@ export function Dashboard() {
       <ModalGerenciarProdutos isOpen={isModalProdutoOpen} onClose={() => setIsModalProdutoOpen(false)} produtos={produtos} onAtualizarLista={fetchProdutos} />
       <ModalRegistrarVenda isOpen={isModalVendaOpen} onClose={() => setIsModalVendaOpen(false)} produtos={produtos} user={user} onVendaRegistrada={() => { setIsModalVendaOpen(false); fetchVendasPlacar(); }} />
       
-      {/* 🔥 INJETANDO OS NOVOS MODAIS AQUI */}
       <ModalImportarPlanilha isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} vendasAtuais={todasVendas} onSuccess={() => { setIsImportModalOpen(false); fetchVendasPlacar(); }} />
       <ModalEdicaoAdmin isOpen={isAdminEditModalOpen} onClose={() => setIsAdminEditModalOpen(false)} venda={selectedSaleToAction} produtos={produtos} onSuccess={() => { setIsAdminEditModalOpen(false); setSelectedSaleToAction(null); fetchVendasPlacar(); }} />
       <ModalReembolsoAdmin isOpen={isRefundModalOpen} onClose={() => setIsRefundModalOpen(false)} venda={selectedSaleToAction} onSuccess={() => { setIsRefundModalOpen(false); setSelectedSaleToAction(null); fetchVendasPlacar(); }} />
