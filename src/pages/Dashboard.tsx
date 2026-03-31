@@ -15,7 +15,7 @@ import { ModalImportarPlanilha } from '../components/ModalImportarPlanilha';
 import confetti from 'canvas-confetti'; 
 
 type Produto = { id: number; nome: string; valor: number; };
-type Venda = { id: string; product_name: string; customer_name: string; customer_phone?: string; customer_email?: string; payment_method?: string; sale_value: number; status: string; created_at: string; seller_name?: string; edit_status?: string; edit_reason?: string; edit_data?: any; };
+type Venda = { id: string; product_name: string; customer_name: string; customer_phone?: string; customer_email?: string; payment_method?: string; sale_value: number; status: string; created_at: string; seller_name?: string; seller_id?: string | number; edit_status?: string; edit_reason?: string; edit_data?: any; };
 
 export function Dashboard() {
   const navigate = useNavigate();
@@ -90,21 +90,29 @@ export function Dashboard() {
     } catch (error) {}
   }
 
-  // 🔥 BOTÃO DE PÂNICO: LIMPAR FOGO AMIGO (Apaga todas as vendas do "Checkout Automático")
+  // 🔥 BOTÃO DE PÂNICO FORÇADO A APARECER: LIMPAR FOGO AMIGO 
   const handleLimparFogoAmigo = async () => {
-    const vendasDoRobo = todasVendas.filter(v => v.seller_name === 'Checkout Automático');
+    // Procura por ID 99999 (ou o ID que você configurou) ou pelo Nome
+    const vendasDoRobo = todasVendas.filter(v => 
+      String(v.seller_id) === '99999' || 
+      v.seller_name === 'Checkout Automático'
+    );
+
     if (vendasDoRobo.length === 0) {
-      alert("Nenhuma venda do robô encontrada!"); return;
+      alert("Comandante, não achei vendas com o ID 99999 ou nome 'Checkout Automático'. Se você usou outro ID na hora de importar, me avise para eu ajustar o radar!"); 
+      return;
     }
-    const confirma = window.confirm(`⚠️ ATENÇÃO: Isso vai apagar TODAS as ${vendasDoRobo.length} vendas importadas pelo Checkout Automático. Suas vendas originais estão seguras. Deseja prosseguir?`);
+
+    const confirma = window.confirm(`⚠️ ATENÇÃO: Isso vai apagar TODAS as ${vendasDoRobo.length} vendas importadas incorretamente. Deseja prosseguir?`);
     if (!confirma) return;
 
     try {
+      // Deleta uma por uma
       for (const venda of vendasDoRobo) {
         await api.delete(`/sales/${venda.id}`);
       }
       somSucesso();
-      alert("🧹 Base limpa! As vendas importadas erradas foram removidas.");
+      alert("🧹 Base limpa! As vendas importadas erradas foram removidas. Os números vão voltar ao normal.");
       fetchVendasPlacar();
     } catch (e) {
       alert("Erro ao limpar algumas vendas.");
@@ -184,12 +192,11 @@ export function Dashboard() {
             <span className="bg-zinc-800 text-zinc-400 border border-zinc-700 text-[10px] px-3 py-1.5 rounded-md font-black uppercase tracking-widest hidden md:block">Admin</span>
           </div>
           <div className="flex flex-wrap justify-center xl:justify-end gap-3 w-full xl:w-auto">
-            {/* 🔥 BOTÃO DE PÂNICO AQUI (Temporário para limpar) */}
-            {todasVendas.some(v => v.seller_name === 'Checkout Automático') && (
-              <button onClick={handleLimparFogoAmigo} className="bg-red-600 hover:bg-red-500 text-white font-black px-4 py-2.5 rounded shadow-[0_0_15px_rgba(220,38,38,0.5)] uppercase text-[10px] tracking-widest transition-all animate-pulse">
-                🧹 Apagar Checkouts Injetados
-              </button>
-            )}
+            
+            {/* 🔥 BOTÃO DE PÂNICO FORÇADO */}
+            <button onClick={handleLimparFogoAmigo} className="bg-red-600 hover:bg-red-500 text-white font-black px-4 py-2.5 rounded shadow-[0_0_15px_rgba(220,38,38,0.5)] uppercase text-[10px] tracking-widest transition-all animate-pulse">
+              🧹 APAGAR CHECKOUTS INJETADOS
+            </button>
 
             <button onClick={() => setIsImportModalOpen(true)} className="bg-green-600 hover:bg-green-500 text-white font-bold px-4 py-2.5 rounded shadow-[0_0_15px_rgba(34,197,94,0.3)] uppercase text-[10px] tracking-widest transition-all">📥 Sincronizar Planilha</button>
             <button onClick={() => setIsModalDesafioOpen(true)} className="border border-red-500 text-red-400 hover:bg-red-500 hover:text-white px-4 py-2.5 rounded font-bold shadow-[0_0_10px_rgba(220,38,38,0.1)] uppercase text-[10px] tracking-widest transition-all">⚔️ Temporadas</button>
@@ -201,7 +208,7 @@ export function Dashboard() {
           </div>
         </div>
 
-        {/* RESTO DO DASHBOARD FICA IGUAL... */}
+        {/* RADAR GLOBAL DE BUSCA */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 shadow-xl relative z-10">
           <div className="flex flex-col md:flex-row items-center gap-4">
             <div className="flex-1 w-full relative">
