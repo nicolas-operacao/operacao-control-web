@@ -4,7 +4,13 @@ import { api } from '../services/api';
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  vendasAtuais: { customer_email?: string }[]; 
+  // Atualizamos as propriedades que precisamos ler do banco para a dupla verificação
+  vendasAtuais: { 
+    customer_email?: string; 
+    customer_name?: string; 
+    customer_phone?: string;
+    created_at?: string;
+  }[]; 
   onSuccess: () => void;
 }
 
@@ -14,7 +20,7 @@ type LinhaPlanilha = {
   statusImportacao: 'NOVA' | 'DUPLICADA';
 };
 
-// 🔥 MOTOR DE LIMPEZA DE CSV (Remove aspas que o Excel coloca ao redor dos textos)
+// 🔥 MOTORES DE LIMPEZA E NORMALIZAÇÃO DE DADOS
 const unquote = (str: string | undefined) => {
   if (!str) return '';
   let cleanStr = str.trim();
@@ -26,6 +32,9 @@ const unquote = (str: string | undefined) => {
   return cleanStr;
 };
 
+const normalizeString = (str: string | undefined) => (str || '').toLowerCase().trim();
+const normalizePhone = (str: string | undefined) => (str || '').replace(/\D/g, ''); // Arranca tudo que não for número
+
 export function ModalImportarPlanilha({ isOpen, onClose, vendasAtuais, onSuccess }: Props) {
   const [linhas, setLinhas] = useState<LinhaPlanilha[]>([]);
   const [isUploading, setIsUploading] = useState(false);
@@ -34,7 +43,6 @@ export function ModalImportarPlanilha({ isOpen, onClose, vendasAtuais, onSuccess
 
   if (!isOpen) return null;
 
-  // Analisador Inteligente que não quebra quando há ponto-e-vírgula dentro das aspas
   const parseCSVLine = (text: string) => {
     const result: string[] = [];
     let current = '';
@@ -67,20 +75,18 @@ export function ModalImportarPlanilha({ isOpen, onClose, vendasAtuais, onSuccess
         return;
       }
 
-      // Lê a primeira linha para descobrir a posição exata das colunas
       const headers = parseCSVLine(rows[0]).map(h => h.toLowerCase());
       
       const idxNome = headers.findIndex(h => h.includes('nome'));
       const idxEmail = headers.findIndex(h => h.includes('email'));
+      const idxCelular = headers.findIndex(h => h.includes('celular') || h.includes('telefone'));
       const idxValor = headers.findIndex(h => h.includes('bruto') || h.includes('valor'));
       const idxData = headers.findIndex(h => h.includes('data'));
       const idxPagamento = headers.findIndex(h => h.includes('pagamento'));
-      
-      // 🔥 AGORA PROCURAMOS A COLUNA "CONTEÚDO" (Nome do Curso)
       const idxProduto = headers.findIndex(h => h.includes('conteúdo') || h.includes('conteudo') || h.includes('produto') || h.includes('curso'));
       
       if (idxNome === -1 || idxEmail === -1 || idxValor === -1) {
-        alert("Erro: A planilha precisa ter as colunas 'Nome', 'Email' e 'Preço Bruto' ou 'Valor'.");
+        alert("Erro: A planilha precisa ter as colunas 'Nome', 'Email' e 'Preço Bruto'.");
         return;
       }
 
@@ -92,31 +98,24 @@ export function ModalImportarPlanilha({ isOpen, onClose, vendasAtuais, onSuccess
 
         const cols = parseCSVLine(row);
         
-        const emailPlanilha = (cols[idxEmail] || '').toLowerCase().trim();
-        if (!emailPlanilha) continue; // Pula a linha se não tiver e-mail de cliente
+        const cliente = unquote(cols[idxNome]) || 'Sem Nome';
+        const emailPlanilha = normalizeString(cols[idxEmail]);
+        const telefonePlanilha = idxCelular !== -1 ? unquote(cols[idxCelular]) : '';
+        const pagamento = idxPagamento !== -1 ? unquote(cols[idxPagamento]) || 'N/A' : 'N/A';
+        const rawDate = idxData !== -1 ? unquote(cols[idxData]) : '';
+        const produto = idxProduto !== -1 && cols[idxProduto] ? unquote(cols[idxProduto]) : 'Curso/Plataforma';
         
-        const cliente = cols[idxNome] || 'Sem Nome';
-        const pagamento = idxPagamento !== -1 ? (cols[idxPagamento] || 'N/A') : 'N/A';
-        const rawDate = idxData !== -1 ? cols[idxData] : '';
-        
-        // 🔥 PUXANDO O NOME REAL DO CURSO DA PLANILHA
-        const produto = idxProduto !== -1 && cols[idxProduto] ? cols[idxProduto] : 'Curso/Plataforma';
-        
-        // Conversão de moeda inteligente blindada
+        // Trata os valores monetários
         let valorStr = (cols[idxValor] || '').replace('R$', '').trim();
         if (valorStr.includes(',') && !valorStr.includes('.')) {
             valorStr = valorStr.replace(',', '.');
         } else if (valorStr.includes(',') && valorStr.includes('.')) {
             valorStr = valorStr.replace(/\./g, '').replace(',', '.');
         }
-        
-        // 🔥 AQUI ESTÁ A CORREÇÃO: Força a ser um número, e se der NaN vira 0
         let valorConvertido = parseFloat(valorStr);
-        if (isNaN(valorConvertido)) {
-          valorConvertido = 0;
-        }
+        if (isNaN(valorConvertido)) valorConvertido = 0;
         
-        // Conversor Universal de Datas
+        // Trata a Data
         let dataFinal = new Date().toISOString().split('T')[0];
         if (rawDate) {
           try {
@@ -132,26 +131,44 @@ export function ModalImportarPlanilha({ isOpen, onClose, vendasAtuais, onSuccess
                 dataFinal = parsed.toISOString().split('T')[0];
               }
             }
-          } catch(e) {
-            // Ignora erro
-          }
+          } catch(e) { /* fallback para a data de hoje */ }
         }
 
-        // Radar Anti-Duplicidade
-        const isDuplicada = vendasAtuais.some(v => 
-          v.customer_email && v.customer_email.toLowerCase() === emailPlanilha
-        );
+        // =========================================================================
+        // 🔥 DUPLA VERIFICAÇÃO ANTI-DUPLICIDADE (O SEGREDO DA OPERAÇÃO)
+        // =========================================================================
+        const isDuplicada = vendasAtuais.some(v => {
+          // Barreira 1: E-mail exato
+          const emailMatch = Boolean(v.customer_email && emailPlanilha && normalizeString(v.customer_email) === emailPlanilha);
+          
+          // Barreira 2: Nome + Telefone (flexível) + Data
+          const nomeMatch = Boolean(v.customer_name && cliente && normalizeString(v.customer_name) === normalizeString(cliente));
+          
+          const phoneBanco = normalizePhone(v.customer_phone);
+          const phonePlanilha = normalizePhone(telefonePlanilha);
+          // O "includes" garante que "55119999" vai dar match com "119999"
+          const telefoneMatch = Boolean(phoneBanco && phonePlanilha && (phoneBanco.includes(phonePlanilha) || phonePlanilha.includes(phoneBanco)));
+          
+          const dataBanco = v.created_at ? v.created_at.split('T')[0] : '';
+          const dataMatch = dataBanco === dataFinal;
 
-        dadosExtraidos.push({
-          cliente,
-          email: emailPlanilha,
-          telefone: '--',
-          produto, 
-          valor: valorConvertido, // <-- Agora o TypeScript sabe que isso sempre será um número!
-          pagamento,
-          data: dataFinal,
-          statusImportacao: isDuplicada ? 'DUPLICADA' : 'NOVA'
+          // Se bateu o E-mail OU (Nome bateu E Telefone bateu E Data bateu)
+          return emailMatch || (nomeMatch && telefoneMatch && dataMatch);
         });
+
+        // Só exibe na tabela se for válida, mas como importação mostra todas pra você auditar
+        if (emailPlanilha || telefonePlanilha) {
+          dadosExtraidos.push({
+            cliente,
+            email: emailPlanilha,
+            telefone: telefonePlanilha || '--',
+            produto, 
+            valor: valorConvertido,
+            pagamento,
+            data: dataFinal,
+            statusImportacao: isDuplicada ? 'DUPLICADA' : 'NOVA'
+          });
+        }
       }
       setLinhas(dadosExtraidos);
     };
@@ -184,7 +201,7 @@ export function ModalImportarPlanilha({ isOpen, onClose, vendasAtuais, onSuccess
       }
 
       somSucesso();
-      alert(`✅ ${vendasNovas.length} vendas de Checkout importadas com sucesso! Sua meta acabou de subir!`);
+      alert(`✅ ${vendasNovas.length} vendas de Checkout importadas com sucesso! Sua meta subiu!`);
       setLinhas([]);
       onSuccess();
     } catch {
@@ -210,7 +227,7 @@ export function ModalImportarPlanilha({ isOpen, onClose, vendasAtuais, onSuccess
             <div className="border-2 border-dashed border-zinc-700 rounded-xl p-10 text-center">
               <span className="text-4xl mb-4 block">📊</span>
               <h3 className="text-white font-bold mb-2">Faça o Upload do arquivo CSV</h3>
-              <p className="text-zinc-500 text-xs uppercase tracking-widest mb-6">Nós leremos: Nome, Email, Curso, Pagamento, Preço e Data.</p>
+              <p className="text-zinc-500 text-xs uppercase tracking-widest mb-6">Análise cruzada de Email, Nome, Telefone e Data ativada.</p>
               <input type="file" accept=".csv" onChange={handleFileUpload} className="block w-full text-sm text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-black file:uppercase file:bg-blue-600 file:text-white hover:file:bg-blue-500 cursor-pointer" />
             </div>
           ) : (
@@ -221,12 +238,12 @@ export function ModalImportarPlanilha({ isOpen, onClose, vendasAtuais, onSuccess
               </div>
               <div className="overflow-x-auto border border-zinc-800 rounded-lg max-h-64">
                 <table className="w-full text-left">
-                  <thead className="sticky top-0 bg-zinc-950/90 backdrop-blur"><tr className="text-zinc-500 text-[10px] uppercase tracking-widest border-b border-zinc-800"><th className="p-3 font-black">Data</th><th className="p-3 font-black">Cliente / Email</th><th className="p-3 font-black">Curso</th><th className="p-3 font-black">Pagamento</th><th className="p-3 font-black">Valor</th><th className="p-3 font-black text-center">Análise</th></tr></thead>
+                  <thead className="sticky top-0 bg-zinc-950/90 backdrop-blur"><tr className="text-zinc-500 text-[10px] uppercase tracking-widest border-b border-zinc-800"><th className="p-3 font-black">Data</th><th className="p-3 font-black">Cliente / Contato</th><th className="p-3 font-black">Curso</th><th className="p-3 font-black">Pagamento</th><th className="p-3 font-black">Valor</th><th className="p-3 font-black text-center">Análise</th></tr></thead>
                   <tbody className="text-xs">
                     {linhas.map((linha, i) => (
                       <tr key={i} className={`border-b border-zinc-800/50 ${linha.statusImportacao === 'DUPLICADA' ? 'opacity-50' : 'bg-green-950/10'}`}>
                         <td className="p-3 text-zinc-400">{linha.data.split('-').reverse().join('/')}</td>
-                        <td className="p-3"><p className="text-white font-bold">{linha.cliente}</p><p className="text-zinc-400 text-[10px]">{linha.email}</p></td>
+                        <td className="p-3"><p className="text-white font-bold">{linha.cliente}</p><p className="text-zinc-400 text-[10px]">{linha.email}</p><p className="text-zinc-500 text-[9px]">{linha.telefone}</p></td>
                         <td className="p-3 text-zinc-300 font-bold uppercase text-[10px]">{linha.produto}</td>
                         <td className="p-3 text-yellow-400 font-bold uppercase text-[10px]">{linha.pagamento}</td>
                         <td className="p-3 text-green-400 font-bold">R$ {linha.valor.toFixed(2)}</td>
