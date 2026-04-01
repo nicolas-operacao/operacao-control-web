@@ -86,7 +86,7 @@ export function ModalFinanceiro({ isOpen, onClose, vendas }: Props) {
 
   return (
     <div className="fixed inset-0 bg-black/95 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-zinc-900 border border-green-500/30 rounded-2xl w-full max-w-5xl shadow-2xl animate-in zoom-in duration-150 flex flex-col max-h-[90vh]">
+      <div className="bg-zinc-900 border border-green-500/30 rounded-2xl w-full max-w-6xl shadow-2xl animate-in zoom-in duration-150 flex flex-col max-h-[90vh]">
         
         {/* CABEÇALHO */}
         <div className="p-6 border-b border-zinc-800 flex justify-between items-center bg-green-900/10">
@@ -96,7 +96,7 @@ export function ModalFinanceiro({ isOpen, onClose, vendas }: Props) {
           <button onClick={onClose} className="text-zinc-500 hover:text-white text-2xl">&times;</button>
         </div>
 
-        {/* PAINEL DE CONTROLE E REGRAS (A caixa de 30% sumiu, agora mostra a regra) */}
+        {/* PAINEL DE CONTROLE E REGRAS */}
         <div className="p-6 bg-zinc-950 border-b border-zinc-800 flex flex-col md:flex-row gap-6 items-center justify-between">
           <div className="w-full md:w-auto">
             <label className="block text-zinc-400 text-[10px] font-black uppercase tracking-widest mb-2">Selecione o Mês de Fechamento</label>
@@ -117,21 +117,30 @@ export function ModalFinanceiro({ isOpen, onClose, vendas }: Props) {
           </div>
         </div>
 
-        {/* ESTATÍSTICAS GERAIS */}
-        <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* ESTATÍSTICAS GERAIS (COM A COMISSÃO DO COMANDANTE) */}
+        <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-zinc-950 border border-zinc-800 p-6 rounded-xl flex items-center justify-between">
             <div>
-              <p className="text-zinc-500 text-[10px] uppercase font-black tracking-widest">Faturamento Bruto no Mês</p>
-              <h3 className="text-3xl font-black text-white mt-1">{formataBRL(stats.totalGeral)}</h3>
+              <p className="text-zinc-500 text-[10px] uppercase font-black tracking-widest">Faturamento Bruto</p>
+              <h3 className="text-2xl lg:text-3xl font-black text-white mt-1">{formataBRL(stats.totalGeral)}</h3>
             </div>
             <span className="text-4xl">📈</span>
           </div>
-          <div className="bg-green-950/20 border border-green-500/20 p-6 rounded-xl flex items-center justify-between shadow-[0_0_15px_rgba(34,197,94,0.05)]">
+          
+          <div className="bg-zinc-950 border border-zinc-800 p-6 rounded-xl flex items-center justify-between">
             <div>
-              <p className="text-green-500 text-[10px] uppercase font-black tracking-widest">Total de Comissões a Pagar</p>
-              <h3 className="text-3xl font-black text-green-400 mt-1">{formataBRL(stats.totalComissoes)}</h3>
+              <p className="text-zinc-500 text-[10px] uppercase font-black tracking-widest">Comissões da Tropa</p>
+              <h3 className="text-2xl lg:text-3xl font-black text-zinc-300 mt-1">{formataBRL(stats.totalComissoes)}</h3>
             </div>
             <span className="text-4xl">💸</span>
+          </div>
+
+          <div className="bg-green-950/20 border border-green-500/30 p-6 rounded-xl flex items-center justify-between shadow-[0_0_15px_rgba(34,197,94,0.1)]">
+            <div>
+              <p className="text-green-500 text-[10px] uppercase font-black tracking-widest">Sua Comissão (1%)</p>
+              <h3 className="text-2xl lg:text-3xl font-black text-green-400 mt-1">{formataBRL(stats.totalGeral * 0.01)}</h3>
+            </div>
+            <span className="text-4xl">💰</span>
           </div>
         </div>
 
