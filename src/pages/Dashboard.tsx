@@ -11,6 +11,7 @@ import { ModalConfirmacao } from '../components/ModalConfirmacao';
 import { ModalReembolsoAdmin } from '../components/ModalReembolsoAdmin';
 import { ModalEdicaoAdmin } from '../components/ModalEdicaoAdmin';
 import { ModalImportarPlanilha } from '../components/ModalImportarPlanilha'; 
+import { ModalFinanceiro } from '../components/ModalFinanceiro'; // 🔥 IMPORTAÇÃO DO FINANCEIRO
 
 import confetti from 'canvas-confetti'; 
 
@@ -30,6 +31,7 @@ export function Dashboard() {
   const [isModalVendaOpen, setIsModalVendaOpen] = useState(false);
   const [isModalDesafioOpen, setIsModalDesafioOpen] = useState(false); 
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isFinanceiroModalOpen, setIsFinanceiroModalOpen] = useState(false); // 🔥 ESTADO DO FINANCEIRO
 
   const [mainRefreshTrigger, setMainRefreshTrigger] = useState(0);
 
@@ -196,6 +198,11 @@ export function Dashboard() {
             {/* 🔥 BOTÃO DE PÂNICO FORÇADO */}
             <button onClick={handleLimparFogoAmigo} className="bg-red-600 hover:bg-red-500 text-white font-black px-4 py-2.5 rounded shadow-[0_0_15px_rgba(220,38,38,0.5)] uppercase text-[10px] tracking-widest transition-all animate-pulse">
               🧹 APAGAR CHECKOUTS INJETADOS
+            </button>
+
+            {/* 🔥 BOTÃO DO FINANCEIRO AQUI */}
+            <button onClick={() => setIsFinanceiroModalOpen(true)} className="bg-emerald-600 hover:bg-emerald-500 text-white font-black px-4 py-2.5 rounded shadow-[0_0_15px_rgba(16,185,129,0.3)] uppercase text-[10px] tracking-widest transition-all">
+              💰 Financeiro
             </button>
 
             <button onClick={() => setIsImportModalOpen(true)} className="bg-green-600 hover:bg-green-500 text-white font-bold px-4 py-2.5 rounded shadow-[0_0_15px_rgba(34,197,94,0.3)] uppercase text-[10px] tracking-widest transition-all">📥 Sincronizar Planilha</button>
@@ -381,6 +388,10 @@ export function Dashboard() {
       <ModalEdicaoAdmin isOpen={isAdminEditModalOpen} onClose={() => setIsAdminEditModalOpen(false)} venda={selectedSaleToAction} produtos={produtos} onSuccess={() => { setIsAdminEditModalOpen(false); setSelectedSaleToAction(null); fetchVendasPlacar(); }} />
       <ModalReembolsoAdmin isOpen={isRefundModalOpen} onClose={() => setIsRefundModalOpen(false)} venda={selectedSaleToAction} onSuccess={() => { setIsRefundModalOpen(false); setSelectedSaleToAction(null); fetchVendasPlacar(); }} />
       <ModalConfirmacao isOpen={confirmDialog.isOpen} title={confirmDialog.title} message={confirmDialog.message} type={confirmDialog.type} onCancel={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))} onConfirm={executeConfirm} />
+      
+      {/* 🔥 MODAL DO FINANCEIRO INJETADO NO FINAL DO ARQUIVO */}
+      <ModalFinanceiro isOpen={isFinanceiroModalOpen} onClose={() => setIsFinanceiroModalOpen(false)} vendas={todasVendas} />
+
     </div>
   );
 }
