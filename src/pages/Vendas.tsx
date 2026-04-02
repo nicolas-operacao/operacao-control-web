@@ -258,18 +258,25 @@ export function Vendas() {
 
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans p-4 md:p-8 relative">
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans p-3 md:p-6 lg:p-8 relative">
       <div className="max-w-6xl mx-auto">
-        
-        <div className="flex flex-col md:flex-row justify-between items-center mb-8 pb-4 border-b border-zinc-800 gap-4">
+
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6 pb-4 border-b border-zinc-800 gap-3">
           <div>
-            <h1 className="text-3xl font-black text-yellow-400 tracking-tight uppercase flex items-center gap-3">
-              CENTRAL DO VENDEDOR <span className="text-xl">⚡</span>
+            <h1 className="text-xl md:text-3xl font-black text-yellow-400 tracking-tight uppercase flex items-center gap-2">
+              Central do Vendedor <span>⚡</span>
             </h1>
-            <p className="text-zinc-400">Soldado: <span className="text-white font-bold">{user.name}</span></p>
+            <p className="text-zinc-500 text-xs md:text-sm mt-0.5">
+              Soldado: <span className="text-white font-bold">{user.name}</span>
+            </p>
           </div>
-          <button onClick={handleLogout} className="border-2 border-zinc-700 text-zinc-300 hover:border-red-500 hover:text-red-500 px-6 py-2 rounded font-bold transition-all uppercase text-sm">
-            Sair da Operação
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-1.5 border border-zinc-700 hover:border-red-600 text-zinc-400 hover:text-red-400 px-3 md:px-5 py-2 rounded-lg font-bold transition-all uppercase text-xs"
+          >
+            <span className="hidden sm:inline">Sair da Operação</span>
+            <span className="sm:hidden">Sair</span>
           </button>
         </div>
 
@@ -335,28 +342,89 @@ export function Vendas() {
            <GuerraEquipes refreshTrigger={0} />
         </div>
 
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 shadow-2xl">
-          <div className="flex flex-col lg:flex-row justify-between items-center mb-8 gap-4 border-b border-zinc-800 pb-6">
-            
-            {/* ABA DE FILTROS */}
-            <div className="flex flex-wrap justify-center gap-2">
-              <button onClick={() => setFiltro('dia')} className={`px-4 py-2 rounded-lg font-bold text-[10px] sm:text-xs uppercase tracking-widest transition-all ${filtro === 'dia' ? 'bg-yellow-400 text-black' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}>Hoje</button>
-              <button onClick={() => setFiltro('semana')} className={`px-4 py-2 rounded-lg font-bold text-[10px] sm:text-xs uppercase tracking-widest transition-all ${filtro === 'semana' ? 'bg-yellow-400 text-black' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}>Semana</button>
-              <button onClick={() => setFiltro('mes')} className={`px-4 py-2 rounded-lg font-bold text-[10px] sm:text-xs uppercase tracking-widest transition-all ${filtro === 'mes' ? 'bg-yellow-400 text-black' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}>Mês</button>
-              <button onClick={() => setFiltro('reembolsos')} className={`px-4 py-2 rounded-lg font-bold text-[10px] sm:text-xs uppercase tracking-widest transition-all flex items-center gap-1.5 ${filtro === 'reembolsos' ? 'bg-red-600 text-white shadow-[0_0_10px_rgba(220,38,38,0.5)]' : 'bg-red-950/30 text-red-500 border border-red-900/50 hover:bg-red-900/50'}`}>
-                Reembolsos <span className="bg-black/30 px-1.5 py-0.5 rounded text-[9px]">{minhasVendasCanceladas.length}</span>
+        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 md:p-6 shadow-2xl">
+          {/* Filtros + CTA */}
+          <div className="flex flex-col gap-3 mb-5 border-b border-zinc-800 pb-5">
+            <div className="flex flex-wrap gap-2">
+              {(['dia','semana','mes'] as const).map(f => (
+                <button
+                  key={f}
+                  onClick={() => setFiltro(f)}
+                  className={`flex-1 sm:flex-none px-4 py-2.5 rounded-lg font-black text-[11px] uppercase tracking-widest transition-all ${filtro === f ? 'bg-yellow-400 text-black shadow-[0_0_12px_rgba(250,204,21,0.3)]' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}
+                >
+                  {f === 'dia' ? '📅 Hoje' : f === 'semana' ? '📆 Semana' : '🗓️ Mês'}
+                </button>
+              ))}
+              <button
+                onClick={() => setFiltro('reembolsos')}
+                className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg font-black text-[11px] uppercase tracking-widest transition-all ${filtro === 'reembolsos' ? 'bg-red-600 text-white shadow-[0_0_12px_rgba(220,38,38,0.4)]' : 'bg-red-950/30 text-red-500 border border-red-900/40 hover:bg-red-900/40'}`}
+              >
+                🚨 Reembolsos
+                {minhasVendasCanceladas.length > 0 && (
+                  <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-full ${filtro === 'reembolsos' ? 'bg-black/30' : 'bg-red-900'}`}>
+                    {minhasVendasCanceladas.length}
+                  </span>
+                )}
               </button>
             </div>
-            
-            <button 
+            <button
               onClick={() => { resetForm(); setIsModalOpen(true); }}
-              className="w-full lg:w-auto bg-green-500 hover:bg-green-600 text-black font-black px-8 py-3 rounded-lg shadow-lg transition-transform hover:scale-105 tracking-widest text-xs uppercase"
+              className="w-full bg-green-500 hover:bg-green-400 active:scale-95 text-black font-black py-3 rounded-xl shadow-[0_0_15px_rgba(34,197,94,0.25)] transition-all tracking-widest text-sm uppercase"
             >
               + Lançar Nova Venda
             </button>
           </div>
 
-          <div className="overflow-x-auto">
+          {/* Cards (mobile) */}
+          <div className="md:hidden space-y-3">
+            {vendasFiltradas.length > 0 ? vendasFiltradas.map(venda => {
+              const isCancelada = checkCancelada(venda.status);
+              const isAprovada = checkAprovada(venda.status);
+              return (
+                <div
+                  key={venda.id}
+                  className={`rounded-xl border p-4 flex flex-col gap-3 transition-all ${isCancelada ? 'bg-red-950/10 border-red-900/30 opacity-80' : 'bg-zinc-950/50 border-zinc-800 hover:border-zinc-700'}`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-white font-bold text-sm truncate">{venda.customer_name}</p>
+                      <p className="text-zinc-500 text-[10px] uppercase tracking-wider truncate">{venda.product_name}</p>
+                    </div>
+                    <span className={`flex-shrink-0 font-black text-base ${isCancelada ? 'text-red-400 line-through' : 'text-green-400'}`}>
+                      R$ {(Number(venda.sale_value) || 0).toFixed(2)}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-zinc-600 text-xs">
+                        {venda.created_at ? new Date(venda.created_at).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '--'}
+                      </span>
+                      <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wide
+                        ${isAprovada ? 'bg-green-500/10 text-green-500 border border-green-500/20' :
+                          isCancelada ? 'bg-red-500/10 text-red-500 border border-red-500/20' :
+                          'bg-yellow-500/10 text-yellow-500 border border-yellow-500/20'}`}
+                      >
+                        {isCancelada ? 'Estornado' : isAprovada ? 'Aprovada' : 'Pendente'}
+                      </span>
+                    </div>
+                    {!isCancelada && (
+                      venda.edit_status === 'pendente'
+                        ? <span className="text-[10px] font-black text-yellow-500 bg-yellow-500/10 px-2 py-1 rounded border border-yellow-500/30">⏳ Análise</span>
+                        : <button onClick={() => handleOpenEdit(venda)} className="text-blue-400 text-[10px] font-bold border border-blue-400/30 bg-blue-950/20 px-3 py-1.5 rounded transition-colors hover:text-blue-300">Corrigir</button>
+                    )}
+                  </div>
+                </div>
+              );
+            }) : (
+              <div className="py-12 text-center text-zinc-600 uppercase font-black tracking-widest italic text-sm">
+                {filtro === 'reembolsos' ? 'Ótimo! Nenhuma baixa registrada. 🛡️' : 'Nenhuma venda encontrada neste período.'}
+              </div>
+            )}
+          </div>
+
+          {/* Tabela (desktop) */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left">
               <thead>
                 <tr className="border-b border-zinc-800 text-zinc-500 text-[10px] uppercase tracking-widest">
@@ -372,21 +440,20 @@ export function Vendas() {
                 {vendasFiltradas.length > 0 ? vendasFiltradas.map(venda => {
                   const isCancelada = checkCancelada(venda.status);
                   const isAprovada = checkAprovada(venda.status);
-                  
                   return (
                     <tr key={venda.id} className={`border-b border-zinc-800/50 transition-colors ${isCancelada ? 'bg-red-950/10 opacity-80' : 'hover:bg-zinc-800/30'}`}>
-                      <td className="py-4 text-zinc-400">
+                      <td className="py-4 text-zinc-400 whitespace-nowrap">
                         {venda.created_at ? new Date(venda.created_at).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '--/--/----'}
                       </td>
                       <td className="py-4 font-bold">{venda.customer_name}</td>
                       <td className="py-4 text-zinc-300 text-xs uppercase tracking-wider">{venda.product_name}</td>
-                      <td className={`py-4 font-bold ${isCancelada ? 'text-red-400 line-through' : 'text-green-400'}`}>
+                      <td className={`py-4 font-bold whitespace-nowrap ${isCancelada ? 'text-red-400 line-through' : 'text-green-400'}`}>
                         R$ {(Number(venda.sale_value) || 0).toFixed(2)}
                       </td>
                       <td className="py-4 text-center">
-                        <span className={`px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-widest 
-                          ${isAprovada ? 'bg-green-500/10 text-green-500 border border-green-500/20' : 
-                            isCancelada ? 'bg-red-500/10 text-red-500 border border-red-500/20' : 
+                        <span className={`px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-widest
+                          ${isAprovada ? 'bg-green-500/10 text-green-500 border border-green-500/20' :
+                            isCancelada ? 'bg-red-500/10 text-red-500 border border-red-500/20' :
                             'bg-yellow-500/10 text-yellow-500 border border-yellow-500/20'}`}
                         >
                           {isCancelada ? 'REEMBOLSADO' : isAprovada ? 'Aprovada' : 'Pendente'}
@@ -396,11 +463,9 @@ export function Vendas() {
                         {isCancelada ? (
                           <span className="text-[10px] font-bold text-red-500/50 uppercase tracking-widest">Estornado</span>
                         ) : venda.edit_status === 'pendente' ? (
-                          <span className="text-[10px] font-black text-yellow-500 bg-yellow-500/10 px-2 py-1 rounded border border-yellow-500/30">
-                            ⏳ EM ANÁLISE
-                          </span>
+                          <span className="text-[10px] font-black text-yellow-500 bg-yellow-500/10 px-2 py-1 rounded border border-yellow-500/30">⏳ EM ANÁLISE</span>
                         ) : (
-                          <button 
+                          <button
                             onClick={() => handleOpenEdit(venda)}
                             className="text-blue-400 hover:text-blue-300 text-[10px] font-bold uppercase tracking-widest transition-colors border border-blue-400/30 bg-blue-950/20 px-3 py-1.5 rounded"
                           >
@@ -409,7 +474,7 @@ export function Vendas() {
                         )}
                       </td>
                     </tr>
-                  )
+                  );
                 }) : (
                   <tr>
                     <td colSpan={6} className="py-12 text-center text-zinc-600 uppercase font-black tracking-widest italic">

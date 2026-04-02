@@ -185,33 +185,90 @@ export function Dashboard() {
   if (metodoPagamentoFiltro) subTituloRelatorio += subTituloRelatorio ? ` | Pagamento: ${metodoPagamentoFiltro}` : `Pagamento: ${metodoPagamentoFiltro}`;
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 p-4 md:p-8 font-sans relative">
-      <div className="max-w-7xl mx-auto space-y-8">
-        
-        <div className="flex flex-col xl:flex-row justify-between items-center pb-6 border-b border-zinc-800 gap-6">
-          <div className="flex items-center gap-4">
-            <h1 className="text-3xl md:text-4xl font-black text-yellow-400 uppercase tracking-wider leading-none text-center xl:text-left">Operação Control</h1>
-            <span className="bg-zinc-800 text-zinc-400 border border-zinc-700 text-[10px] px-3 py-1.5 rounded-md font-black uppercase tracking-widest hidden md:block">Admin</span>
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 p-3 md:p-6 lg:p-8 font-sans relative">
+      <div className="max-w-7xl mx-auto space-y-5 md:space-y-8">
+
+        {/* ── Header ────────────────────────────────────────────────────── */}
+        <div className="pb-4 border-b border-zinc-800">
+          {/* Linha 1: título + sair */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl md:text-4xl font-black text-yellow-400 uppercase tracking-wider leading-none">
+                Operação Control
+              </h1>
+              <span className="bg-zinc-800 text-zinc-400 border border-zinc-700 text-[10px] px-2.5 py-1 rounded font-black uppercase tracking-widest hidden sm:block">
+                Admin
+              </span>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-1.5 bg-zinc-900 border border-zinc-700 hover:bg-red-950 hover:border-red-700 text-zinc-400 hover:text-red-400 px-3 py-2 rounded-lg font-bold uppercase text-[10px] tracking-widest transition-all"
+            >
+              <span className="hidden sm:inline">Sair</span>
+              <span>✕</span>
+            </button>
           </div>
-          <div className="flex flex-wrap justify-center xl:justify-end gap-3 w-full xl:w-auto">
-            
-            {/* 🔥 BOTÃO DE PÂNICO FORÇADO */}
-            <button onClick={handleLimparFogoAmigo} className="bg-red-600 hover:bg-red-500 text-white font-black px-4 py-2.5 rounded shadow-[0_0_15px_rgba(220,38,38,0.5)] uppercase text-[10px] tracking-widest transition-all animate-pulse">
-              🧹 APAGAR CHECKOUTS INJETADOS
+
+          {/* Linha 2: ação principal + grupos de botões */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            {/* CTA principal */}
+            <button
+              onClick={() => setIsModalVendaOpen(true)}
+              className="sm:flex-shrink-0 bg-yellow-400 hover:bg-yellow-300 active:scale-95 text-black font-black px-5 py-3 rounded-xl shadow-[0_0_20px_rgba(250,204,21,0.35)] uppercase text-sm tracking-widest transition-all"
+            >
+              + Registrar Venda
             </button>
 
-            {/* 🔥 BOTÃO DO FINANCEIRO AQUI */}
-            <button onClick={() => setIsFinanceiroModalOpen(true)} className="bg-emerald-600 hover:bg-emerald-500 text-white font-black px-4 py-2.5 rounded shadow-[0_0_15px_rgba(16,185,129,0.3)] uppercase text-[10px] tracking-widest transition-all">
-              💰 Financeiro
-            </button>
+            {/* Grupo de gestão */}
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setIsModalDesafioOpen(true)}
+                className="flex items-center gap-1.5 border border-red-800/60 bg-red-950/20 text-red-400 hover:bg-red-500 hover:text-white px-3 py-2 rounded-lg font-bold text-[10px] uppercase tracking-widest transition-all"
+              >
+                ⚔️ <span className="hidden xs:inline">Temporadas</span>
+              </button>
+              <button
+                onClick={() => setIsModalProdutoOpen(true)}
+                className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white font-bold px-3 py-2 rounded-lg text-[10px] uppercase tracking-widest transition-all shadow-[0_0_10px_rgba(37,99,235,0.2)]"
+              >
+                ⚙️ <span>Produtos</span>
+              </button>
+              <button
+                onClick={() => setIsFinanceiroModalOpen(true)}
+                className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-2 rounded-lg text-[10px] uppercase tracking-widest transition-all shadow-[0_0_10px_rgba(16,185,129,0.2)]"
+              >
+                💰 <span>Financeiro</span>
+              </button>
+              <button
+                onClick={() => setIsImportModalOpen(true)}
+                className="flex items-center gap-1.5 bg-zinc-800 hover:bg-green-700 text-zinc-300 hover:text-white font-bold px-3 py-2 rounded-lg text-[10px] uppercase tracking-widest transition-all border border-zinc-700 hover:border-green-600"
+              >
+                📥 <span className="hidden sm:inline">Planilha</span>
+              </button>
+            </div>
 
-            <button onClick={() => setIsImportModalOpen(true)} className="bg-green-600 hover:bg-green-500 text-white font-bold px-4 py-2.5 rounded shadow-[0_0_15px_rgba(34,197,94,0.3)] uppercase text-[10px] tracking-widest transition-all">📥 Sincronizar Planilha</button>
-            <button onClick={() => setIsModalDesafioOpen(true)} className="border border-red-500 text-red-400 hover:bg-red-500 hover:text-white px-4 py-2.5 rounded font-bold shadow-[0_0_10px_rgba(220,38,38,0.1)] uppercase text-[10px] tracking-widest transition-all">⚔️ Temporadas</button>
-            <button onClick={() => navigate('/liberacoes')} className="bg-purple-600 hover:bg-purple-500 text-white font-bold px-4 py-2.5 rounded shadow-[0_0_15px_rgba(147,51,234,0.3)] uppercase text-[10px] tracking-widest transition-all">🛡️ Suporte</button>
-            <button onClick={() => navigate('/admin/recrutas')} className="border border-purple-500 text-purple-400 hover:bg-purple-500 hover:text-white px-4 py-2.5 rounded font-bold shadow-[0_0_10px_rgba(147,51,234,0.1)] uppercase text-[10px] tracking-widest transition-all">⚠️ Recrutas</button>
-            <button onClick={() => setIsModalProdutoOpen(true)} className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-4 py-2.5 rounded shadow-[0_0_15px_rgba(37,99,235,0.3)] uppercase text-[10px] tracking-widest transition-all">⚙️ Produtos</button>
-            <button onClick={() => setIsModalVendaOpen(true)} className="bg-yellow-400 hover:bg-yellow-300 text-black font-black px-6 py-2.5 rounded shadow-[0_0_15px_rgba(250,204,21,0.4)] uppercase text-xs tracking-widest transition-transform hover:scale-105 active:scale-95">+ Registrar Venda</button>
-            <button onClick={handleLogout} className="bg-zinc-900 border border-zinc-700 hover:bg-red-600 hover:border-red-500 text-zinc-400 hover:text-white px-5 py-2.5 rounded font-bold uppercase text-[10px] tracking-widest transition-all">Sair</button>
+            {/* Grupo de pessoas */}
+            <div className="flex flex-wrap gap-2 sm:ml-auto">
+              <button
+                onClick={() => navigate('/liberacoes')}
+                className="flex items-center gap-1.5 bg-purple-600 hover:bg-purple-500 text-white font-bold px-3 py-2 rounded-lg text-[10px] uppercase tracking-widest transition-all shadow-[0_0_10px_rgba(147,51,234,0.2)]"
+              >
+                🛡️ <span>Suporte</span>
+              </button>
+              <button
+                onClick={() => navigate('/admin/recrutas')}
+                className="flex items-center gap-1.5 border border-purple-700/50 bg-purple-950/20 text-purple-400 hover:bg-purple-500 hover:text-white px-3 py-2 rounded-lg font-bold text-[10px] uppercase tracking-widest transition-all"
+              >
+                ⚠️ <span>Recrutas</span>
+              </button>
+              <button
+                onClick={handleLimparFogoAmigo}
+                className="flex items-center gap-1.5 bg-red-950/30 border border-red-800/50 text-red-500 hover:bg-red-600 hover:text-white hover:border-red-600 px-3 py-2 rounded-lg font-bold text-[10px] uppercase tracking-widest transition-all"
+                title="Apagar vendas injetadas por checkout automático"
+              >
+                🧹 <span className="hidden md:inline">Limpar Injetados</span>
+              </button>
+            </div>
           </div>
         </div>
 
