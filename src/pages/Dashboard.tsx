@@ -377,7 +377,7 @@ export function Dashboard() {
           </div>
         )}
 
-        <div className="w-full"><GuerraEquipes refreshTrigger={mainRefreshTrigger} /></div>
+        <div className="w-full"><GuerraEquipes refreshTrigger={mainRefreshTrigger} isAdmin={true} /></div>
       </div>
 
       <ModalGerenciarDesafios isOpen={isModalDesafioOpen} onClose={() => setIsModalDesafioOpen(false)} onAtualizar={() => { fetchDesafioAtivo(); setMainRefreshTrigger(prev => prev + 1); }} />
