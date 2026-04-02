@@ -69,30 +69,27 @@ export function Vendas() {
   // ── Notificação de venda aprovada ──────────────────────────────────────────
   type VendaAprovada = { product_name: string; sale_value: number; customer_name: string };
   const [vendaAprovadaNotif, setVendaAprovadaNotif] = useState<VendaAprovada | null>(null);
+  // Usamos ref para guardar IDs pendentes sem criar dependência circular
   const prevPendingIdsRef = useRef<Set<string>>(new Set());
+  // Ref com a função de celebração para evitar closure velha dentro do useCallback
+  const celebracaoRef = useRef<((v: VendaAprovada) => void) | null>(null);
 
-  function dispararCelebracao(venda: VendaAprovada) {
+  // Mantém celebracaoRef sempre atualizada sem re-criar fetchData
+  celebracaoRef.current = (venda: VendaAprovada) => {
     setVendaAprovadaNotif(venda);
-
-    // Confetes em rajadas
-    const cores = ['#22C55E', '#FACC15', '#3B82F6', '#A855F7', '#FFFFFF'];
-    confetti({ particleCount: 120, spread: 90, origin: { y: 0.5 }, colors: cores });
-    setTimeout(() => confetti({ particleCount: 80, spread: 70, origin: { y: 0.4, x: 0.3 }, colors: cores }), 400);
-    setTimeout(() => confetti({ particleCount: 80, spread: 70, origin: { y: 0.4, x: 0.7 }, colors: cores }), 700);
-
-    // Som de caixa registradora
+    const cores = ['#22C55E', '#FACC15', '#3B82F6', '#A855F7', '#FFFFFF', '#F97316'];
+    // Rajadas de confete em 4 posições
+    confetti({ particleCount: 150, spread: 100, origin: { y: 0.5, x: 0.5 }, colors: cores });
+    setTimeout(() => confetti({ particleCount: 100, spread: 80, angle: 60,  origin: { x: 0, y: 0.6 }, colors: cores }), 300);
+    setTimeout(() => confetti({ particleCount: 100, spread: 80, angle: 120, origin: { x: 1, y: 0.6 }, colors: cores }), 300);
+    setTimeout(() => confetti({ particleCount: 80,  spread: 60, origin: { y: 0.3, x: 0.5 }, colors: cores }), 700);
+    // Som de caixa registradora seguido de sino
     try { new Audio('https://actions.google.com/sounds/v1/foley/cash_register.ogg').play(); } catch {}
+    setTimeout(() => { try { new Audio('https://actions.google.com/sounds/v1/cartoon/bell_ding.ogg').play(); } catch {} }, 800);
+    setTimeout(() => setVendaAprovadaNotif(null), 8000);
+  };
 
-    // Fecha automaticamente após 6s
-    setTimeout(() => setVendaAprovadaNotif(null), 6000);
-  }
-
-  useEffect(() => {
-    fetchData(false); // primeira carga: não dispara celebração
-    const intervalo = setInterval(() => fetchData(true), 30000); // polling 30s
-    return () => clearInterval(intervalo);
-  }, [fetchData]);
-
+  // fetchData definido ANTES do useEffect que o usa
   const fetchData = useCallback(async (detectarAprovadas = false) => {
     try {
       const [prodRes, salesRes] = await Promise.all([
@@ -101,31 +98,29 @@ export function Vendas() {
       ]);
 
       const novasVendas: Venda[] = salesRes.data;
+      const userId = String(JSON.parse(localStorage.getItem('user') || '{}').id || '');
 
-      if (detectarAprovadas) {
-        // Pega vendas do vendedor logado que estavam pendentes antes e agora estão aprovadas
-        const prevIds = prevPendingIdsRef.current;
+      if (detectarAprovadas && prevPendingIdsRef.current.size > 0) {
         const recemAprovadas = novasVendas.filter(v =>
-          String(v.seller_id) === String(user.id) &&
+          String(v.seller_id) === userId &&
           checkAprovada(v.status) &&
-          prevIds.has(v.id)
+          prevPendingIdsRef.current.has(v.id)
         );
         if (recemAprovadas.length > 0) {
-          dispararCelebracao({
+          celebracaoRef.current?.({
             product_name: recemAprovadas[0].product_name,
-            sale_value: recemAprovadas[0].sale_value,
+            sale_value:   recemAprovadas[0].sale_value,
             customer_name: recemAprovadas[0].customer_name,
           });
         }
       }
 
-      // Atualiza o conjunto de IDs pendentes para a próxima comparação
-      const minhasPendentes = novasVendas.filter(v =>
-        String(v.seller_id) === String(user.id) &&
-        !checkAprovada(v.status) &&
-        !checkCancelada(v.status)
+      // Atualiza IDs pendentes para próxima comparação
+      prevPendingIdsRef.current = new Set(
+        novasVendas
+          .filter(v => String(v.seller_id) === userId && !checkAprovada(v.status) && !checkCancelada(v.status))
+          .map(v => v.id)
       );
-      prevPendingIdsRef.current = new Set(minhasPendentes.map(v => v.id));
 
       setProdutos(prodRes.data);
       setVendas(novasVendas);
@@ -137,7 +132,14 @@ export function Vendas() {
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
     }
-  }, [user.id]);
+  }, []);
+
+  // Polling: verifica a cada 15s se alguma venda pendente foi aprovada
+  useEffect(() => {
+    fetchData(false); // carga inicial sem celebração
+    const intervalo = setInterval(() => fetchData(true), 15000);
+    return () => clearInterval(intervalo);
+  }, [fetchData]);
 
   const handleLogout = useCallback(() => {
     localStorage.removeItem('user');
@@ -684,56 +686,79 @@ export function Vendas() {
         </div>
       )}
 
-      {/* ── NOTIFICAÇÃO DE VENDA APROVADA ─────────────────────────────────── */}
+      {/* ── NOTIFICAÇÃO DE VENDA APROVADA — TELA CHEIA ───────────────────── */}
       {vendaAprovadaNotif && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none">
-          {/* Overlay escuro semi-transparente */}
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm pointer-events-auto" onClick={() => setVendaAprovadaNotif(null)} />
+        <div className="fixed inset-0 z-[200] flex items-center justify-center">
+          {/* Fundo com gradiente pulsante */}
+          <div
+            className="absolute inset-0 bg-black/85 backdrop-blur-md cursor-pointer"
+            onClick={() => setVendaAprovadaNotif(null)}
+          />
 
-          {/* Card de notificação */}
-          <div className="relative pointer-events-auto w-full max-w-sm mx-4 animate-in zoom-in-95 duration-300">
-            {/* Brilho de fundo */}
-            <div className="absolute inset-0 rounded-2xl bg-green-400/20 blur-2xl scale-110" />
+          {/* Brilho verde espalhado no fundo */}
+          <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+            <div className="w-96 h-96 bg-green-500/20 rounded-full blur-[120px] animate-pulse" />
+          </div>
 
-            <div className="relative bg-zinc-950 border-2 border-green-500 rounded-2xl p-6 shadow-[0_0_60px_rgba(34,197,94,0.4)] text-center overflow-hidden">
-              {/* Decoração top */}
-              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-green-400 to-transparent" />
+          {/* Card central */}
+          <div className="relative z-10 w-full max-w-md mx-4 animate-in zoom-in-90 duration-300">
 
-              {/* Ícone animado */}
-              <div className="text-7xl mb-4 animate-bounce select-none">💰</div>
+            {/* Halo externo */}
+            <div className="absolute -inset-4 bg-green-500/10 rounded-3xl blur-xl" />
 
-              <p className="text-green-400 font-black text-xs uppercase tracking-[0.3em] mb-1">
-                🎉 Venda Liberada!
-              </p>
+            <div className="relative bg-zinc-950 border-2 border-green-500 rounded-3xl overflow-hidden shadow-[0_0_80px_rgba(34,197,94,0.5)]">
 
-              <h2 className="text-white font-black text-2xl mb-1 leading-tight">
-                {vendaAprovadaNotif.product_name}
-              </h2>
+              {/* Barra superior animada */}
+              <div className="h-1.5 bg-gradient-to-r from-green-600 via-yellow-400 to-green-600 animate-pulse" />
 
-              <p className="text-zinc-400 text-sm mb-4">
-                Cliente: <span className="text-white font-bold">{vendaAprovadaNotif.customer_name}</span>
-              </p>
+              <div className="p-7 text-center">
+                {/* Ícone principal com animação */}
+                <div className="relative inline-block mb-4">
+                  <div className="text-8xl animate-bounce select-none leading-none">💰</div>
+                  <div className="absolute -top-1 -right-1 text-2xl animate-spin" style={{ animationDuration: '3s' }}>✨</div>
+                  <div className="absolute -bottom-1 -left-1 text-xl animate-spin" style={{ animationDuration: '2s', animationDirection: 'reverse' }}>⭐</div>
+                </div>
 
-              <div className="bg-green-950/60 border border-green-700/50 rounded-xl py-3 px-4 mb-5 shadow-[inset_0_0_20px_rgba(34,197,94,0.1)]">
-                <p className="text-[10px] text-green-600 font-black uppercase tracking-widest mb-0.5">Valor Creditado</p>
-                <p className="text-green-400 font-black text-3xl">
-                  {(vendaAprovadaNotif.sale_value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                {/* Título principal */}
+                <div className="mb-1">
+                  <span className="text-[11px] font-black text-green-400 uppercase tracking-[0.4em]">🎖️ Comando Liberou!</span>
+                </div>
+                <h1 className="text-3xl md:text-4xl font-black text-white uppercase tracking-wide leading-tight mb-1">
+                  VENDA
+                </h1>
+                <h1 className="text-3xl md:text-4xl font-black text-green-400 uppercase tracking-wide leading-tight mb-4">
+                  LIBERADA!
+                </h1>
+
+                {/* Info do produto */}
+                <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3 mb-3 text-left">
+                  <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest mb-0.5">Produto</p>
+                  <p className="text-yellow-400 font-black text-base uppercase">{vendaAprovadaNotif.product_name}</p>
+                  <p className="text-zinc-400 text-xs mt-1">Cliente: <span className="text-white font-bold">{vendaAprovadaNotif.customer_name}</span></p>
+                </div>
+
+                {/* Valor em destaque */}
+                <div className="bg-green-950/60 border-2 border-green-600/60 rounded-2xl py-4 px-5 mb-5 shadow-[inset_0_0_30px_rgba(34,197,94,0.1)]">
+                  <p className="text-[10px] text-green-600 font-black uppercase tracking-[0.3em] mb-1">💵 Valor Creditado</p>
+                  <p className="text-green-400 font-black text-4xl md:text-5xl leading-none drop-shadow-[0_0_15px_rgba(34,197,94,0.7)]">
+                    {(vendaAprovadaNotif.sale_value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                  </p>
+                </div>
+
+                <p className="text-zinc-600 text-xs mb-5 uppercase tracking-widest">
+                  Toque em qualquer lugar para fechar
                 </p>
+
+                <button
+                  onClick={() => setVendaAprovadaNotif(null)}
+                  className="w-full bg-green-500 hover:bg-green-400 active:scale-95 text-black font-black py-4 rounded-2xl uppercase tracking-[0.2em] text-base transition-all shadow-[0_0_25px_rgba(34,197,94,0.4)]"
+                >
+                  SHOW! ✓
+                </button>
               </div>
 
-              <p className="text-zinc-600 text-xs mb-4 uppercase tracking-widest">
-                O Comando autorizou sua venda 🎖️
-              </p>
-
-              <button
-                onClick={() => setVendaAprovadaNotif(null)}
-                className="w-full bg-green-500 hover:bg-green-400 text-black font-black py-3 rounded-xl uppercase tracking-widest text-sm transition-colors shadow-[0_0_15px_rgba(34,197,94,0.3)]"
-              >
-                Fechar ✓
-              </button>
-
-              {/* Decoração bottom */}
-              <div className="absolute bottom-0 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-green-400 to-transparent" />
+              {/* Barra inferior */}
+              <div className="h-1 bg-gradient-to-r from-transparent via-green-500 to-transparent" />
             </div>
           </div>
         </div>
