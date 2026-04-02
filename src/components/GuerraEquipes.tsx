@@ -20,17 +20,18 @@ interface GuerraEquipesProps {
 
 // ─── SISTEMA DE NÍVEIS ────────────────────────────────────────────────────────
 //
-// Regras:
-//  - A cada 10 vendas aprovadas (históricas) o vendedor sobe 1 nível
-//  - A cada 2 níveis ele sobe de tier (patente)
+// Faixas de patente (vendas históricas aprovadas):
+//  Tier 1 – Vendedor Iniciante  →   0 – 20  vendas
+//  Tier 2 – Vendedor            →  21 – 30  vendas
+//  Tier 3 – Vendedor Veterano   →  31 – 49  vendas
+//  Tier 4 – Vendedor Elite      →  50 – 60  vendas
+//  Tier 5 – Vendedor Lendário   →  61+      vendas
 //
-//  Tier 1 – Vendedor Iniciante  →   0–19 vendas  (nível 1: 0-9,   nível 2: 10-19)
-//  Tier 2 – Vendedor            →  20–39 vendas  (nível 1: 20-29, nível 2: 30-39)
-//  Tier 3 – Vendedor Veterano   →  40–59 vendas  (nível 1: 40-49, nível 2: 50-59)
-//  Tier 4 – Vendedor Elite      →  60–79 vendas  (nível 1: 60-69, nível 2: 70-79)
-//  Tier 5 – Vendedor Lendário   →  80+   vendas
+// Dentro de cada patente, a cada 10 vendas o nível sobe (Nv.1, Nv.2…)
+// A barra de XP mostra o progresso dentro do nível atual (0–9 vendas)
 
-const VENDAS_POR_NIVEL = 10;
+// Limite inferior de cada tier (índice 0..4)
+const TIER_INICIO = [0, 21, 31, 50, 61];
 
 const PATENTES = [
   { tier: 1, nome: 'Vendedor Iniciante', icone: '🪖', corTexto: 'text-zinc-400',   corBg: 'bg-zinc-800/80',    corBorda: 'border-zinc-600',   glow: '' },
@@ -51,18 +52,28 @@ type NivelInfo = {
 
 function calcularNivel(totalVendasCount: number): NivelInfo {
   const count = Math.max(0, totalVendasCount);
-  const nivelGlobal = Math.floor(count / VENDAS_POR_NIVEL);
-  const tierIndex = Math.min(Math.floor(nivelGlobal / 2), 4);
+
+  // Descobre o tier pelo limite inferior (percorre do maior para o menor)
+  let tierIndex = 0;
+  for (let i = TIER_INICIO.length - 1; i >= 0; i--) {
+    if (count >= TIER_INICIO[i]) { tierIndex = i; break; }
+  }
+
   const patente = PATENTES[tierIndex];
   const proximaPatente = tierIndex < 4 ? PATENTES[tierIndex + 1] : null;
-  const xpAtual = count % VENDAS_POR_NIVEL;
+
+  // Nível dentro da patente: a cada 10 vendas desde o início do tier
+  const vendasNoTier = count - TIER_INICIO[tierIndex];
+  const nivel = Math.floor(vendasNoTier / 10) + 1;
+  const xpAtual = vendasNoTier % 10;
+  const xpMax = 10;
 
   return {
     tierIndex,
     patente,
-    nivel: nivelGlobal + 1,
+    nivel,
     xpAtual,
-    xpMax: VENDAS_POR_NIVEL,
+    xpMax,
     proximaPatente,
   };
 }
@@ -432,7 +443,7 @@ export function GuerraEquipes({ refreshTrigger, isAdmin = false }: GuerraEquipes
         {/* ── Legenda de patentes ─────────────────────────────────────────────── */}
         <div className="p-3 bg-zinc-950/40 rounded-lg border border-zinc-800/40 mb-4">
           <p className="text-[10px] text-zinc-600 font-black uppercase tracking-widest mb-2">
-            Sistema de Patentes — a cada {VENDAS_POR_NIVEL} vendas sobe 1 nível • a cada 2 níveis avança de patente
+            Sistema de Patentes — Iniciante: 0–20 • Vendedor: 21–30 • Veterano: 31–49 • Elite: 50–60 • Lendário: 61+
           </p>
           <div className="flex flex-wrap gap-1.5">
             {PATENTES.map(p => (
