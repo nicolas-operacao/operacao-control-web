@@ -350,23 +350,128 @@ export function Dashboard() {
           )}
 
           {vendasPendentes.length > 0 && (
-            <div className="bg-yellow-900/10 border border-yellow-500/30 rounded-xl p-6 shadow-2xl animate-in fade-in">
-              <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4 border-b border-yellow-500/20 pb-4">
-                <div className="flex items-center gap-3">
-                  <input type="checkbox" checked={selectedSales.length === vendasPendentes.length} onChange={selectAllSales} className="w-5 h-5 accent-yellow-500 rounded cursor-pointer" />
-                  <h2 className="text-xl font-black text-yellow-400 uppercase tracking-widest cursor-pointer" onClick={selectAllSales}>⚠️ Vendas Aguardando Liberação ({vendasPendentes.length})</h2>
+            <div className="border border-yellow-500/40 rounded-xl shadow-[0_0_30px_rgba(250,204,21,0.06)] overflow-hidden animate-in fade-in">
+              {/* Header da seção */}
+              <div className="bg-yellow-950/30 border-b border-yellow-500/20 px-5 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <div className="flex items-center gap-3 cursor-pointer" onClick={selectAllSales}>
+                  <input type="checkbox" checked={selectedSales.length === vendasPendentes.length} onChange={selectAllSales} className="w-4 h-4 accent-yellow-500 rounded cursor-pointer" onClick={e => e.stopPropagation()} />
+                  <div>
+                    <h2 className="text-base md:text-xl font-black text-yellow-400 uppercase tracking-widest flex items-center gap-2">
+                      ⚠️ Aguardando Liberação
+                      <span className="bg-yellow-400 text-black text-xs font-black px-2 py-0.5 rounded-full animate-pulse">
+                        {vendasPendentes.length}
+                      </span>
+                    </h2>
+                    <p className="text-yellow-700 text-[10px] font-bold uppercase tracking-wider mt-0.5">
+                      Vendas que precisam de aprovação do Comando
+                    </p>
+                  </div>
                 </div>
                 {selectedSales.length > 0 && (
-                  <div className="flex gap-2 w-full md:w-auto"><button onClick={batchDeleteSales} className="flex-1 border border-red-500/50 text-red-500 hover:bg-red-500 hover:text-white px-6 py-2 rounded font-bold text-[10px] uppercase tracking-widest transition-all">Excluir {selectedSales.length}</button><button onClick={batchApproveSales} className="flex-1 bg-green-600 hover:bg-green-500 text-black px-6 py-2 rounded font-black text-[10px] uppercase tracking-widest shadow-lg transition-all">Liberar {selectedSales.length}</button></div>
+                  <div className="flex gap-2 w-full sm:w-auto">
+                    <button onClick={batchDeleteSales} className="flex-1 sm:flex-none border border-red-600/60 bg-red-950/30 text-red-400 hover:bg-red-600 hover:text-white px-4 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest transition-all">
+                      🗑️ Excluir {selectedSales.length}
+                    </button>
+                    <button onClick={batchApproveSales} className="flex-1 sm:flex-none bg-green-500 hover:bg-green-400 text-black px-5 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest shadow-[0_0_15px_rgba(34,197,94,0.3)] transition-all">
+                      ⚡ Liberar {selectedSales.length}
+                    </button>
+                  </div>
                 )}
               </div>
-              <div className="grid grid-cols-1 gap-4">
+
+              {/* Cards das vendas */}
+              <div className="bg-zinc-950/60 divide-y divide-zinc-800/60">
                 {vendasPendentes.map(venda => {
                   const isChecked = selectedSales.includes(venda.id);
+                  const isPix = venda.payment_method === 'PIX';
+                  const isCartao = (venda.payment_method || '').toLowerCase().includes('cartão') || (venda.payment_method || '').toLowerCase().includes('crédito') || (venda.payment_method || '').toLowerCase().includes('débito');
+
                   return (
-                    <div key={venda.id} className={`bg-zinc-950 border ${isChecked ? 'border-yellow-500' : 'border-zinc-800'} rounded-lg p-4 flex flex-col md:flex-row justify-between items-center gap-4 transition-colors`}>
-                      <div className="flex items-center gap-4 flex-1 w-full"><input type="checkbox" checked={isChecked} onChange={() => toggleSaleSelection(venda.id)} className="w-5 h-5 accent-yellow-500 rounded cursor-pointer" /><div className="flex-1"><p className="text-zinc-400 text-xs font-bold uppercase tracking-widest">Vendedor: <span className="text-white">{venda.seller_name}</span></p><p className="text-zinc-300 text-sm mt-1">Cliente: <span className="font-bold text-white">{venda.customer_name}</span> | Produto: <span className="font-bold text-yellow-400">{venda.product_name}</span></p><p className="text-zinc-500 text-xs mt-1 uppercase tracking-widest">Valor: {formataBRL(Number(venda.sale_value))} | Pagamento: {venda.payment_method}</p></div></div>
-                      <div className="flex gap-2 w-full md:w-auto"><button onClick={() => handleDeleteVenda(venda.id)} className="flex-1 md:flex-none border border-red-500/50 text-red-500 hover:bg-red-500 hover:text-white px-4 py-2 rounded font-bold text-xs uppercase tracking-widest transition-colors">Excluir</button><button onClick={() => handleAprovarVenda(venda.id)} className="flex-1 md:flex-none bg-green-600 hover:bg-green-500 text-black px-6 py-2 rounded font-black text-xs uppercase tracking-widest shadow-lg transition-colors">Liberar</button></div>
+                    <div
+                      key={venda.id}
+                      className={`p-4 md:p-5 flex flex-col md:flex-row gap-4 transition-all ${isChecked ? 'bg-yellow-950/20' : 'hover:bg-zinc-900/50'}`}
+                    >
+                      {/* Checkbox + info */}
+                      <div className="flex items-start gap-3 flex-1 min-w-0">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => toggleSaleSelection(venda.id)}
+                          className="w-4 h-4 accent-yellow-500 rounded cursor-pointer mt-1 flex-shrink-0"
+                        />
+
+                        {/* Ícone de status */}
+                        <div className="w-10 h-10 rounded-full bg-yellow-950 border border-yellow-700/50 flex items-center justify-center flex-shrink-0 shadow-[0_0_10px_rgba(250,204,21,0.1)]">
+                          <span className="text-lg">{isPix ? '⚡' : isCartao ? '💳' : '📄'}</span>
+                        </div>
+
+                        {/* Dados da venda */}
+                        <div className="flex-1 min-w-0">
+                          {/* Linha 1: vendedor */}
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">🛡️ Soldado:</span>
+                            <span className="text-white font-black text-sm">{venda.seller_name}</span>
+                          </div>
+
+                          {/* Linha 2: cliente + produto */}
+                          <div className="flex items-start gap-2 flex-wrap mb-2">
+                            <div className="min-w-0">
+                              <p className="text-zinc-200 font-bold text-sm truncate">{venda.customer_name}</p>
+                              <p className="text-yellow-400 font-black text-xs uppercase tracking-wide">{venda.product_name}</p>
+                            </div>
+                          </div>
+
+                          {/* Linha 3: e-mail + telefone */}
+                          <div className="flex flex-wrap gap-x-4 gap-y-1 mb-2">
+                            {venda.customer_email && (
+                              <span
+                                className="text-zinc-500 text-[11px] hover:text-blue-400 cursor-pointer transition-colors flex items-center gap-1"
+                                onClick={() => copiarTexto(venda.customer_email)}
+                                title="Clique para copiar e-mail"
+                              >
+                                📧 {venda.customer_email}
+                              </span>
+                            )}
+                            {venda.customer_phone && (
+                              <span
+                                className="text-zinc-500 text-[11px] hover:text-green-400 cursor-pointer transition-colors flex items-center gap-1"
+                                onClick={() => copiarTexto(venda.customer_phone)}
+                                title="Clique para copiar telefone"
+                              >
+                                📞 {venda.customer_phone}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Linha 4: valor + pagamento */}
+                          <div className="flex items-center gap-3 flex-wrap">
+                            <span className="text-green-400 font-black text-base">{formataBRL(Number(venda.sale_value))}</span>
+                            <span className={`text-[10px] font-black px-2 py-0.5 rounded border uppercase tracking-wider ${
+                              isPix ? 'bg-green-950/50 border-green-800/50 text-green-400' :
+                              isCartao ? 'bg-blue-950/50 border-blue-800/50 text-blue-400' :
+                              'bg-zinc-800 border-zinc-700 text-zinc-400'
+                            }`}>
+                              {venda.payment_method}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Botões de ação */}
+                      <div className="flex sm:flex-col gap-2 justify-end sm:justify-center flex-shrink-0 sm:min-w-[120px]">
+                        <button
+                          onClick={() => handleAprovarVenda(venda.id)}
+                          className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 bg-green-500 hover:bg-green-400 active:scale-95 text-black font-black px-4 py-2.5 rounded-lg text-xs uppercase tracking-widest shadow-[0_0_15px_rgba(34,197,94,0.25)] transition-all"
+                        >
+                          ⚡ Liberar
+                        </button>
+                        <button
+                          onClick={() => handleDeleteVenda(venda.id)}
+                          className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 border border-red-700/50 bg-red-950/20 text-red-500 hover:bg-red-600 hover:text-white px-4 py-2 rounded-lg font-bold text-xs uppercase tracking-widest transition-all"
+                        >
+                          🗑️ Excluir
+                        </button>
+                      </div>
                     </div>
                   );
                 })}
