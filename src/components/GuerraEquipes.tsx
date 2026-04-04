@@ -20,25 +20,24 @@ interface GuerraEquipesProps {
 
 // ─── SISTEMA DE NÍVEIS ────────────────────────────────────────────────────────
 //
-// Faixas de patente (vendas históricas aprovadas):
-//  Tier 1 – Vendedor Iniciante  →   0 – 20  vendas
-//  Tier 2 – Vendedor            →  21 – 30  vendas
-//  Tier 3 – Vendedor Veterano   →  31 – 49  vendas
-//  Tier 4 – Vendedor Elite      →  50 – 60  vendas
-//  Tier 5 – Vendedor Lendário   →  61+      vendas
+// Faixas de patente (vendas históricas APROVADAS):
+//  Tier 1 – Soldado Iniciante  →   0 – 20  vendas aprovadas
+//  Tier 2 – Vendedor           →  21 – 30
+//  Tier 3 – Veterano           →  31 – 49
+//  Tier 4 – Elite              →  50 – 60
+//  Tier 5 – Lendário           →  61+
 //
-// Dentro de cada patente, a cada 10 vendas o nível sobe (Nv.1, Nv.2…)
+// Dentro de cada patente, a cada 10 vendas aprovadas o nível sobe (Nv.1, Nv.2…)
 // A barra de XP mostra o progresso dentro do nível atual (0–9 vendas)
 
-// Limite inferior de cada tier (índice 0..4)
 const TIER_INICIO = [0, 21, 31, 50, 61];
 
 const PATENTES = [
-  { tier: 1, nome: 'Vendedor Iniciante', icone: '🪖', corTexto: 'text-zinc-400',   corBg: 'bg-zinc-800/80',    corBorda: 'border-zinc-600',   glow: '' },
-  { tier: 2, nome: 'Vendedor',           icone: '⚔️',  corTexto: 'text-green-400',  corBg: 'bg-green-950/80',   corBorda: 'border-green-700',  glow: 'shadow-[0_0_6px_rgba(34,197,94,0.3)]' },
-  { tier: 3, nome: 'Vendedor Veterano',  icone: '🛡️',  corTexto: 'text-blue-400',   corBg: 'bg-blue-950/80',    corBorda: 'border-blue-700',   glow: 'shadow-[0_0_6px_rgba(59,130,246,0.3)]' },
-  { tier: 4, nome: 'Vendedor Elite',     icone: '🌟',  corTexto: 'text-yellow-400', corBg: 'bg-yellow-950/80',  corBorda: 'border-yellow-700', glow: 'shadow-[0_0_8px_rgba(250,204,21,0.4)]' },
-  { tier: 5, nome: 'Vendedor Lendário',  icone: '💎',  corTexto: 'text-purple-400', corBg: 'bg-purple-950/80',  corBorda: 'border-purple-600', glow: 'shadow-[0_0_10px_rgba(168,85,247,0.5)]' },
+  { tier: 1, nome: 'Iniciante',  icone: '🪖', corTexto: 'text-zinc-400',   corBg: 'bg-zinc-800/80',    corBorda: 'border-zinc-600',   glow: '' },
+  { tier: 2, nome: 'Vendedor',   icone: '⚔️',  corTexto: 'text-green-400',  corBg: 'bg-green-950/80',   corBorda: 'border-green-700',  glow: 'shadow-[0_0_6px_rgba(34,197,94,0.3)]' },
+  { tier: 3, nome: 'Veterano',   icone: '🛡️',  corTexto: 'text-blue-400',   corBg: 'bg-blue-950/80',    corBorda: 'border-blue-700',   glow: 'shadow-[0_0_6px_rgba(59,130,246,0.3)]' },
+  { tier: 4, nome: 'Elite',      icone: '🌟',  corTexto: 'text-yellow-400', corBg: 'bg-yellow-950/80',  corBorda: 'border-yellow-700', glow: 'shadow-[0_0_8px_rgba(250,204,21,0.4)]' },
+  { tier: 5, nome: 'Lendário',   icone: '💎',  corTexto: 'text-purple-400', corBg: 'bg-purple-950/80',  corBorda: 'border-purple-600', glow: 'shadow-[0_0_10px_rgba(168,85,247,0.5)]' },
 ];
 
 type NivelInfo = {
@@ -53,7 +52,6 @@ type NivelInfo = {
 function calcularNivel(totalVendasCount: number): NivelInfo {
   const count = Math.max(0, totalVendasCount);
 
-  // Descobre o tier pelo limite inferior (percorre do maior para o menor)
   let tierIndex = 0;
   for (let i = TIER_INICIO.length - 1; i >= 0; i--) {
     if (count >= TIER_INICIO[i]) { tierIndex = i; break; }
@@ -62,20 +60,12 @@ function calcularNivel(totalVendasCount: number): NivelInfo {
   const patente = PATENTES[tierIndex];
   const proximaPatente = tierIndex < 4 ? PATENTES[tierIndex + 1] : null;
 
-  // Nível dentro da patente: a cada 10 vendas desde o início do tier
   const vendasNoTier = count - TIER_INICIO[tierIndex];
   const nivel = Math.floor(vendasNoTier / 10) + 1;
   const xpAtual = vendasNoTier % 10;
   const xpMax = 10;
 
-  return {
-    tierIndex,
-    patente,
-    nivel,
-    xpAtual,
-    xpMax,
-    proximaPatente,
-  };
+  return { tierIndex, patente, nivel, xpAtual, xpMax, proximaPatente };
 }
 
 // ─── SKELETON LOADER ──────────────────────────────────────────────────────────
@@ -205,6 +195,16 @@ export function GuerraEquipes({ refreshTrigger, isAdmin = false }: GuerraEquipes
   const progressoXP = isNaN((totalGeral / META_OPERACAO) * 100) ? 0 : Math.min((totalGeral / META_OPERACAO) * 100, 100);
   const liderA = totalA > 0 && totalA >= totalB;
   const liderB = totalB > 0 && totalB > totalA;
+  const delta = Math.abs(totalA - totalB);
+  const pctA = totalGeral > 0 ? (totalA / totalGeral) * 100 : 50;
+  const pctB = totalGeral > 0 ? (totalB / totalGeral) * 100 : 50;
+
+  // MVP geral (top vendedor de qualquer equipe com vendas)
+  const todosVendedores = [...equipeA, ...equipeB];
+  const mvp = todosVendedores.length > 0
+    ? todosVendedores.reduce((top, v) => Number(v.total_vendido) > Number(top.total_vendido) ? v : top, todosVendedores[0])
+    : null;
+  const mvpTemVenda = mvp && Number(mvp.total_vendido) > 0;
 
   if (carregando) return <SkeletonGuerraEquipes />;
 
@@ -214,17 +214,17 @@ export function GuerraEquipes({ refreshTrigger, isAdmin = false }: GuerraEquipes
     const n = calcularNivel(count);
     return (
       <span
-        title={`${n.patente.nome} — Nível ${n.nivel} | ${count} vendas totais`}
+        title={`${n.patente.nome} — Nível ${n.nivel} (${count} vendas aprovadas)`}
         className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-black border ${n.patente.corBg} ${n.patente.corBorda} ${n.patente.corTexto} ${n.patente.glow} whitespace-nowrap`}
       >
-        {n.patente.icone} Nv.{n.nivel}
+        {n.patente.icone} {n.patente.nome} Nv.{n.nivel}
       </span>
     );
   }
 
   // ─── Card do pódio ────────────────────────────────────────────────────────────
 
-  function renderPodio(equipe: VendedorRank[], corBarra: string) {
+  function renderPodio(equipe: VendedorRank[], corBarra: string, lado: 'A' | 'B') {
     const medalhas = ['🥇', '🥈', '🥉'];
 
     return (
@@ -234,14 +234,19 @@ export function GuerraEquipes({ refreshTrigger, isAdmin = false }: GuerraEquipes
           const temVenda = v && Number(v.total_vendido) > 0;
           const nivel = v ? calcularNivel(v.total_vendas_count || 0) : null;
           const iniciais = v ? v.nome.split(' ').map((p: string) => p[0]).slice(0, 2).join('').toUpperCase() : '';
+          const isMVP = mvpTemVenda && v && String(v.id) === String(mvp!.id);
 
           return (
             <div
               key={index}
               className={`flex items-center justify-between px-3 py-2.5 rounded-lg border text-sm transition-all ${
-                index === 0 && temVenda
-                  ? 'bg-zinc-900 border-yellow-900/50 shadow-[inset_0_0_20px_rgba(250,204,21,0.04)]'
-                  : 'bg-zinc-950/80 border-zinc-800/50 hover:bg-zinc-900/80'
+                isMVP
+                  ? 'bg-yellow-950/30 border-yellow-700/60 shadow-[0_0_12px_rgba(250,204,21,0.15)]'
+                  : index === 0 && temVenda
+                    ? lado === 'A'
+                      ? 'bg-blue-950/20 border-blue-800/40 shadow-[inset_0_0_20px_rgba(59,130,246,0.04)]'
+                      : 'bg-red-950/20 border-red-800/40 shadow-[inset_0_0_20px_rgba(239,68,68,0.04)]'
+                    : 'bg-zinc-950/80 border-zinc-800/50 hover:bg-zinc-900/80'
               }`}
             >
               <div className="flex items-center gap-2 min-w-0">
@@ -249,15 +254,30 @@ export function GuerraEquipes({ refreshTrigger, isAdmin = false }: GuerraEquipes
 
                 {temVenda ? (
                   <>
-                    {v.foto_url ? (
-                      <img src={v.foto_url} alt={v.nome} className="w-8 h-8 rounded-full object-cover border-2 border-zinc-700 flex-shrink-0" />
-                    ) : (
-                      <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center border-2 border-zinc-700 flex-shrink-0">
-                        <span className="text-[10px] font-black text-zinc-400">{iniciais}</span>
-                      </div>
-                    )}
+                    <div className="relative flex-shrink-0">
+                      {v.foto_url ? (
+                        <img src={v.foto_url} alt={v.nome} className="w-8 h-8 rounded-full object-cover border-2 border-zinc-700" />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center border-2 border-zinc-700">
+                          <span className="text-[10px] font-black text-zinc-400">{iniciais}</span>
+                        </div>
+                      )}
+                      {isMVP && (
+                        <span
+                          title="MVP da operação"
+                          className="absolute -top-1.5 -right-1.5 text-[11px] drop-shadow-[0_0_6px_rgba(250,204,21,0.8)]"
+                        >
+                          👑
+                        </span>
+                      )}
+                    </div>
                     <div className="flex flex-col min-w-0">
-                      <span className="text-zinc-100 font-bold text-xs truncate">{v.nome}</span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-zinc-100 font-bold text-xs truncate">{v.nome}</span>
+                        {isMVP && (
+                          <span className="text-[9px] font-black text-yellow-400 bg-yellow-950/60 border border-yellow-800 rounded px-1 whitespace-nowrap">MVP</span>
+                        )}
+                      </div>
                       {nivel && (
                         <div className="flex items-center gap-1.5 mt-0.5">
                           <BadgeNivel count={v.total_vendas_count || 0} />
@@ -304,7 +324,6 @@ export function GuerraEquipes({ refreshTrigger, isAdmin = false }: GuerraEquipes
           </div>
 
           <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
-            {/* Contador auto-refresh */}
             <button
               onClick={() => { fetchRankingEDesafio(); setAutoRefreshSeg(30); }}
               title="Atualizar agora"
@@ -323,7 +342,6 @@ export function GuerraEquipes({ refreshTrigger, isAdmin = false }: GuerraEquipes
               <span className="hidden sm:inline">{autoRefreshSeg}s</span>
             </button>
 
-            {/* Botão gerenciar equipes (só admin) */}
             {isAdmin && (
               <button
                 onClick={() => setModalEquipes(true)}
@@ -337,7 +355,7 @@ export function GuerraEquipes({ refreshTrigger, isAdmin = false }: GuerraEquipes
         </div>
 
         {/* ── Barra de progresso da operação ────────────────────────────────── */}
-        <div className="mb-6 p-4 bg-zinc-950/60 rounded-xl border border-yellow-900/30">
+        <div className="mb-5 p-4 bg-zinc-950/60 rounded-xl border border-yellow-900/30">
           <div className="flex justify-between items-end mb-2 gap-2">
             <div className="min-w-0">
               <p className="text-[10px] text-zinc-500 font-black uppercase tracking-widest">Progresso da Operação</p>
@@ -368,6 +386,27 @@ export function GuerraEquipes({ refreshTrigger, isAdmin = false }: GuerraEquipes
           </p>
         </div>
 
+        {/* ── Barra de dominância ────────────────────────────────────────────── */}
+        {totalGeral > 0 && (
+          <div className="mb-5 px-1">
+            <div className="flex justify-between text-[10px] font-black uppercase tracking-wider mb-1">
+              <span className="text-blue-400">⚡ A — {pctA.toFixed(1)}%</span>
+              <span className="text-zinc-600">DOMINÂNCIA</span>
+              <span className="text-red-400">{pctB.toFixed(1)}% — B 🔥</span>
+            </div>
+            <div className="flex h-2.5 rounded-full overflow-hidden border border-zinc-800 bg-zinc-900">
+              <div
+                className="bg-gradient-to-r from-blue-700 to-blue-400 h-full transition-all duration-1000"
+                style={{ width: `${pctA}%` }}
+              />
+              <div
+                className="bg-gradient-to-l from-red-700 to-red-400 h-full transition-all duration-1000 ml-auto"
+                style={{ width: `${pctB}%` }}
+              />
+            </div>
+          </div>
+        )}
+
         {/* ── Confronto ─────────────────────────────────────────────────────── */}
         <div className="flex flex-col md:flex-row items-stretch gap-4 md:gap-0 flex-1 relative mb-5">
 
@@ -386,7 +425,7 @@ export function GuerraEquipes({ refreshTrigger, isAdmin = false }: GuerraEquipes
               </span>
               <span className="text-white font-black text-lg md:text-xl">{formataBRL(totalA)}</span>
             </div>
-            <div className="w-full bg-zinc-950 rounded-full h-1.5 mb-2 border border-zinc-800/50">
+            <div className="w-full bg-zinc-950 rounded-full h-1.5 mb-1 border border-zinc-800/50">
               <div
                 className="bg-blue-500 h-1.5 rounded-full transition-all duration-1000 shadow-[0_0_8px_rgba(59,130,246,0.5)]"
                 style={{ width: `${Math.min((totalA / META_OPERACAO) * 100, 100)}%` }}
@@ -395,21 +434,71 @@ export function GuerraEquipes({ refreshTrigger, isAdmin = false }: GuerraEquipes
             <p className="text-[10px] text-blue-900/70 font-bold">
               {equipeA.filter(v => v.total_vendido > 0).length} soldado(s) ativo(s)
             </p>
-            {renderPodio(equipeA, 'bg-blue-500')}
+            {renderPodio(equipeA, 'bg-blue-500', 'A')}
           </div>
 
-          {/* VS */}
-          <div className="hidden md:flex flex-col items-center justify-center mx-4 relative z-10">
-            <div className="w-px flex-1 bg-zinc-800" />
-            <div className="bg-zinc-950 border-2 border-zinc-700 rounded-full p-3 my-[-14px] shadow-[0_0_20px_rgba(0,0,0,0.9)]">
-              <span className="text-3xl font-black text-zinc-500 tracking-tighter italic">VS</span>
+          {/* VS — Desktop ───────────────────────────────────────────────────── */}
+          <div className="hidden md:flex flex-col items-center justify-center mx-3 relative z-10 min-w-[110px]">
+            <div className={`w-px flex-1 ${liderA ? 'bg-blue-500/30' : 'bg-zinc-800'} transition-colors duration-500`} />
+
+            <div className="flex flex-col items-center gap-2 py-3">
+              {/* Quem está ganhando */}
+              {totalGeral > 0 && (
+                <div className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border ${
+                  liderA
+                    ? 'text-blue-300 bg-blue-950/60 border-blue-700'
+                    : liderB
+                      ? 'text-red-300 bg-red-950/60 border-red-700'
+                      : 'text-zinc-500 bg-zinc-900 border-zinc-700'
+                }`}>
+                  {liderA ? '⚡ A DOMINA' : liderB ? '🔥 B DOMINA' : '🤝 EMPATE'}
+                </div>
+              )}
+
+              {/* VS badge */}
+              <div className={`border-2 rounded-full p-3 shadow-[0_0_20px_rgba(0,0,0,0.9)] transition-colors duration-500 ${
+                liderA ? 'bg-blue-950/40 border-blue-700/60' : liderB ? 'bg-red-950/40 border-red-700/60' : 'bg-zinc-950 border-zinc-700'
+              }`}>
+                <span className="text-2xl font-black text-zinc-300 tracking-tighter italic">VS</span>
+              </div>
+
+              {/* Diferença */}
+              {delta > 0 && (
+                <div className="flex flex-col items-center gap-0.5">
+                  <span className="text-[9px] text-zinc-600 font-bold uppercase tracking-wider">diferença</span>
+                  <span className={`text-xs font-black ${liderA ? 'text-blue-400' : 'text-red-400'}`}>
+                    {formataBRL(delta)}
+                  </span>
+                </div>
+              )}
             </div>
-            <div className="w-px flex-1 bg-zinc-800" />
+
+            <div className={`w-px flex-1 ${liderB ? 'bg-red-500/30' : 'bg-zinc-800'} transition-colors duration-500`} />
           </div>
-          <div className="md:hidden flex items-center justify-center my-1">
-            <div className="flex-1 h-px bg-zinc-800" />
-            <span className="mx-4 text-xl font-black text-zinc-600 italic">VS</span>
-            <div className="flex-1 h-px bg-zinc-800" />
+
+          {/* VS — Mobile */}
+          <div className="md:hidden flex flex-col items-center gap-1 my-1">
+            <div className="flex items-center gap-4 w-full">
+              <div className="flex-1 h-px bg-zinc-800" />
+              <div className={`flex flex-col items-center gap-1 border-2 rounded-xl px-4 py-2 transition-colors duration-500 ${
+                liderA ? 'bg-blue-950/40 border-blue-700/60' : liderB ? 'bg-red-950/40 border-red-700/60' : 'bg-zinc-950 border-zinc-700'
+              }`}>
+                <span className="text-lg font-black text-zinc-300 italic leading-none">VS</span>
+                {totalGeral > 0 && (
+                  <span className={`text-[9px] font-black uppercase ${
+                    liderA ? 'text-blue-400' : liderB ? 'text-red-400' : 'text-zinc-500'
+                  }`}>
+                    {liderA ? '⚡ A DOMINA' : liderB ? '🔥 B DOMINA' : '🤝 EMPATE'}
+                  </span>
+                )}
+              </div>
+              <div className="flex-1 h-px bg-zinc-800" />
+            </div>
+            {delta > 0 && (
+              <span className="text-[10px] text-zinc-600 font-bold">
+                Diferença: <span className={`font-black ${liderA ? 'text-blue-400' : 'text-red-400'}`}>{formataBRL(delta)}</span>
+              </span>
+            )}
           </div>
 
           {/* Equipe B */}
@@ -427,7 +516,7 @@ export function GuerraEquipes({ refreshTrigger, isAdmin = false }: GuerraEquipes
                 Equipe B 🔥
               </span>
             </div>
-            <div className="w-full bg-zinc-950 rounded-full h-1.5 mb-2 border border-zinc-800/50">
+            <div className="w-full bg-zinc-950 rounded-full h-1.5 mb-1 border border-zinc-800/50">
               <div
                 className="bg-red-500 h-1.5 rounded-full transition-all duration-1000 shadow-[0_0_8px_rgba(239,68,68,0.5)] ml-auto"
                 style={{ width: `${Math.min((totalB / META_OPERACAO) * 100, 100)}%` }}
@@ -436,14 +525,14 @@ export function GuerraEquipes({ refreshTrigger, isAdmin = false }: GuerraEquipes
             <p className="text-[10px] text-red-900/70 font-bold text-right">
               {equipeB.filter(v => v.total_vendido > 0).length} soldado(s) ativo(s)
             </p>
-            {renderPodio(equipeB, 'bg-red-500')}
+            {renderPodio(equipeB, 'bg-red-500', 'B')}
           </div>
         </div>
 
         {/* ── Legenda de patentes ─────────────────────────────────────────────── */}
         <div className="p-3 bg-zinc-950/40 rounded-lg border border-zinc-800/40 mb-4">
           <p className="text-[10px] text-zinc-600 font-black uppercase tracking-widest mb-2">
-            Sistema de Patentes — Iniciante: 0–20 • Vendedor: 21–30 • Veterano: 31–49 • Elite: 50–60 • Lendário: 61+
+            Sistema de Patentes (vendas aprovadas) — 0–20 • 21–30 • 31–49 • 50–60 • 61+
           </p>
           <div className="flex flex-wrap gap-1.5">
             {PATENTES.map(p => (
