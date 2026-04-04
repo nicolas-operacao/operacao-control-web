@@ -1,9 +1,11 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
-import { somClick, somHover } from '../services/hudSounds';
+import { somClick, somHover, somVendaAprovada } from '../services/hudSounds';
 import { GuerraEquipes } from '../components/GuerraEquipes';
 import { ModalMensagemTatica } from '../components/ModalMensagemTatica';
+import { notificarVendaAprovada, pedirPermissaoNotificacao } from '../services/notificacoes';
+import { BannerPWA } from '../components/BannerPWA';
 import confetti from 'canvas-confetti';
 
 type Produto = {
@@ -80,14 +82,14 @@ export function Vendas() {
   celebracaoRef.current = (venda: VendaAprovada) => {
     setVendaAprovadaNotif(venda);
     const cores = ['#22C55E', '#FACC15', '#3B82F6', '#A855F7', '#FFFFFF', '#F97316'];
-    // Rajadas de confete em 4 posições
     confetti({ particleCount: 150, spread: 100, origin: { y: 0.5, x: 0.5 }, colors: cores });
     setTimeout(() => confetti({ particleCount: 100, spread: 80, angle: 60,  origin: { x: 0, y: 0.6 }, colors: cores }), 300);
     setTimeout(() => confetti({ particleCount: 100, spread: 80, angle: 120, origin: { x: 1, y: 0.6 }, colors: cores }), 300);
     setTimeout(() => confetti({ particleCount: 80,  spread: 60, origin: { y: 0.3, x: 0.5 }, colors: cores }), 700);
-    // Som de caixa registradora seguido de sino
-    try { new Audio('https://actions.google.com/sounds/v1/foley/cash_register.ogg').play(); } catch {}
-    setTimeout(() => { try { new Audio('https://actions.google.com/sounds/v1/cartoon/bell_ding.ogg').play(); } catch {} }, 800);
+    // Som moderno de aprovação
+    somVendaAprovada();
+    // Notificação nativa (funciona mesmo com tela bloqueada no mobile via PWA)
+    notificarVendaAprovada(venda.customer_name, venda.product_name, venda.sale_value);
     setTimeout(() => setVendaAprovadaNotif(null), 8000);
   };
 
@@ -138,6 +140,8 @@ export function Vendas() {
 
   // Polling: verifica a cada 15s se alguma venda pendente foi aprovada
   useEffect(() => {
+    // Pede permissão de notificação ao carregar a página
+    pedirPermissaoNotificacao();
     fetchData(false); // carga inicial sem celebração
     const intervalo = setInterval(() => fetchData(true), 15000);
     return () => clearInterval(intervalo);
@@ -312,8 +316,9 @@ export function Vendas() {
 
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans p-3 md:p-6 lg:p-8 relative">
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans p-3 md:p-6 lg:p-8 relative pb-28 md:pb-8">
       <ModalMensagemTatica />
+      <BannerPWA />
       <div className="max-w-6xl mx-auto">
 
         {/* Header */}

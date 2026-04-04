@@ -14,6 +14,7 @@ import { ModalEdicaoAdmin } from '../components/ModalEdicaoAdmin';
 import { ModalImportarPlanilha } from '../components/ModalImportarPlanilha';
 import { ModalFinanceiro } from '../components/ModalFinanceiro';
 import { ModalMensagemTatica } from '../components/ModalMensagemTatica';
+import { BannerPWA } from '../components/BannerPWA';
 import { somHover, somClick } from '../services/hudSounds';
 
 import confetti from 'canvas-confetti'; 
@@ -217,6 +218,7 @@ export function Dashboard() {
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 p-3 md:p-6 lg:p-8 font-sans relative">
       <ModalMensagemTatica />
+      <BannerPWA />
       <div className="max-w-7xl mx-auto space-y-5 md:space-y-8">
 
         {/* ── HUD Header ────────────────────────────────────────────────── */}
