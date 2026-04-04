@@ -83,12 +83,10 @@ export function ModalVendedor({ vendedor, onClose }: ModalVendedorProps) {
     .join('')
     .toUpperCase();
 
-  const corEquipe = vendedor.equipe?.toUpperCase() === 'B' ? 'red' : 'blue';
-  const corBarra  = corEquipe === 'B' ? 'bg-red-500' : 'bg-blue-500';
-  const corBorda  = corEquipe === 'B' ? 'border-red-700/40' : 'border-blue-700/40';
-  const corGlow   = corEquipe === 'B'
-    ? 'shadow-[0_0_30px_rgba(239,68,68,0.12)]'
-    : 'shadow-[0_0_30px_rgba(59,130,246,0.12)]';
+  const isEquipeB = vendedor.equipe?.toUpperCase() === 'B';
+  const corBarra  = isEquipeB ? 'bg-red-500'           : 'bg-blue-500';
+  const corBorda  = isEquipeB ? 'border-red-700/40'    : 'border-blue-700/40';
+  const corGlow   = isEquipeB ? 'shadow-[0_0_30px_rgba(239,68,68,0.12)]' : 'shadow-[0_0_30px_rgba(59,130,246,0.12)]';
 
   useEffect(() => {
     api.get(`/sellers/${vendedor.id}/stats`)
