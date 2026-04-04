@@ -58,26 +58,38 @@ export function Login() {
         const liderA = totalA >= totalB;
         const equipeUsuario = normaliza(user.equipe || '');
 
+        let msg = '';
         if (user.role === 'admin') {
-          setMensagemTatica(`🏆 Equipe ${liderA ? 'A' : 'B'} está na frente por ${fmt(delta)}`);
+          msg = `A Equipe ${liderA ? 'A' : 'B'} está na frente por ${fmt(delta)}`;
         } else {
           const minhaEquipe = equipeUsuario === 'B' ? 'B' : 'A';
           const estouGanhando = minhaEquipe === 'A' ? liderA : !liderA;
           if (delta === 0) {
-            setMensagemTatica('🤝 As equipes estão empatadas. Cada venda conta!');
+            msg = 'As equipes estão empatadas. Cada venda conta!';
           } else if (estouGanhando) {
-            setMensagemTatica(`🔥 Continue assim! Sua equipe está ${fmt(delta)} à frente da equipe adversária!`);
+            msg = `Continue assim! Sua equipe está ${fmt(delta)} à frente da equipe adversária!`;
           } else {
-            setMensagemTatica(`⚡ Bora guerreiro! Dá pra alcançar — vocês estão ${fmt(delta)} atrás. Parte pra cima!`);
+            msg = `Bora guerreiro! Dá pra alcançar — vocês estão ${fmt(delta)} atrás. Parte pra cima!`;
           }
         }
+        // Atualiza o localStorage com a mensagem pronta
+        const payload = JSON.parse(localStorage.getItem('mensagem_tatica') || '{}');
+        localStorage.setItem('mensagem_tatica', JSON.stringify({ ...payload, mensagem: msg }));
+        setMensagemTatica(msg);
       }).catch(() => {
-        setMensagemTatica('⚔️ A operação está em andamento. Bora vender!');
+        setMensagemTatica('');
       });
 
-      // Salva o destino para o botão usar depois
+      // Guarda a mensagem e equipe no localStorage para o modal na próxima tela
+      localStorage.setItem('mensagem_tatica', JSON.stringify({
+        mensagem: '',
+        equipe: user.role === 'admin' ? 'admin' : (user.equipe || 'A'),
+        role: user.role,
+      }));
+
+      // Redireciona após 2.5 segundos
       const destino = user.role === 'admin' ? '/dashboard' : user.role === 'suporte' ? '/liberacoes' : '/vendas';
-      setDestino(destino);
+      setTimeout(() => navigate(destino), 2500);
 
     } catch (err: any) {
       if (err.response) {
@@ -107,26 +119,12 @@ export function Login() {
             <span className="text-yellow-400 font-black text-lg">{userName}</span>
           </p>
 
-          {/* Mensagem tática — aparece quando o ranking chegar */}
-          <div className="mt-6 max-w-sm w-full">
-            {mensagemTatica ? (
-              <div className="px-5 py-4 bg-zinc-900 border border-zinc-700 rounded-xl text-center shadow-[0_0_24px_rgba(0,0,0,0.6)]">
-                <p className="text-white font-bold text-sm leading-snug">{mensagemTatica}</p>
-              </div>
-            ) : (
-              <div className="px-5 py-4 bg-zinc-900/50 border border-zinc-800 rounded-xl text-center animate-pulse">
-                <p className="text-zinc-600 text-xs font-bold uppercase tracking-wider">Carregando situação tática...</p>
-              </div>
-            )}
+          <div className="w-64 h-1 bg-zinc-800 mt-10 rounded overflow-hidden shadow-inner relative">
+            <div className="h-full bg-yellow-400 w-full animate-[pulse_1s_ease-in-out_infinite]"></div>
           </div>
-
-          {/* Botão — usuário precisa clicar para entrar */}
-          <button
-            onClick={() => navigate(destino)}
-            className="mt-8 px-10 py-3 bg-yellow-400 hover:bg-yellow-300 text-black font-black uppercase tracking-widest rounded-xl shadow-[0_0_20px_rgba(250,204,21,0.3)] transition-all hover:scale-105 active:scale-95 text-sm"
-          >
-            ⚡ Entrar na Base
-          </button>
+          <p className="text-zinc-600 text-[10px] uppercase tracking-widest mt-4 font-bold animate-pulse">
+            Sincronizando Sistema Tático...
+          </p>
         </div>
       </div>
     );

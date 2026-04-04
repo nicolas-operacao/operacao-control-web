@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { GuerraEquipes } from '../components/GuerraEquipes';
+import { ModalMensagemTatica } from '../components/ModalMensagemTatica';
 import confetti from 'canvas-confetti';
 
 type Produto = {
@@ -311,6 +312,7 @@ export function Vendas() {
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans p-3 md:p-6 lg:p-8 relative">
+      <ModalMensagemTatica />
       <div className="max-w-6xl mx-auto">
 
         {/* Header */}
