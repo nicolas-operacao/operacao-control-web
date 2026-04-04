@@ -13,6 +13,7 @@ import { ModalEdicaoAdmin } from '../components/ModalEdicaoAdmin';
 import { ModalImportarPlanilha } from '../components/ModalImportarPlanilha'; 
 import { ModalFinanceiro } from '../components/ModalFinanceiro'; // 🔥 IMPORTAÇÃO DO FINANCEIRO
 import { ModalMensagemTatica } from '../components/ModalMensagemTatica';
+import { somHover, somClick } from '../services/hudSounds';
 
 import confetti from 'canvas-confetti'; 
 
@@ -67,31 +68,6 @@ export function Dashboard() {
   const somAlerta = () => new Audio('https://actions.google.com/sounds/v1/alarms/buzzer_alarm.ogg').play().catch(() => {});
   const somSucesso = () => new Audio('https://actions.google.com/sounds/v1/cartoon/bell_ding.ogg').play().catch(() => {});
 
-  // Sons sintéticos via Web Audio API — sem arquivos externos
-  const somHover = () => {
-    try {
-      const ctx = new AudioContext();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain); gain.connect(ctx.destination);
-      osc.type = 'sine'; osc.frequency.value = 880;
-      gain.gain.setValueAtTime(0.06, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
-      osc.start(); osc.stop(ctx.currentTime + 0.08);
-    } catch { /* ignora */ }
-  };
-  const somClick = () => {
-    try {
-      const ctx = new AudioContext();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain); gain.connect(ctx.destination);
-      osc.type = 'square'; osc.frequency.value = 520;
-      gain.gain.setValueAtTime(0.12, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
-      osc.start(); osc.stop(ctx.currentTime + 0.12);
-    } catch { /* ignora */ }
-  };
   const lancarConfetes = () => confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 }, colors: ['#FACC15', '#22C55E', '#3B82F6'] });
 
   useEffect(() => { fetchProdutos(); fetchVendasPlacar(); fetchDesafioAtivo(); }, []);
