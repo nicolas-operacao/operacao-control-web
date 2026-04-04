@@ -115,7 +115,7 @@ export function GuerraEquipes({ refreshTrigger, isAdmin = false }: GuerraEquipes
   const [totalB, setTotalB] = useState(0);
   const [desafioAtivo, setDesafioAtivo] = useState<any>(null);
   const [tempoRestante, setTempoRestante] = useState('');
-  const [autoRefreshSeg, setAutoRefreshSeg] = useState(30);
+  const [ultimoCount, setUltimoCount] = useState<number | null>(null);
   const [modalEquipes, setModalEquipes] = useState(false);
   const [carregando, setCarregando] = useState(true);
   const [vendedorModal, setVendedorModal] = useState<VendedorRank | null>(null);
@@ -150,19 +150,28 @@ export function GuerraEquipes({ refreshTrigger, isAdmin = false }: GuerraEquipes
     finally { setCarregando(false); }
   }, []);
 
-  // ─── Auto-refresh ────────────────────────────────────────────────────────────
+  // ─── Fetch inicial e ao receber trigger externo ───────────────────────────────
 
   useEffect(() => { fetchRankingEDesafio(); }, [refreshTrigger, fetchRankingEDesafio]);
 
+  // ─── Poll leve: só recarrega se detectar mudança ──────────────────────────────
+
   useEffect(() => {
-    setAutoRefreshSeg(30);
-    const tick = setInterval(() => {
-      setAutoRefreshSeg(prev => {
-        if (prev <= 1) { fetchRankingEDesafio(); return 30; }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(tick);
+    const checar = async () => {
+      try {
+        const res = await api.get('/ranking/ping');
+        const novoCount: number = res.data.count ?? 0;
+        setUltimoCount(prev => {
+          if (prev !== null && prev !== novoCount) {
+            fetchRankingEDesafio();
+          }
+          return novoCount;
+        });
+      } catch { /* ignora falhas silenciosamente */ }
+    };
+
+    const intervalo = setInterval(checar, 15000); // verifica a cada 15s (requisição mínima)
+    return () => clearInterval(intervalo);
   }, [fetchRankingEDesafio]);
 
   // ─── Relógio ─────────────────────────────────────────────────────────────────
@@ -332,21 +341,16 @@ export function GuerraEquipes({ refreshTrigger, isAdmin = false }: GuerraEquipes
 
           <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
             <button
-              onClick={() => { fetchRankingEDesafio(); setAutoRefreshSeg(30); }}
+              onClick={fetchRankingEDesafio}
               title="Atualizar agora"
               className="flex items-center gap-2 px-3 py-2 bg-zinc-800/60 hover:bg-zinc-700 border border-zinc-700 rounded-lg text-zinc-500 hover:text-zinc-300 transition-all text-xs font-bold"
             >
-              <div className="relative w-4 h-4 flex-shrink-0">
-                <svg className="w-4 h-4 -rotate-90" viewBox="0 0 20 20">
-                  <circle cx="10" cy="10" r="8" fill="none" stroke="#52525b" strokeWidth="2.5" />
-                  <circle
-                    cx="10" cy="10" r="8" fill="none" stroke="#71717a" strokeWidth="2.5"
-                    strokeDasharray={`${(autoRefreshSeg / 30) * 50.3} 50.3`}
-                    className="transition-all duration-1000"
-                  />
-                </svg>
-              </div>
-              <span className="hidden sm:inline">{autoRefreshSeg}s</span>
+              <svg className="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 4v5h5" />
+                <path d="M16 16v-5h-5" />
+                <path d="M4 9a7 7 0 0 1 12.9-2M16 11a7 7 0 0 1-12.9 2" />
+              </svg>
+              <span className="hidden sm:inline">Atualizar</span>
             </button>
 
             {isAdmin && (
