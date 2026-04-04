@@ -12,6 +12,7 @@ export function Login() {
   // Estados para a tela de Boas-vindas Tática
   const [showSuccess, setShowSuccess] = useState(false);
   const [userName, setUserName] = useState('');
+  const [mensagemTatica, setMensagemTatica] = useState('');
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -34,6 +35,41 @@ export function Login() {
       
       // 3. Destrava as requisições seguras
       api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+
+      // Busca o ranking para montar a mensagem tática personalizada
+      try {
+        const rankingRes = await api.get('/ranking');
+        const ranking: any[] = Array.isArray(rankingRes.data) ? rankingRes.data : (rankingRes.data.data || []);
+        const normaliza = (eq: string) => String(eq || '').trim().toUpperCase();
+        const totalA = ranking
+          .filter(v => ['A', 'EQUIPE A'].includes(normaliza(v.equipe)))
+          .reduce((acc: number, v: any) => acc + (Number(v.total_vendido) || 0), 0);
+        const totalB = ranking
+          .filter(v => ['B', 'EQUIPE B'].includes(normaliza(v.equipe)))
+          .reduce((acc: number, v: any) => acc + (Number(v.total_vendido) || 0), 0);
+
+        const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        const delta = Math.abs(totalA - totalB);
+        const liderA = totalA >= totalB;
+        const equipeUsuario = normaliza(user.equipe || '');
+
+        if (user.role === 'admin') {
+          const lider = liderA ? 'A' : 'B';
+          setMensagemTatica(`🏆 Equipe ${lider} está na frente por ${fmt(delta)}`);
+        } else {
+          const minhaEquipe = equipeUsuario === 'B' ? 'B' : 'A';
+          const estouGanhando = minhaEquipe === 'A' ? liderA : !liderA;
+          if (delta === 0) {
+            setMensagemTatica('🤝 As equipes estão empatadas. Cada venda conta!');
+          } else if (estouGanhando) {
+            setMensagemTatica(`🔥 Continue assim! Sua equipe está ${fmt(delta)} à frente da equipe adversária!`);
+          } else {
+            setMensagemTatica(`⚡ Bora guerreiro! Dá pra alcançar — vocês estão ${fmt(delta)} atrás. Parte pra cima!`);
+          }
+        }
+      } catch {
+        setMensagemTatica('');
+      }
 
       // Prepara a tela de sucesso
       setUserName(user.name);
@@ -82,8 +118,14 @@ export function Login() {
             Bem-vindo(a) à Base de Operações, <br/>
             <span className="text-yellow-400 font-black text-lg">{userName}</span>
           </p>
-          
-          <div className="w-64 h-1 bg-zinc-800 mt-10 rounded overflow-hidden shadow-inner relative">
+
+          {mensagemTatica && (
+            <div className="mt-6 px-5 py-3 bg-zinc-900/80 border border-zinc-700 rounded-xl max-w-sm text-center shadow-[0_0_20px_rgba(0,0,0,0.5)]">
+              <p className="text-white font-bold text-sm leading-snug">{mensagemTatica}</p>
+            </div>
+          )}
+
+          <div className="w-64 h-1 bg-zinc-800 mt-8 rounded overflow-hidden shadow-inner relative">
             <div className="h-full bg-yellow-400 w-full animate-[pulse_1s_ease-in-out_infinite]"></div>
           </div>
           <p className="text-zinc-600 text-[10px] uppercase tracking-widest mt-4 font-bold animate-pulse">
