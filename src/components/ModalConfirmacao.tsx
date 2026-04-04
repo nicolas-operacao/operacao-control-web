@@ -1,4 +1,5 @@
 import React from 'react';
+import { somClick, somHover } from '../services/hudSounds';
 
 interface Props {
   isOpen: boolean;
@@ -22,8 +23,8 @@ export function ModalConfirmacao({ isOpen, title, message, type, onCancel, onCon
         </div>
         <div className="p-6"><p className="text-zinc-300 text-sm font-medium leading-relaxed">{message}</p></div>
         <div className="p-6 bg-zinc-900/50 border-t border-zinc-800 flex gap-3">
-          <button onClick={onCancel} className="flex-1 border border-zinc-700 hover:bg-zinc-800 text-white font-bold py-3 rounded-lg uppercase tracking-widest text-xs transition-colors">CANCELAR</button>
-          <button onClick={onConfirm} className={`flex-1 font-black py-3 rounded-lg uppercase tracking-widest text-xs shadow-lg transition-transform hover:scale-105 ${type === 'red' ? 'bg-red-600 hover:bg-red-500 text-white' : type === 'green' ? 'bg-green-600 hover:bg-green-500 text-black' : 'bg-blue-600 hover:bg-blue-500 text-white'}`}>CONFIRMAR</button>
+          <button onMouseEnter={somHover} onClick={() => { somClick(); onCancel(); }} className="flex-1 border border-zinc-700 hover:bg-zinc-800 text-white font-bold py-3 rounded-lg uppercase tracking-widest text-xs transition-colors">CANCELAR</button>
+          <button onMouseEnter={somHover} onClick={() => { somClick(); onConfirm(); }} className={`flex-1 font-black py-3 rounded-lg uppercase tracking-widest text-xs shadow-lg transition-transform hover:scale-105 ${type === 'red' ? 'bg-red-600 hover:bg-red-500 text-white' : type === 'green' ? 'bg-green-600 hover:bg-green-500 text-black' : 'bg-blue-600 hover:bg-blue-500 text-white'}`}>CONFIRMAR</button>
         </div>
       </div>
     </div>

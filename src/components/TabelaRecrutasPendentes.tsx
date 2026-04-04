@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../services/api';
+import { BotaoHUD } from './BotaoHUD';
 
 type User = {
   id: string;
@@ -59,12 +60,9 @@ export function TabelaRecrutasPendentes() {
               <td className="p-4 font-bold text-white">{user.name}</td>
               <td className="p-4 text-zinc-400 font-medium">{user.email}</td>
               <td className="p-4 text-right">
-                <button 
-                  onClick={() => handleApprove(user.id)} 
-                  className="bg-green-500 hover:bg-green-400 text-black font-black py-2 px-6 rounded shadow-[0_0_15px_rgba(34,197,94,0.2)] transition-transform hover:scale-105 uppercase text-sm"
-                >
+                <BotaoHUD variant="success" size="sm" onClick={() => handleApprove(user.id)}>
                   Aprovar
-                </button>
+                </BotaoHUD>
               </td>
             </tr>
           ))}

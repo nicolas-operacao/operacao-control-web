@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { api } from '../services/api';
+import { somClick, somHover } from '../services/hudSounds';
 
 type Usuario = {
   id: string;
@@ -79,7 +80,8 @@ export function ModalGerenciarEquipes({ onClose, onSalvo }: Props) {
 
         <div className="flex items-center gap-2 flex-shrink-0">
           <button
-            onClick={() => moverParaEquipe(u.id, 'A')}
+            onMouseEnter={somHover}
+            onClick={() => { somClick(); moverParaEquipe(u.id, 'A'); }}
             disabled={carregandoEste || estaEquipeA}
             className={`px-3 py-1.5 rounded-md text-xs font-black transition-all border ${
               estaEquipeA
@@ -90,7 +92,8 @@ export function ModalGerenciarEquipes({ onClose, onSalvo }: Props) {
             {carregandoEste ? '...' : estaEquipeA ? '✓ Time A' : 'Time A'}
           </button>
           <button
-            onClick={() => moverParaEquipe(u.id, 'B')}
+            onMouseEnter={somHover}
+            onClick={() => { somClick(); moverParaEquipe(u.id, 'B'); }}
             disabled={carregandoEste || estaEquipeB}
             className={`px-3 py-1.5 rounded-md text-xs font-black transition-all border ${
               estaEquipeB
@@ -115,7 +118,7 @@ export function ModalGerenciarEquipes({ onClose, onSalvo }: Props) {
             <h2 className="text-xl font-black text-white uppercase tracking-widest">⚔️ Gerenciar Squads</h2>
             <p className="text-zinc-500 text-xs mt-0.5">Mova os vendedores entre as equipes</p>
           </div>
-          <button onClick={onClose} className="text-zinc-500 hover:text-white text-2xl font-bold transition-colors">✕</button>
+          <button onMouseEnter={somHover} onClick={() => { somClick(); onClose(); }} className="text-zinc-500 hover:text-white text-2xl font-bold transition-colors">✕</button>
         </div>
 
         {/* Body */}
@@ -170,7 +173,7 @@ export function ModalGerenciarEquipes({ onClose, onSalvo }: Props) {
 
         {/* Footer */}
         <div className="p-4 border-t border-zinc-800 text-center">
-          <button onClick={onClose} className="px-6 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg text-sm font-semibold transition-colors">
+          <button onMouseEnter={somHover} onClick={() => { somClick(); onClose(); }} className="px-6 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg text-sm font-semibold transition-colors">
             Fechar
           </button>
         </div>

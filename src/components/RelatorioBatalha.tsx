@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { somClick, somHover } from '../services/hudSounds';
 
 type Venda = {
   id: string;
@@ -132,7 +133,7 @@ export function RelatorioBatalha({ vendas, titulo, subtitulo, onClose }: Relator
             </h3>
             {subtitulo && <p className="text-zinc-400 text-xs font-bold uppercase mt-1">{subtitulo}</p>}
         </div>
-        <button onClick={onClose} className="text-zinc-500 hover:text-red-500 font-bold uppercase text-xs transition-colors px-3 py-1 border border-zinc-800 rounded hover:border-red-500">
+        <button onMouseEnter={somHover} onClick={() => { somClick(); onClose(); }} className="text-zinc-500 hover:text-red-500 font-bold uppercase text-xs transition-colors px-3 py-1 border border-zinc-800 rounded hover:border-red-500">
           FECHAR X
         </button>
       </div>
@@ -163,7 +164,8 @@ export function RelatorioBatalha({ vendas, titulo, subtitulo, onClose }: Relator
             {guias.map(guia => (
               <button
                 key={guia}
-                onClick={() => setAbaAtiva(guia)}
+                onMouseEnter={somHover}
+                onClick={() => { somClick(); setAbaAtiva(guia); }}
                 className={`px-4 py-3 text-[10px] sm:text-xs font-black uppercase tracking-widest rounded-t-lg transition-colors border-b-2 ${abaAtiva === guia ? 'border-yellow-400 text-yellow-400 bg-zinc-950' : 'border-transparent text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 bg-zinc-900/30'}`}
               >
                 {guia}

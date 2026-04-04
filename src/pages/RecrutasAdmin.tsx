@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { TabelaRecrutasPendentes } from '../components/TabelaRecrutasPendentes';
+import { BotaoHUD } from '../components/BotaoHUD';
 
 export function RecrutasAdmin() {
   const navigate = useNavigate();
@@ -13,12 +14,9 @@ export function RecrutasAdmin() {
           <h1 className="text-3xl md:text-4xl font-black text-purple-500 uppercase tracking-wider flex items-center gap-3">
             Gestão de Tropa <span className="text-zinc-500 text-lg md:text-xl ml-2 font-bold">(Admin)</span>
           </h1>
-          <button 
-            onClick={() => navigate('/dashboard')} 
-            className="border-2 border-purple-700 text-purple-300 hover:border-purple-500 hover:text-purple-500 px-6 py-2 rounded font-bold transition-all duration-300 uppercase text-sm tracking-wider"
-          >
-            Voltar ao Comando
-          </button>
+          <BotaoHUD variant="info" onClick={() => navigate('/dashboard')}>
+            ← Voltar ao Comando
+          </BotaoHUD>
         </div>
 
         {/* ÁREA DE FOCO: Tabela de Recrutas Pendentes */}

@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { somClick, somHover } from '../services/hudSounds';
 
 interface Venda {
   id: string;
@@ -93,7 +94,7 @@ export function ModalFinanceiro({ isOpen, onClose, vendas }: Props) {
           <h2 className="text-xl font-black text-green-400 uppercase flex items-center gap-2">
             💰 Quartel General do Financeiro
           </h2>
-          <button onClick={onClose} className="text-zinc-500 hover:text-white text-2xl">&times;</button>
+          <button onMouseEnter={somHover} onClick={() => { somClick(); onClose(); }} className="text-zinc-500 hover:text-white text-2xl">&times;</button>
         </div>
 
         {/* PAINEL DE CONTROLE E REGRAS */}
@@ -193,7 +194,7 @@ export function ModalFinanceiro({ isOpen, onClose, vendas }: Props) {
 
         {/* RODAPÉ */}
         <div className="p-6 border-t border-zinc-800 bg-zinc-950 flex justify-end">
-          <button onClick={onClose} className="bg-zinc-800 hover:bg-zinc-700 text-white font-bold py-3 px-8 rounded-xl uppercase tracking-widest transition-colors text-xs">
+          <button onMouseEnter={somHover} onClick={() => { somClick(); onClose(); }} className="bg-zinc-800 hover:bg-zinc-700 text-white font-bold py-3 px-8 rounded-xl uppercase tracking-widest transition-colors text-xs">
             Fechar Financeiro
           </button>
         </div>

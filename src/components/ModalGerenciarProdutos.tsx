@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { api } from '../services/api';
+import { somClick, somHover } from '../services/hudSounds';
 
 type Produto = {
   id: number;
@@ -61,7 +62,7 @@ export function ModalGerenciarProdutos({ isOpen, onClose, produtos, onAtualizarL
         
         <div className="bg-zinc-950 p-6 border-b border-zinc-800 flex justify-between items-center">
           <h2 className="text-2xl font-black text-blue-400 uppercase tracking-wider">📦 Arsenal de Produtos</h2>
-          <button onClick={onClose} className="text-zinc-500 hover:text-white text-2xl font-bold leading-none">&times;</button>
+          <button onMouseEnter={somHover} onClick={() => { somClick(); onClose(); }} className="text-zinc-500 hover:text-white text-2xl font-bold leading-none">&times;</button>
         </div>
 
         <div className="p-6 flex-1 overflow-y-auto">
@@ -80,9 +81,9 @@ export function ModalGerenciarProdutos({ isOpen, onClose, produtos, onAtualizarL
               </div>
               <div className="flex gap-2">
                 {editandoProdutoId && (
-                  <button type="button" onClick={cancelarEdicao} className="px-4 py-2 border border-zinc-600 text-zinc-400 rounded hover:bg-zinc-800 transition-colors">Cancelar</button>
+                  <button type="button" onMouseEnter={somHover} onClick={() => { somClick(); cancelarEdicao(); }} className="px-4 py-2 border border-zinc-600 text-zinc-400 rounded hover:bg-zinc-800 transition-colors">Cancelar</button>
                 )}
-                <button type="submit" className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-6 py-2 rounded whitespace-nowrap transition-colors">
+                <button type="submit" onMouseEnter={somHover} onClick={somClick} className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-6 py-2 rounded whitespace-nowrap transition-colors">
                   {editandoProdutoId ? 'Salvar Edição' : 'Cadastrar'}
                 </button>
               </div>
@@ -106,7 +107,7 @@ export function ModalGerenciarProdutos({ isOpen, onClose, produtos, onAtualizarL
                     <td className="p-3 font-bold text-white">{p.nome}</td>
                     <td className="p-3 text-right text-green-400 font-medium">{formataBRL(Number(p.valor))}</td>
                     <td className="p-3 text-center">
-                      <button onClick={() => iniciarEdicaoProduto(p)} className="text-blue-400 hover:text-blue-300 text-sm font-bold underline">Editar</button>
+                      <button onMouseEnter={somHover} onClick={() => { somClick(); iniciarEdicaoProduto(p); }} className="text-blue-400 hover:text-blue-300 text-sm font-bold underline">Editar</button>
                     </td>
                   </tr>
                 ))}

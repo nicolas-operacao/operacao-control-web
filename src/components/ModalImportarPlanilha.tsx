@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { api } from '../services/api';
+import { somClick, somHover } from '../services/hudSounds';
 
 interface Props {
   isOpen: boolean;
@@ -197,7 +198,7 @@ export function ModalImportarPlanilha({ isOpen, onClose, vendasAtuais, onSuccess
             {/* 🔥 ERRO CORRIGIDO AQUI ABAIXO: envolvi o < com chaves {'<'} */}
             📥 Sincronizador de Plataformas (Ignora Hubla, Guru e {'<'} R$70)
           </h2>
-          <button onClick={onClose} className="text-zinc-500 hover:text-white text-2xl">&times;</button>
+          <button onMouseEnter={somHover} onClick={() => { somClick(); onClose(); }} className="text-zinc-500 hover:text-white text-2xl">&times;</button>
         </div>
 
         <div className="p-6 flex-1 overflow-y-auto">
@@ -238,8 +239,8 @@ export function ModalImportarPlanilha({ isOpen, onClose, vendasAtuais, onSuccess
           )}
         </div>
         <div className="p-6 border-t border-zinc-800 bg-zinc-950 flex gap-3">
-          <button onClick={() => { setLinhas([]); onClose(); }} className="flex-1 border border-zinc-700 hover:bg-zinc-800 text-white font-bold py-4 rounded-xl uppercase tracking-widest transition-colors text-xs">Cancelar</button>
-          <button onClick={handleSincronizar} disabled={isUploading || linhas.length === 0} className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-xl uppercase tracking-widest shadow-[0_0_15px_rgba(37,99,235,0.3)] transition-all text-xs disabled:opacity-50 disabled:cursor-not-allowed">{isUploading ? 'SINCRONIZANDO...' : `INJETAR ${qtdNovas} VENDAS NA META ⚡`}</button>
+          <button onMouseEnter={somHover} onClick={() => { somClick(); setLinhas([]); onClose(); }} className="flex-1 border border-zinc-700 hover:bg-zinc-800 text-white font-bold py-4 rounded-xl uppercase tracking-widest transition-colors text-xs">Cancelar</button>
+          <button onMouseEnter={somHover} onClick={() => { somClick(); handleSincronizar(); }} disabled={isUploading || linhas.length === 0} className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-xl uppercase tracking-widest shadow-[0_0_15px_rgba(37,99,235,0.3)] transition-all text-xs disabled:opacity-50 disabled:cursor-not-allowed">{isUploading ? 'SINCRONIZANDO...' : `INJETAR ${qtdNovas} VENDAS NA META ⚡`}</button>
         </div>
       </div>
     </div>

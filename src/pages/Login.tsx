@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { api } from '../services/api';
+import { somClick, somHover } from '../services/hudSounds';
 
 export function Login() {
   const navigate = useNavigate();
@@ -200,9 +201,11 @@ export function Login() {
             />
           </div>
 
-          <button 
-            type="submit" 
-            disabled={isLoading} 
+          <button
+            type="submit"
+            onMouseEnter={somHover}
+            onClick={somClick}
+            disabled={isLoading}
             className="w-full bg-yellow-400 hover:bg-yellow-300 text-black font-black py-4 rounded-lg mt-4 uppercase tracking-widest shadow-[0_0_15px_rgba(250,204,21,0.3)] transition-transform hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed"
           >
             CONFIRMAR IDENTIDADE ⚡

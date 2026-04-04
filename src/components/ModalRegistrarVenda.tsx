@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import confetti from 'canvas-confetti';
+import { somClick, somHover } from '../services/hudSounds';
 
 type Produto = {
   id: number;
@@ -134,8 +135,8 @@ export function ModalRegistrarVenda({ isOpen, onClose, produtos, user, onVendaRe
           </div>
 
           <div className="pt-4 flex justify-end gap-3 border-t border-zinc-800 mt-6">
-            <button type="button" onClick={onClose} className="px-6 py-3 font-bold text-zinc-400 hover:text-white transition-colors">CANCELAR</button>
-            <button type="submit" disabled={isLoading} className="bg-yellow-400 hover:bg-yellow-500 text-black font-black px-8 py-3 rounded uppercase tracking-wider transition-transform hover:scale-105 active:scale-95 disabled:opacity-50">
+            <button type="button" onMouseEnter={somHover} onClick={() => { somClick(); onClose(); }} className="px-6 py-3 font-bold text-zinc-400 hover:text-white transition-colors uppercase tracking-widest text-sm">CANCELAR</button>
+            <button type="submit" onMouseEnter={somHover} onClick={somClick} disabled={isLoading} className="bg-yellow-400 hover:bg-yellow-500 text-black font-black px-8 py-3 rounded uppercase tracking-wider transition-transform hover:scale-105 active:scale-95 disabled:opacity-50">
               {isLoading ? 'ENVIANDO...' : 'SALVAR VENDA'}
             </button>
           </div>

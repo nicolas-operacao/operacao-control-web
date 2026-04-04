@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { api } from '../services/api';
+import { somClick, somHover } from '../services/hudSounds';
 
 export function Cadastro() {
   const navigate = useNavigate();
@@ -131,6 +132,8 @@ export function Cadastro() {
 
           <button
             type="submit"
+            onMouseEnter={somHover}
+            onClick={somClick}
             disabled={isLoading}
             className="w-full bg-green-600 hover:bg-green-700 text-black font-black py-4 rounded-lg transition-transform hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:hover:scale-100 mt-6 shadow-lg shadow-green-600/20 uppercase tracking-wider text-sm disabled:cursor-not-allowed"
           >

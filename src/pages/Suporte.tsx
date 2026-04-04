@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
+import { somClick, somHover } from '../services/hudSounds';
 
 type Venda = {
   id: string;
@@ -134,14 +135,16 @@ export function Suporte() {
             <p className="text-zinc-400 mt-1">Operador: <span className="text-white font-bold">{user.name}</span></p>
           </div>
           <div className="flex gap-4">
-            <button 
-              onClick={() => navigate('/dashboard')} 
+            <button
+              onMouseEnter={somHover}
+              onClick={() => { somClick(); navigate('/dashboard'); }}
               className="border border-zinc-700 hover:border-purple-500 hover:text-purple-400 text-zinc-400 font-bold px-6 py-2 rounded transition-colors text-sm uppercase tracking-wider"
             >
               Voltar
             </button>
-            <button 
-              onClick={handleLogout} 
+            <button
+              onMouseEnter={somHover}
+              onClick={() => { somClick(); handleLogout(); }}
               className="border-2 border-red-900 text-red-500 hover:bg-red-900 hover:text-white px-6 py-2 rounded font-bold transition-all text-sm uppercase tracking-wider"
             >
               Sair
@@ -153,14 +156,16 @@ export function Suporte() {
           
           {/* 🔥 GUIAS (TABS) TÁTICAS */}
           <div className="flex gap-4 mb-8 border-b border-zinc-800 pb-px">
-            <button 
-              onClick={() => setAbaAtiva('aprovadas')}
+            <button
+              onMouseEnter={somHover}
+              onClick={() => { somClick(); setAbaAtiva('aprovadas'); }}
               className={`px-6 py-3 font-black uppercase tracking-widest rounded-t-lg transition-colors border-b-2 text-xs md:text-sm ${abaAtiva === 'aprovadas' ? 'border-purple-500 text-purple-400 bg-zinc-950' : 'border-transparent text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 bg-zinc-900/30'}`}
             >
               Análise de Risco ({qtdAprovadas})
             </button>
-            <button 
-              onClick={() => setAbaAtiva('canceladas')}
+            <button
+              onMouseEnter={somHover}
+              onClick={() => { somClick(); setAbaAtiva('canceladas'); }}
               className={`px-6 py-3 font-black uppercase tracking-widest rounded-t-lg transition-colors border-b-2 text-xs md:text-sm ${abaAtiva === 'canceladas' ? 'border-red-500 text-red-400 bg-red-950/20' : 'border-transparent text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 bg-zinc-900/30'}`}
             >
               Histórico de Baixas ({qtdCanceladas})
@@ -182,9 +187,9 @@ export function Suporte() {
 
               <div className="flex items-center gap-2 bg-zinc-950 p-1.5 rounded-lg border border-zinc-800 w-full md:w-auto justify-center ml-auto">
                 <span className="text-zinc-500 text-[10px] font-bold uppercase ml-2 hidden lg:block">Exibir:</span>
-                <button onClick={() => setFiltroDias(7)} className={`px-3 py-1.5 rounded text-[10px] font-bold uppercase transition-all ${filtroDias === 7 ? 'bg-purple-600 text-white' : 'text-zinc-400 hover:bg-zinc-800'}`}>7 dias</button>
-                <button onClick={() => setFiltroDias(15)} className={`px-3 py-1.5 rounded text-[10px] font-bold uppercase transition-all ${filtroDias === 15 ? 'bg-purple-600 text-white' : 'text-zinc-400 hover:bg-zinc-800'}`}>15 dias</button>
-                <button onClick={() => setFiltroDias(30)} className={`px-3 py-1.5 rounded text-[10px] font-bold uppercase transition-all ${filtroDias === 30 ? 'bg-purple-600 text-white' : 'text-zinc-400 hover:bg-zinc-800'}`}>30 dias</button>
+                <button onMouseEnter={somHover} onClick={() => { somClick(); setFiltroDias(7); }} className={`px-3 py-1.5 rounded text-[10px] font-bold uppercase transition-all ${filtroDias === 7 ? 'bg-purple-600 text-white' : 'text-zinc-400 hover:bg-zinc-800'}`}>7 dias</button>
+                <button onMouseEnter={somHover} onClick={() => { somClick(); setFiltroDias(15); }} className={`px-3 py-1.5 rounded text-[10px] font-bold uppercase transition-all ${filtroDias === 15 ? 'bg-purple-600 text-white' : 'text-zinc-400 hover:bg-zinc-800'}`}>15 dias</button>
+                <button onMouseEnter={somHover} onClick={() => { somClick(); setFiltroDias(30); }} className={`px-3 py-1.5 rounded text-[10px] font-bold uppercase transition-all ${filtroDias === 30 ? 'bg-purple-600 text-white' : 'text-zinc-400 hover:bg-zinc-800'}`}>30 dias</button>
               </div>
             </div>
           </div>
@@ -248,8 +253,9 @@ export function Suporte() {
                     </td>
                     {abaAtiva === 'aprovadas' && (
                       <td className="p-4 text-center">
-                        <button 
-                          onClick={() => openRefundModal(venda)}
+                        <button
+                          onMouseEnter={somHover}
+                          onClick={() => { somClick(); openRefundModal(venda); }}
                           className="bg-red-600/20 hover:bg-red-600 text-red-500 hover:text-white border border-red-600/50 px-3 py-1.5 rounded text-[10px] font-black uppercase tracking-widest transition-all"
                         >
                           Reembolsar
@@ -278,7 +284,7 @@ export function Suporte() {
               <h2 className="text-xl font-black text-red-500 uppercase flex items-center gap-2">
                 🔴 Confirmar Reembolso
               </h2>
-              <button onClick={() => setIsRefundModalOpen(false)} className="text-zinc-500 hover:text-white text-2xl">&times;</button>
+              <button onMouseEnter={somHover} onClick={() => { somClick(); setIsRefundModalOpen(false); }} className="text-zinc-500 hover:text-white text-2xl">&times;</button>
             </div>
             
             <form onSubmit={handleConfirmRefund} className="p-6 space-y-6">
@@ -307,10 +313,10 @@ export function Suporte() {
                 </div>
 
                 <div className="flex gap-3 pt-2">
-                  <button type="button" onClick={() => setIsRefundModalOpen(false)} className="w-1/3 border border-zinc-700 hover:bg-zinc-800 text-white font-bold py-3 rounded-lg uppercase tracking-widest transition-colors text-xs">
+                  <button type="button" onMouseEnter={somHover} onClick={() => { somClick(); setIsRefundModalOpen(false); }} className="w-1/3 border border-zinc-700 hover:bg-zinc-800 text-white font-bold py-3 rounded-lg uppercase tracking-widest transition-colors text-xs">
                       Cancelar
                   </button>
-                  <button disabled={isLoading} className="w-2/3 bg-red-600 hover:bg-red-500 text-white font-black py-3 rounded-lg uppercase tracking-widest shadow-[0_0_15px_rgba(220,38,38,0.3)] transition-all text-xs">
+                  <button onMouseEnter={somHover} onClick={somClick} disabled={isLoading} className="w-2/3 bg-red-600 hover:bg-red-500 text-white font-black py-3 rounded-lg uppercase tracking-widest shadow-[0_0_15px_rgba(220,38,38,0.3)] transition-all text-xs">
                       {isLoading ? 'PROCESSANDO...' : 'CONFIRMAR ESTORNO'}
                   </button>
                 </div>

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../services/api';
+import { somClick, somHover } from '../services/hudSounds';
 import { ModalGerenciarEquipes } from './ModalGerenciarEquipes';
 import { ModalVendedor } from './ModalVendedor';
 
@@ -341,7 +342,8 @@ export function GuerraEquipes({ refreshTrigger, isAdmin = false }: GuerraEquipes
 
           <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
             <button
-              onClick={fetchRankingEDesafio}
+              onMouseEnter={somHover}
+              onClick={() => { somClick(); fetchRankingEDesafio(); }}
               title="Atualizar agora"
               className="flex items-center gap-2 px-3 py-2 bg-zinc-800/60 hover:bg-zinc-700 border border-zinc-700 rounded-lg text-zinc-500 hover:text-zinc-300 transition-all text-xs font-bold"
             >
@@ -355,7 +357,8 @@ export function GuerraEquipes({ refreshTrigger, isAdmin = false }: GuerraEquipes
 
             {isAdmin && (
               <button
-                onClick={() => setModalEquipes(true)}
+                onMouseEnter={somHover}
+                onClick={() => { somClick(); setModalEquipes(true); }}
                 className="flex items-center gap-1.5 px-3 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-500 text-zinc-300 hover:text-white rounded-lg text-xs font-black uppercase tracking-wider transition-all"
               >
                 <span>👥</span>

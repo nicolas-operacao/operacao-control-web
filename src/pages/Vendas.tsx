@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
+import { somClick, somHover } from '../services/hudSounds';
 import { GuerraEquipes } from '../components/GuerraEquipes';
 import { ModalMensagemTatica } from '../components/ModalMensagemTatica';
 import confetti from 'canvas-confetti';
@@ -326,7 +327,8 @@ export function Vendas() {
             </p>
           </div>
           <button
-            onClick={handleLogout}
+            onMouseEnter={somHover}
+            onClick={() => { somClick(); handleLogout(); }}
             className="flex items-center gap-1.5 border border-zinc-700 hover:border-red-600 text-zinc-400 hover:text-red-400 px-3 md:px-5 py-2 rounded-lg font-bold transition-all uppercase text-xs"
           >
             <span className="hidden sm:inline">Sair da Operação</span>
@@ -378,7 +380,7 @@ export function Vendas() {
             <div className="bg-green-950/50 p-4 rounded-lg border border-green-500/50 min-w-[170px] text-center shadow-[0_0_15px_rgba(34,197,94,0.2)]">
               <div className="flex items-center justify-center gap-2 mb-1">
                 <p className="text-green-500 text-[10px] font-black uppercase">Comissão Estimada</p>
-                <button onClick={() => setMostrarComissao(!mostrarComissao)} className="text-green-500/70 hover:text-green-400 focus:outline-none transition-colors" title={mostrarComissao ? "Ocultar Comissão" : "Ver Comissão"}>
+                <button onMouseEnter={somHover} onClick={() => { somClick(); setMostrarComissao(!mostrarComissao); }} className="text-green-500/70 hover:text-green-400 focus:outline-none transition-colors" title={mostrarComissao ? "Ocultar Comissão" : "Ver Comissão"}>
                   {mostrarComissao ? (
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
                   ) : (
@@ -403,14 +405,16 @@ export function Vendas() {
               {(['dia','semana','mes'] as const).map(f => (
                 <button
                   key={f}
-                  onClick={() => setFiltro(f)}
+                  onMouseEnter={somHover}
+                  onClick={() => { somClick(); setFiltro(f); }}
                   className={`flex-1 sm:flex-none px-4 py-2.5 rounded-lg font-black text-[11px] uppercase tracking-widest transition-all ${filtro === f ? 'bg-yellow-400 text-black shadow-[0_0_12px_rgba(250,204,21,0.3)]' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}
                 >
                   {f === 'dia' ? '📅 Hoje' : f === 'semana' ? '📆 Semana' : '🗓️ Mês'}
                 </button>
               ))}
               <button
-                onClick={() => setFiltro('reembolsos')}
+                onMouseEnter={somHover}
+                onClick={() => { somClick(); setFiltro('reembolsos'); }}
                 className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg font-black text-[11px] uppercase tracking-widest transition-all ${filtro === 'reembolsos' ? 'bg-red-600 text-white shadow-[0_0_12px_rgba(220,38,38,0.4)]' : 'bg-red-950/30 text-red-500 border border-red-900/40 hover:bg-red-900/40'}`}
               >
                 🚨 Reembolsos
@@ -422,7 +426,8 @@ export function Vendas() {
               </button>
             </div>
             <button
-              onClick={() => { resetForm(); setIsModalOpen(true); }}
+              onMouseEnter={somHover}
+              onClick={() => { somClick(); resetForm(); setIsModalOpen(true); }}
               className="w-full bg-green-500 hover:bg-green-400 active:scale-95 text-black font-black py-3 rounded-xl shadow-[0_0_15px_rgba(34,197,94,0.25)] transition-all tracking-widest text-sm uppercase"
             >
               + Lançar Nova Venda
@@ -465,7 +470,7 @@ export function Vendas() {
                     {!isCancelada && (
                       venda.edit_status === 'pendente'
                         ? <span className="text-[10px] font-black text-yellow-500 bg-yellow-500/10 px-2 py-1 rounded border border-yellow-500/30">⏳ Análise</span>
-                        : <button onClick={() => handleOpenEdit(venda)} className="text-blue-400 text-[10px] font-bold border border-blue-400/30 bg-blue-950/20 px-3 py-1.5 rounded transition-colors hover:text-blue-300">Corrigir</button>
+                        : <button onMouseEnter={somHover} onClick={() => { somClick(); handleOpenEdit(venda); }} className="text-blue-400 text-[10px] font-bold border border-blue-400/30 bg-blue-950/20 px-3 py-1.5 rounded transition-colors hover:text-blue-300">Corrigir</button>
                     )}
                   </div>
                 </div>
@@ -520,7 +525,8 @@ export function Vendas() {
                           <span className="text-[10px] font-black text-yellow-500 bg-yellow-500/10 px-2 py-1 rounded border border-yellow-500/30">⏳ EM ANÁLISE</span>
                         ) : (
                           <button
-                            onClick={() => handleOpenEdit(venda)}
+                            onMouseEnter={somHover}
+                            onClick={() => { somClick(); handleOpenEdit(venda); }}
                             className="text-blue-400 hover:text-blue-300 text-[10px] font-bold uppercase tracking-widest transition-colors border border-blue-400/30 bg-blue-950/20 px-3 py-1.5 rounded"
                           >
                             Corrigir Erro
@@ -548,7 +554,7 @@ export function Vendas() {
           <div className="bg-zinc-900 border border-zinc-700 rounded-2xl w-full max-w-xl shadow-2xl animate-in zoom-in duration-150">
             <div className="p-6 border-b border-zinc-800 flex justify-between items-center">
               <h2 className="text-xl font-black text-green-500 uppercase">🎯 Registrar Venda</h2>
-              <button onClick={() => setIsModalOpen(false)} className="text-zinc-500 hover:text-white text-2xl">&times;</button>
+              <button onMouseEnter={somHover} onClick={() => { somClick(); setIsModalOpen(false); }} className="text-zinc-500 hover:text-white text-2xl">&times;</button>
             </div>
             <form onSubmit={handleRegisterSale} className="p-6 space-y-4">
                 
@@ -597,7 +603,7 @@ export function Vendas() {
                     </select>
                 </div>
                 
-                <button disabled={isLoading} className="w-full bg-green-500 hover:bg-green-400 text-black font-black py-4 rounded-xl mt-4 uppercase tracking-widest shadow-lg transition-colors">
+                <button onMouseEnter={somHover} onClick={somClick} disabled={isLoading} className="w-full bg-green-500 hover:bg-green-400 text-black font-black py-4 rounded-xl mt-4 uppercase tracking-widest shadow-lg transition-colors">
                     {isLoading ? 'ENVIANDO...' : 'CONFIRMAR LANÇAMENTO ⚡'}
                 </button>
             </form>
@@ -611,7 +617,7 @@ export function Vendas() {
           <div className="bg-zinc-900 border border-blue-500/30 rounded-2xl w-full max-w-xl shadow-[0_0_30px_rgba(59,130,246,0.15)] animate-in zoom-in duration-150">
             <div className="p-6 border-b border-zinc-800 flex justify-between items-center bg-blue-900/10">
               <h2 className="text-xl font-black text-blue-400 uppercase">🛡️ Solicitar Correção</h2>
-              <button onClick={() => setIsEditModalOpen(false)} className="text-zinc-500 hover:text-white text-2xl">&times;</button>
+              <button onMouseEnter={somHover} onClick={() => { somClick(); setIsEditModalOpen(false); }} className="text-zinc-500 hover:text-white text-2xl">&times;</button>
             </div>
             
             <form onSubmit={handleRequestEdit} className="p-6 space-y-4">
@@ -676,10 +682,10 @@ export function Vendas() {
                 </div>
 
                 <div className="flex gap-3 pt-4">
-                  <button type="button" onClick={() => setIsEditModalOpen(false)} className="w-1/3 border border-zinc-700 hover:bg-zinc-800 text-white font-bold py-4 rounded-xl uppercase tracking-widest transition-colors">
+                  <button type="button" onMouseEnter={somHover} onClick={() => { somClick(); setIsEditModalOpen(false); }} className="w-1/3 border border-zinc-700 hover:bg-zinc-800 text-white font-bold py-4 rounded-xl uppercase tracking-widest transition-colors">
                       CANCELAR
                   </button>
-                  <button disabled={isLoading} className="w-2/3 bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-xl uppercase tracking-widest shadow-[0_0_15px_rgba(37,99,235,0.3)] transition-all">
+                  <button onMouseEnter={somHover} onClick={somClick} disabled={isLoading} className="w-2/3 bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-xl uppercase tracking-widest shadow-[0_0_15px_rgba(37,99,235,0.3)] transition-all">
                       {isLoading ? 'ENVIANDO...' : 'ENVIAR PARA APROVAÇÃO'}
                   </button>
                 </div>
@@ -752,7 +758,8 @@ export function Vendas() {
                 </p>
 
                 <button
-                  onClick={() => setVendaAprovadaNotif(null)}
+                  onMouseEnter={somHover}
+                  onClick={() => { somClick(); setVendaAprovadaNotif(null); }}
                   className="w-full bg-green-500 hover:bg-green-400 active:scale-95 text-black font-black py-4 rounded-2xl uppercase tracking-[0.2em] text-base transition-all shadow-[0_0_25px_rgba(34,197,94,0.4)]"
                 >
                   SHOW! ✓

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
+import { somClick, somHover } from '../services/hudSounds';
 
 type Challenge = {
   id: string;
@@ -139,7 +140,7 @@ export function ModalGerenciarDesafios({ isOpen, onClose, onAtualizar }: ModalGe
           <h2 className="text-2xl font-black text-red-500 uppercase tracking-wider flex items-center gap-2">
             ⚔️ Central de Operações (Desafios)
           </h2>
-          <button onClick={onClose} className="text-zinc-500 hover:text-white text-2xl font-bold leading-none">&times;</button>
+          <button onMouseEnter={somHover} onClick={() => { somClick(); onClose(); }} className="text-zinc-500 hover:text-white text-2xl font-bold leading-none">&times;</button>
         </div>
 
         <div id="modal-desafios-content" className="p-6 flex-1 overflow-y-auto space-y-8">
@@ -169,11 +170,11 @@ export function ModalGerenciarDesafios({ isOpen, onClose, onAtualizar }: ModalGe
             </div>
             <div className="mt-4 flex justify-end gap-3">
               {isEditing && (
-                <button type="button" onClick={handleResetForm} className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold px-8 py-2.5 rounded uppercase text-xs tracking-widest transition-all">
+                <button type="button" onMouseEnter={somHover} onClick={() => { somClick(); handleResetForm(); }} className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold px-8 py-2.5 rounded uppercase text-xs tracking-widest transition-all">
                   CANCELAR EDIÇÃO
                 </button>
               )}
-              <button type="submit" disabled={isLoading} className="bg-red-600 hover:bg-red-500 text-white font-black px-8 py-2.5 rounded shadow-[0_0_15px_rgba(220,38,38,0.3)] uppercase text-xs tracking-widest transition-all disabled:opacity-50">
+              <button type="submit" onMouseEnter={somHover} onClick={somClick} disabled={isLoading} className="bg-red-600 hover:bg-red-500 text-white font-black px-8 py-2.5 rounded shadow-[0_0_15px_rgba(220,38,38,0.3)] uppercase text-xs tracking-widest transition-all disabled:opacity-50">
                 {isLoading ? 'SALVANDO...' : isEditing ? 'SALVAR ALTERAÇÕES E ATUALIZAR PLACAR' : 'CRIAR E ATIVAR DESAFIO'}
               </button>
             </div>
@@ -210,19 +211,19 @@ export function ModalGerenciarDesafios({ isOpen, onClose, onAtualizar }: ModalGe
                       <td className="p-4 text-center">
                         <div className="flex gap-2 justify-center">
                           {/* 🔥 Botão Editar (Sempre disponível) */}
-                          <button onClick={() => fillFormForEdit(d)} className="text-blue-400 hover:text-blue-300 hover:bg-blue-400/10 border border-blue-400/30 px-3 py-1.5 rounded text-[10px] font-bold uppercase tracking-widest transition-all">
+                          <button onMouseEnter={somHover} onClick={() => { somClick(); fillFormForEdit(d); }} className="text-blue-400 hover:text-blue-300 hover:bg-blue-400/10 border border-blue-400/30 px-3 py-1.5 rounded text-[10px] font-bold uppercase tracking-widest transition-all">
                             ✏️ Editar
                           </button>
 
                           {!d.is_active && (
                             <>
                               {/* Botão Ativar */}
-                              <button onClick={() => handleAtivar(d.id)} className="text-red-400 hover:text-red-300 hover:bg-red-400/10 border border-red-400/30 px-3 py-1.5 rounded text-[10px] font-bold uppercase tracking-widest transition-all">
+                              <button onMouseEnter={somHover} onClick={() => { somClick(); handleAtivar(d.id); }} className="text-red-400 hover:text-red-300 hover:bg-red-400/10 border border-red-400/30 px-3 py-1.5 rounded text-[10px] font-bold uppercase tracking-widest transition-all">
                                 ⚔️ Ativar
                               </button>
                               
                               {/* 🔥 Botão Excluir (Só para inativas) */}
-                              <button onClick={() => handleDelete(d.id)} className="text-zinc-600 hover:text-zinc-100 hover:bg-red-950/20 px-2 py-1.5 rounded text-[10px] font-bold transition-colors">
+                              <button onMouseEnter={somHover} onClick={() => { somClick(); handleDelete(d.id); }} className="text-zinc-600 hover:text-zinc-100 hover:bg-red-950/20 px-2 py-1.5 rounded text-[10px] font-bold transition-colors">
                                 🗑️ Deletar
                               </button>
                             </>

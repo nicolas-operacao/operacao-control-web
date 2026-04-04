@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../services/api';
+import { somClick, somHover } from '../services/hudSounds';
 
 // ─── TIPOS ────────────────────────────────────────────────────────────────────
 
@@ -129,7 +130,8 @@ export function ModalVendedor({ vendedor, onClose }: ModalVendedorProps) {
             </div>
           </div>
           <button
-            onClick={onClose}
+            onMouseEnter={somHover}
+            onClick={() => { somClick(); onClose(); }}
             className="text-zinc-600 hover:text-zinc-300 transition-colors text-xl font-black leading-none"
           >
             ✕
@@ -172,7 +174,8 @@ export function ModalVendedor({ vendedor, onClose }: ModalVendedorProps) {
                 {(['semana', 'meses'] as const).map(a => (
                   <button
                     key={a}
-                    onClick={() => setAba(a)}
+                    onMouseEnter={somHover}
+                    onClick={() => { somClick(); setAba(a); }}
                     className={`text-[10px] font-black px-2.5 py-1 rounded-lg transition-all ${
                       aba === a
                         ? `${corBarra} text-white`
