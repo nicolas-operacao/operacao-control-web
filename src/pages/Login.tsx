@@ -13,6 +13,7 @@ export function Login() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [userName, setUserName] = useState('');
   const [mensagemTatica, setMensagemTatica] = useState('');
+  const [destino, setDestino] = useState('/vendas');
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -74,16 +75,9 @@ export function Login() {
         setMensagemTatica('⚔️ A operação está em andamento. Bora vender!');
       });
 
-      // Redireciona após 3 segundos (mais tempo para ler a mensagem)
-      setTimeout(() => {
-        if (user.role === 'admin') {
-          navigate('/dashboard');
-        } else if (user.role === 'suporte') {
-          navigate('/liberacoes');
-        } else {
-          navigate('/vendas');
-        }
-      }, 3000);
+      // Salva o destino para o botão usar depois
+      const destino = user.role === 'admin' ? '/dashboard' : user.role === 'suporte' ? '/liberacoes' : '/vendas';
+      setDestino(destino);
 
     } catch (err: any) {
       if (err.response) {
@@ -113,18 +107,26 @@ export function Login() {
             <span className="text-yellow-400 font-black text-lg">{userName}</span>
           </p>
 
-          {mensagemTatica && (
-            <div className="mt-6 px-5 py-3 bg-zinc-900/80 border border-zinc-700 rounded-xl max-w-sm text-center shadow-[0_0_20px_rgba(0,0,0,0.5)]">
-              <p className="text-white font-bold text-sm leading-snug">{mensagemTatica}</p>
-            </div>
-          )}
-
-          <div className="w-64 h-1 bg-zinc-800 mt-8 rounded overflow-hidden shadow-inner relative">
-            <div className="h-full bg-yellow-400 w-full animate-[pulse_1s_ease-in-out_infinite]"></div>
+          {/* Mensagem tática — aparece quando o ranking chegar */}
+          <div className="mt-6 max-w-sm w-full">
+            {mensagemTatica ? (
+              <div className="px-5 py-4 bg-zinc-900 border border-zinc-700 rounded-xl text-center shadow-[0_0_24px_rgba(0,0,0,0.6)]">
+                <p className="text-white font-bold text-sm leading-snug">{mensagemTatica}</p>
+              </div>
+            ) : (
+              <div className="px-5 py-4 bg-zinc-900/50 border border-zinc-800 rounded-xl text-center animate-pulse">
+                <p className="text-zinc-600 text-xs font-bold uppercase tracking-wider">Carregando situação tática...</p>
+              </div>
+            )}
           </div>
-          <p className="text-zinc-600 text-[10px] uppercase tracking-widest mt-4 font-bold animate-pulse">
-            Sincronizando Sistema Tático...
-          </p>
+
+          {/* Botão — usuário precisa clicar para entrar */}
+          <button
+            onClick={() => navigate(destino)}
+            className="mt-8 px-10 py-3 bg-yellow-400 hover:bg-yellow-300 text-black font-black uppercase tracking-widest rounded-xl shadow-[0_0_20px_rgba(250,204,21,0.3)] transition-all hover:scale-105 active:scale-95 text-sm"
+          >
+            ⚡ Entrar na Base
+          </button>
         </div>
       </div>
     );
