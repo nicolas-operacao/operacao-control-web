@@ -36,26 +36,29 @@ export function Login() {
       // 3. Destrava as requisições seguras
       api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
-      // Busca o ranking para montar a mensagem tática personalizada
-      try {
-        const rankingRes = await api.get('/ranking');
+      // Mostra a tela de sucesso imediatamente
+      setUserName(user.name);
+      setShowSuccess(true);
+      setIsLoading(false);
+      new Audio('https://actions.google.com/sounds/v1/cartoon/bell_ding.ogg').play().catch(() => {});
+
+      // Busca ranking em paralelo para montar a mensagem tática (não bloqueia a tela)
+      const normaliza = (eq: string) => String(eq || '').trim().toUpperCase();
+      const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+      api.get('/ranking').then(rankingRes => {
         const ranking: any[] = Array.isArray(rankingRes.data) ? rankingRes.data : (rankingRes.data.data || []);
-        const normaliza = (eq: string) => String(eq || '').trim().toUpperCase();
         const totalA = ranking
           .filter(v => ['A', 'EQUIPE A'].includes(normaliza(v.equipe)))
           .reduce((acc: number, v: any) => acc + (Number(v.total_vendido) || 0), 0);
         const totalB = ranking
           .filter(v => ['B', 'EQUIPE B'].includes(normaliza(v.equipe)))
           .reduce((acc: number, v: any) => acc + (Number(v.total_vendido) || 0), 0);
-
-        const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
         const delta = Math.abs(totalA - totalB);
         const liderA = totalA >= totalB;
         const equipeUsuario = normaliza(user.equipe || '');
 
         if (user.role === 'admin') {
-          const lider = liderA ? 'A' : 'B';
-          setMensagemTatica(`🏆 Equipe ${lider} está na frente por ${fmt(delta)}`);
+          setMensagemTatica(`🏆 Equipe ${liderA ? 'A' : 'B'} está na frente por ${fmt(delta)}`);
         } else {
           const minhaEquipe = equipeUsuario === 'B' ? 'B' : 'A';
           const estouGanhando = minhaEquipe === 'A' ? liderA : !liderA;
@@ -67,29 +70,20 @@ export function Login() {
             setMensagemTatica(`⚡ Bora guerreiro! Dá pra alcançar — vocês estão ${fmt(delta)} atrás. Parte pra cima!`);
           }
         }
-      } catch {
-        setMensagemTatica('');
-      }
+      }).catch(() => {
+        setMensagemTatica('⚔️ A operação está em andamento. Bora vender!');
+      });
 
-      // Prepara a tela de sucesso
-      setUserName(user.name);
-      setShowSuccess(true);
-      setIsLoading(false); // Desliga o radar de carregamento
-
-      // Efeito sonoro de liberação
-      new Audio('https://actions.google.com/sounds/v1/cartoon/bell_ding.ogg').play().catch(() => {});
-
-      // Aguarda 2.5 segundos com a tela de Sucesso Tático antes de entrar
+      // Redireciona após 3 segundos (mais tempo para ler a mensagem)
       setTimeout(() => {
-        // 🔥 O SEU GUARDA DE TRÂNSITO ORIGINAL MANTIDO
         if (user.role === 'admin') {
-          navigate('/dashboard'); // Comandante vai para o painel de controle
+          navigate('/dashboard');
         } else if (user.role === 'suporte') {
-          navigate('/liberacoes'); // Equipe de Suporte vai para a tela de aprovações/reembolsos
+          navigate('/liberacoes');
         } else {
-          navigate('/vendas'); // Soldado vai para a área de lançamento de vendas
+          navigate('/vendas');
         }
-      }, 2500);
+      }, 3000);
 
     } catch (err: any) {
       if (err.response) {
