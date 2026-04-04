@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../services/api';
 import { ModalGerenciarEquipes } from './ModalGerenciarEquipes';
+import { ModalVendedor } from './ModalVendedor';
 
 // ─── TIPOS ────────────────────────────────────────────────────────────────────
 
@@ -20,17 +21,19 @@ interface GuerraEquipesProps {
 
 // ─── SISTEMA DE NÍVEIS ────────────────────────────────────────────────────────
 //
-// Faixas de patente (vendas históricas APROVADAS):
-//  Tier 1 – Soldado Iniciante  →   0 – 20  vendas aprovadas
-//  Tier 2 – Vendedor           →  21 – 30
-//  Tier 3 – Veterano           →  31 – 49
-//  Tier 4 – Elite              →  50 – 60
-//  Tier 5 – Lendário           →  61+
+// Regras: 5 vendas aprovadas por nível · 4 níveis por patente = 20 vendas/patente
 //
-// Dentro de cada patente, a cada 10 vendas aprovadas o nível sobe (Nv.1, Nv.2…)
-// A barra de XP mostra o progresso dentro do nível atual (0–9 vendas)
+//  Iniciante  →   0 – 19  (Nv.1–4)
+//  Vendedor   →  20 – 39  (Nv.1–4)
+//  Veterano   →  40 – 59  (Nv.1–4)
+//  Elite      →  60 – 79  (Nv.1–4)
+//  Lendário   →  80+      (Nv.1+)
 
-const TIER_INICIO = [0, 21, 31, 50, 61];
+const VENDAS_POR_NIVEL  = 5;
+const NIVEIS_POR_PATENTE = 4;
+const VENDAS_POR_PATENTE = VENDAS_POR_NIVEL * NIVEIS_POR_PATENTE; // 20
+
+const TIER_INICIO = [0, 20, 40, 60, 80];
 
 const PATENTES = [
   { tier: 1, nome: 'Iniciante',  icone: '🪖', corTexto: 'text-zinc-400',   corBg: 'bg-zinc-800/80',    corBorda: 'border-zinc-600',   glow: '' },
@@ -61,9 +64,9 @@ function calcularNivel(totalVendasCount: number): NivelInfo {
   const proximaPatente = tierIndex < 4 ? PATENTES[tierIndex + 1] : null;
 
   const vendasNoTier = count - TIER_INICIO[tierIndex];
-  const nivel = Math.floor(vendasNoTier / 10) + 1;
-  const xpAtual = vendasNoTier % 10;
-  const xpMax = 10;
+  const nivel  = Math.floor(vendasNoTier / VENDAS_POR_NIVEL) + 1;
+  const xpAtual = vendasNoTier % VENDAS_POR_NIVEL;
+  const xpMax   = VENDAS_POR_NIVEL;
 
   return { tierIndex, patente, nivel, xpAtual, xpMax, proximaPatente };
 }
@@ -115,6 +118,7 @@ export function GuerraEquipes({ refreshTrigger, isAdmin = false }: GuerraEquipes
   const [autoRefreshSeg, setAutoRefreshSeg] = useState(30);
   const [modalEquipes, setModalEquipes] = useState(false);
   const [carregando, setCarregando] = useState(true);
+  const [vendedorModal, setVendedorModal] = useState<VendedorRank | null>(null);
 
   const META_OPERACAO = desafioAtivo ? Number(desafioAtivo.goal_amount) : 400000;
 
@@ -239,14 +243,17 @@ export function GuerraEquipes({ refreshTrigger, isAdmin = false }: GuerraEquipes
           return (
             <div
               key={index}
+              onClick={() => temVenda && setVendedorModal(v)}
               className={`flex items-center justify-between px-3 py-2.5 rounded-lg border text-sm transition-all ${
+                temVenda ? 'cursor-pointer' : ''
+              } ${
                 isMVP
-                  ? 'bg-yellow-950/30 border-yellow-700/60 shadow-[0_0_12px_rgba(250,204,21,0.15)]'
+                  ? 'bg-yellow-950/30 border-yellow-700/60 shadow-[0_0_12px_rgba(250,204,21,0.15)] hover:border-yellow-600/80'
                   : index === 0 && temVenda
                     ? lado === 'A'
-                      ? 'bg-blue-950/20 border-blue-800/40 shadow-[inset_0_0_20px_rgba(59,130,246,0.04)]'
-                      : 'bg-red-950/20 border-red-800/40 shadow-[inset_0_0_20px_rgba(239,68,68,0.04)]'
-                    : 'bg-zinc-950/80 border-zinc-800/50 hover:bg-zinc-900/80'
+                      ? 'bg-blue-950/20 border-blue-800/40 shadow-[inset_0_0_20px_rgba(59,130,246,0.04)] hover:border-blue-600/60'
+                      : 'bg-red-950/20 border-red-800/40 shadow-[inset_0_0_20px_rgba(239,68,68,0.04)] hover:border-red-600/60'
+                    : 'bg-zinc-950/80 border-zinc-800/50 hover:bg-zinc-900/80 hover:border-zinc-600/60'
               }`}
             >
               <div className="flex items-center gap-2 min-w-0">
@@ -532,7 +539,7 @@ export function GuerraEquipes({ refreshTrigger, isAdmin = false }: GuerraEquipes
         {/* ── Legenda de patentes ─────────────────────────────────────────────── */}
         <div className="p-3 bg-zinc-950/40 rounded-lg border border-zinc-800/40 mb-4">
           <p className="text-[10px] text-zinc-600 font-black uppercase tracking-widest mb-2">
-            Sistema de Patentes (vendas aprovadas) — 0–20 • 21–30 • 31–49 • 50–60 • 61+
+            Sistema de Patentes — 5 vendas/nível · 4 níveis/patente · 20 vendas por patente
           </p>
           <div className="flex flex-wrap gap-1.5">
             {PATENTES.map(p => (
@@ -561,6 +568,21 @@ export function GuerraEquipes({ refreshTrigger, isAdmin = false }: GuerraEquipes
           onSalvo={fetchRankingEDesafio}
         />
       )}
+
+      {vendedorModal && (() => {
+        const n = calcularNivel(vendedorModal.total_vendas_count || 0);
+        return (
+          <ModalVendedor
+            vendedor={{
+              ...vendedorModal,
+              patente: n.patente.nome,
+              patenteIcone: n.patente.icone,
+              nivel: n.nivel,
+            }}
+            onClose={() => setVendedorModal(null)}
+          />
+        );
+      })()}
     </>
   );
 }
