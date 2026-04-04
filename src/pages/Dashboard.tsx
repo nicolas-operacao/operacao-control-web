@@ -1,17 +1,18 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
-import { GuerraEquipes } from '../components/GuerraEquipes'; 
-import { RelatorioBatalha } from '../components/RelatorioBatalha'; 
-import { ModalGerenciarProdutos } from '../components/ModalGerenciarProdutos'; 
-import { ModalRegistrarVenda } from '../components/ModalRegistrarVenda'; 
-import { ModalGerenciarDesafios } from '../components/ModalGerenciarDesafios'; 
+import { GuerraEquipes } from '../components/GuerraEquipes';
+import { RelatorioBatalha } from '../components/RelatorioBatalha';
+import { ModalGerenciarProdutos } from '../components/ModalGerenciarProdutos';
+import { ModalRegistrarVenda } from '../components/ModalRegistrarVenda';
+import { ModalGerenciarDesafios } from '../components/ModalGerenciarDesafios';
+import { DashboardMensal } from '../components/DashboardMensal';
 
 import { ModalConfirmacao } from '../components/ModalConfirmacao';
 import { ModalReembolsoAdmin } from '../components/ModalReembolsoAdmin';
 import { ModalEdicaoAdmin } from '../components/ModalEdicaoAdmin';
-import { ModalImportarPlanilha } from '../components/ModalImportarPlanilha'; 
-import { ModalFinanceiro } from '../components/ModalFinanceiro'; // 🔥 IMPORTAÇÃO DO FINANCEIRO
+import { ModalImportarPlanilha } from '../components/ModalImportarPlanilha';
+import { ModalFinanceiro } from '../components/ModalFinanceiro';
 import { ModalMensagemTatica } from '../components/ModalMensagemTatica';
 import { somHover, somClick } from '../services/hudSounds';
 
@@ -40,15 +41,35 @@ export function Dashboard() {
   const [desafioAtivo, setDesafioAtivo] = useState<any>(null);
   const META_MENSAL = desafioAtivo ? Number(desafioAtivo.goal_amount) : 400000;
 
+  const BRT_MS = 3 * 60 * 60 * 1000;
+
   const [vendasHoje, setVendasHoje] = useState(0);
   const [vendasSemana, setVendasSemana] = useState(0);
-  const [vendasMes, setVendasMes] = useState(0);
   const [qtdHoje, setQtdHoje] = useState(0);
   const [qtdSemana, setQtdSemana] = useState(0);
-  const [qtdMes, setQtdMes] = useState(0);
+
+  // Seletor de mês para o painel analítico
+  const [mesSelecionado, setMesSelecionado] = useState(() => {
+    const now = new Date();
+    return { ano: now.getFullYear(), mes: now.getMonth() };
+  });
 
   const [todasVendas, setTodasVendas] = useState<Venda[]>([]);
-  
+
+  // Vendas do mês selecionado (BRT-aware, aprovadas)
+  const { vendasMes, qtdMes, vendasDoMesSel } = useMemo(() => {
+    const aprovadas = todasVendas.filter(v => v.status === 'aprovada' && v.created_at);
+    const doMes = aprovadas.filter(v => {
+      const d = new Date(new Date(v.created_at).getTime() - BRT_MS);
+      return d.getUTCFullYear() === mesSelecionado.ano && d.getUTCMonth() === mesSelecionado.mes;
+    });
+    return {
+      vendasMes: doMes.reduce((acc, v) => acc + Number(v.sale_value), 0),
+      qtdMes: doMes.length,
+      vendasDoMesSel: doMes,
+    };
+  }, [todasVendas, mesSelecionado]);
+
   const [visaoAtiva, setVisaoAtiva] = useState<'hoje' | 'semana' | 'mes' | 'vendedor' | 'periodo' | null>(null);
   const [vendedorSelecionado, setVendedorSelecionado] = useState<string>('');
   const [metodoPagamentoFiltro, setMetodoPagamentoFiltro] = useState<string>('');
@@ -77,20 +98,26 @@ export function Dashboard() {
 
   async function fetchVendasPlacar() {
     try {
-      const response = await api.get('/sales'); setTodasVendas(response.data);
+      const response = await api.get('/sales');
+      setTodasVendas(response.data);
       const vendasAprovadas = response.data.filter((v: Venda) => v.status === 'aprovada');
-      const hojeData = new Date(); hojeData.setHours(0, 0, 0, 0);
-      const inicioSemana = new Date(hojeData); inicioSemana.setDate(hojeData.getDate() - hojeData.getDay()); 
-      const inicioMes = new Date(hojeData.getFullYear(), hojeData.getMonth(), 1); 
+      // BRT-aware: usa offset fixo de 3h para calcular hoje/semana no horário de Brasília
+      const nowBRT = new Date(Date.now() - BRT_MS);
+      const { y: nY, m: nM, d: nD } = { y: nowBRT.getUTCFullYear(), m: nowBRT.getUTCMonth(), d: nowBRT.getUTCDate() };
+      const hojeMs = Date.UTC(nY, nM, nD);
+      const diaSemana = nowBRT.getUTCDay() || 7; // 1=seg ... 7=dom
+      const inicioSemanaMs = hojeMs - (diaSemana - 1) * 86400000;
 
-      let tHoje = 0, tSemana = 0, tMes = 0, qHoje = 0, qSemana = 0, qMes = 0;
+      let tHoje = 0, tSemana = 0, qHoje = 0, qSemana = 0;
       vendasAprovadas.forEach((v: Venda) => {
-        const dataVenda = new Date(v.created_at); const valor = Number(v.sale_value);
-        if (dataVenda >= inicioMes) { tMes += valor; qMes++; }
-        if (dataVenda >= inicioSemana) { tSemana += valor; qSemana++; }
-        if (dataVenda >= hojeData) { tHoje += valor; qHoje++; }
+        const brt = new Date(new Date(v.created_at).getTime() - BRT_MS);
+        const vMs = Date.UTC(brt.getUTCFullYear(), brt.getUTCMonth(), brt.getUTCDate());
+        const valor = Number(v.sale_value);
+        if (vMs >= inicioSemanaMs) { tSemana += valor; qSemana++; }
+        if (vMs >= hojeMs) { tHoje += valor; qHoje++; }
       });
-      setVendasHoje(tHoje); setVendasSemana(tSemana); setVendasMes(tMes); setQtdHoje(qHoje); setQtdSemana(qSemana); setQtdMes(qMes);
+      setVendasHoje(tHoje); setVendasSemana(tSemana);
+      setQtdHoje(qHoje); setQtdSemana(qSemana);
       setSelectedEdits([]); setSelectedSales([]);
     } catch (error) {}
   }
@@ -512,6 +539,56 @@ export function Dashboard() {
           </div>
         </div>
 
+        {/* Navegador de mês */}
+        {(() => {
+          const MESES_NAV = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+          const navMes = (delta: number) => {
+            setMesSelecionado(prev => {
+              let m = prev.mes + delta;
+              let a = prev.ano;
+              if (m < 0) { m = 11; a--; }
+              if (m > 11) { m = 0; a++; }
+              return { mes: m, ano: a };
+            });
+          };
+          const isCurrentMonth = (() => {
+            const now = new Date();
+            return mesSelecionado.mes === now.getMonth() && mesSelecionado.ano === now.getFullYear();
+          })();
+          return (
+            <div className="flex items-center justify-between bg-zinc-900/80 border border-zinc-800 rounded-xl px-5 py-3 shadow-inner">
+              <div className="flex items-center gap-1">
+                <span className="text-zinc-600 text-[10px] font-black uppercase tracking-widest mr-2 hidden sm:block">Período:</span>
+                <button
+                  onMouseEnter={somHover}
+                  onClick={() => { somClick(); navMes(-1); }}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-black transition-all hover:scale-110 active:scale-95"
+                >←</button>
+                <div className="px-4 py-1.5 bg-yellow-400/10 border border-yellow-400/30 rounded-lg min-w-[140px] text-center">
+                  <span className="text-yellow-400 font-black text-sm uppercase tracking-widest">
+                    {MESES_NAV[mesSelecionado.mes]} {mesSelecionado.ano}
+                  </span>
+                </div>
+                <button
+                  onMouseEnter={somHover}
+                  onClick={() => { somClick(); navMes(1); }}
+                  disabled={isCurrentMonth}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-black transition-all hover:scale-110 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100"
+                >→</button>
+              </div>
+              {!isCurrentMonth && (
+                <button
+                  onMouseEnter={somHover}
+                  onClick={() => { somClick(); const now = new Date(); setMesSelecionado({ mes: now.getMonth(), ano: now.getFullYear() }); }}
+                  className="text-[10px] font-black uppercase tracking-widest text-zinc-500 hover:text-yellow-400 transition-colors border border-zinc-700 hover:border-yellow-400/50 px-3 py-1.5 rounded-lg"
+                >
+                  ← Mês Atual
+                </button>
+              )}
+            </div>
+          );
+        })()}
+
         <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
           <div onClick={() => { setVisaoAtiva('hoje'); setVendedorSelecionado(''); setDataInicio(''); setDataFim(''); }} className={`bg-zinc-900 border-l-4 p-6 rounded-lg shadow-2xl relative overflow-hidden cursor-pointer transform transition-all duration-200 hover:scale-[1.02] group ${visaoAtiva === 'hoje' ? 'border-yellow-400 ring-2 ring-yellow-400/50' : 'border-yellow-400 hover:border-yellow-300'}`}>
             <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">Vendas Hoje</p><h2 className="text-3xl font-black text-white">{formataBRL(vendasHoje)}</h2><p className="text-zinc-400 text-xs font-bold mt-2 text-yellow-400/80">🔥 {qtdHoje} vendas confirmadas</p>
@@ -521,7 +598,7 @@ export function Dashboard() {
           </div>
           <div onClick={() => { setVisaoAtiva('mes'); setVendedorSelecionado(''); setDataInicio(''); setDataFim(''); }} className={`bg-zinc-900 border-l-4 p-6 rounded-lg shadow-2xl relative overflow-hidden md:col-span-2 cursor-pointer transform transition-all duration-200 hover:scale-[1.02] group ${visaoAtiva === 'mes' ? 'border-yellow-400 ring-2 ring-yellow-400/50' : 'border-yellow-400 hover:border-yellow-300'}`}>
             <div className="absolute top-0 right-0 p-4 opacity-5 text-yellow-400 text-8xl">🎯</div>
-            <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">Acumulado ({desafioAtivo ? desafioAtivo.name : 'Geral'})</p>
+            <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">Acumulado — {['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][mesSelecionado.mes]} {mesSelecionado.ano}</p>
             <div className="flex justify-between items-end"><h2 className="text-4xl font-black text-white">{formataBRL(vendasMes)}</h2><span className="text-zinc-500 text-sm font-bold mb-1">Meta: {formataBRL(META_MENSAL)}</span></div>
             <div className="w-full bg-zinc-950 border border-zinc-800 rounded-full h-4 mt-4 overflow-hidden"><div className="bg-yellow-400 h-4 rounded-full relative transition-all duration-1000" style={{ width: `${progressoMeta}%` }}></div></div>
             <div className="flex justify-between mt-2"><p className="text-zinc-400 text-xs font-bold text-yellow-400/80">🔥 {qtdMes} vendas confirmadas</p><p className="text-right text-yellow-400/50 text-xs font-bold">{progressoMeta.toFixed(1)}% alcançado</p></div>
@@ -558,6 +635,19 @@ export function Dashboard() {
             </div>
           </div>
         )}
+
+        {/* Painel Analítico do Mês */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 pb-2 border-b border-zinc-800">
+            <h2 className="text-xl font-black text-white uppercase tracking-widest flex items-center gap-2">
+              📈 Painel Analítico
+            </h2>
+            <span className="text-yellow-400 font-black text-sm">
+              — {['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][mesSelecionado.mes]} {mesSelecionado.ano}
+            </span>
+          </div>
+          <DashboardMensal vendas={vendasDoMesSel} mes={mesSelecionado.mes} ano={mesSelecionado.ano} />
+        </div>
 
         <div className="w-full"><GuerraEquipes refreshTrigger={mainRefreshTrigger} isAdmin={true} /></div>
       </div>
