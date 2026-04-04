@@ -66,6 +66,32 @@ export function Dashboard() {
   const somDinheiro = () => new Audio('https://actions.google.com/sounds/v1/foley/cash_register.ogg').play().catch(() => {});
   const somAlerta = () => new Audio('https://actions.google.com/sounds/v1/alarms/buzzer_alarm.ogg').play().catch(() => {});
   const somSucesso = () => new Audio('https://actions.google.com/sounds/v1/cartoon/bell_ding.ogg').play().catch(() => {});
+
+  // Sons sintéticos via Web Audio API — sem arquivos externos
+  const somHover = () => {
+    try {
+      const ctx = new AudioContext();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type = 'sine'; osc.frequency.value = 880;
+      gain.gain.setValueAtTime(0.06, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+      osc.start(); osc.stop(ctx.currentTime + 0.08);
+    } catch { /* ignora */ }
+  };
+  const somClick = () => {
+    try {
+      const ctx = new AudioContext();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type = 'square'; osc.frequency.value = 520;
+      gain.gain.setValueAtTime(0.12, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
+      osc.start(); osc.stop(ctx.currentTime + 0.12);
+    } catch { /* ignora */ }
+  };
   const lancarConfetes = () => confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 }, colors: ['#FACC15', '#22C55E', '#3B82F6'] });
 
   useEffect(() => { fetchProdutos(); fetchVendasPlacar(); fetchDesafioAtivo(); }, []);
@@ -190,88 +216,104 @@ export function Dashboard() {
       <ModalMensagemTatica />
       <div className="max-w-7xl mx-auto space-y-5 md:space-y-8">
 
-        {/* ── Header ────────────────────────────────────────────────────── */}
-        <div className="pb-4 border-b border-zinc-800">
-          {/* Linha 1: título + sair */}
+        {/* ── HUD Header ────────────────────────────────────────────────── */}
+        <div className="relative">
+          {/* Linha decorativa topo */}
+          <div className="absolute -top-3 left-0 right-0 h-px bg-gradient-to-r from-transparent via-yellow-400/40 to-transparent" />
+
+          {/* Título + sair */}
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              <h1 className="text-2xl md:text-4xl font-black text-yellow-400 uppercase tracking-wider leading-none">
-                Operação Control
-              </h1>
-              <span className="bg-zinc-800 text-zinc-400 border border-zinc-700 text-[10px] px-2.5 py-1 rounded font-black uppercase tracking-widest hidden sm:block">
-                Admin
+              <div className="relative">
+                <h1 className="text-2xl md:text-4xl font-black text-yellow-400 uppercase tracking-wider leading-none drop-shadow-[0_0_20px_rgba(250,204,21,0.4)]">
+                  Operação Control
+                </h1>
+                <div className="absolute -bottom-1 left-0 right-0 h-px bg-gradient-to-r from-yellow-400/60 to-transparent" />
+              </div>
+              <span className="bg-yellow-400/10 text-yellow-400 border border-yellow-400/30 text-[9px] px-2.5 py-1 rounded font-black uppercase tracking-widest hidden sm:block animate-pulse">
+                ◆ ADMIN
               </span>
             </div>
             <button
-              onClick={handleLogout}
-              className="flex items-center gap-1.5 bg-zinc-900 border border-zinc-700 hover:bg-red-950 hover:border-red-700 text-zinc-400 hover:text-red-400 px-3 py-2 rounded-lg font-bold uppercase text-[10px] tracking-widest transition-all"
+              onMouseEnter={somHover}
+              onClick={() => { somClick(); handleLogout(); }}
+              className="group flex items-center gap-2 bg-zinc-900 border border-zinc-700 hover:bg-red-950/60 hover:border-red-500/70 text-zinc-500 hover:text-red-400 px-4 py-2 rounded-lg font-black uppercase text-[10px] tracking-widest transition-all duration-200 hover:shadow-[0_0_12px_rgba(239,68,68,0.25)]"
             >
               <span className="hidden sm:inline">Sair</span>
-              <span>✕</span>
+              <span className="group-hover:rotate-90 transition-transform duration-200">✕</span>
             </button>
           </div>
 
-          {/* Linha 2: ação principal + grupos de botões */}
-          <div className="flex flex-col sm:flex-row gap-3">
-            {/* CTA principal */}
-            <button
-              onClick={() => setIsModalVendaOpen(true)}
-              className="sm:flex-shrink-0 bg-yellow-400 hover:bg-yellow-300 active:scale-95 text-black font-black px-5 py-3 rounded-xl shadow-[0_0_20px_rgba(250,204,21,0.35)] uppercase text-sm tracking-widest transition-all"
-            >
-              + Registrar Venda
-            </button>
+          {/* Menu HUD */}
+          <div className="bg-zinc-950 border border-zinc-800/80 rounded-xl p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] relative overflow-hidden">
+            {/* Scanline decorativo */}
+            <div className="absolute inset-0 bg-[repeating-linear-gradient(0deg,transparent,transparent_2px,rgba(255,255,255,0.01)_2px,rgba(255,255,255,0.01)_4px)] pointer-events-none" />
 
-            {/* Grupo de gestão */}
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => setIsModalDesafioOpen(true)}
-                className="flex items-center gap-1.5 border border-red-800/60 bg-red-950/20 text-red-400 hover:bg-red-500 hover:text-white px-3 py-2 rounded-lg font-bold text-[10px] uppercase tracking-widest transition-all"
-              >
-                ⚔️ <span className="hidden xs:inline">Temporadas</span>
-              </button>
-              <button
-                onClick={() => setIsModalProdutoOpen(true)}
-                className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white font-bold px-3 py-2 rounded-lg text-[10px] uppercase tracking-widest transition-all shadow-[0_0_10px_rgba(37,99,235,0.2)]"
-              >
-                ⚙️ <span>Produtos</span>
-              </button>
-              <button
-                onClick={() => setIsFinanceiroModalOpen(true)}
-                className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-2 rounded-lg text-[10px] uppercase tracking-widest transition-all shadow-[0_0_10px_rgba(16,185,129,0.2)]"
-              >
-                💰 <span>Financeiro</span>
-              </button>
-              <button
-                onClick={() => setIsImportModalOpen(true)}
-                className="flex items-center gap-1.5 bg-zinc-800 hover:bg-green-700 text-zinc-300 hover:text-white font-bold px-3 py-2 rounded-lg text-[10px] uppercase tracking-widest transition-all border border-zinc-700 hover:border-green-600"
-              >
-                📥 <span className="hidden sm:inline">Planilha</span>
-              </button>
-            </div>
+            <div className="relative flex flex-wrap gap-2 items-center">
 
-            {/* Grupo de pessoas */}
-            <div className="flex flex-wrap gap-2 sm:ml-auto">
+              {/* ── CTA Principal ── */}
               <button
-                onClick={() => navigate('/liberacoes')}
-                className="flex items-center gap-1.5 bg-purple-600 hover:bg-purple-500 text-white font-bold px-3 py-2 rounded-lg text-[10px] uppercase tracking-widest transition-all shadow-[0_0_10px_rgba(147,51,234,0.2)]"
+                onMouseEnter={somHover}
+                onClick={() => { somClick(); setIsModalVendaOpen(true); }}
+                className="flex items-center gap-2 bg-yellow-400 hover:bg-yellow-300 active:scale-95 text-black font-black px-5 py-2.5 rounded-lg shadow-[0_0_20px_rgba(250,204,21,0.4)] hover:shadow-[0_0_30px_rgba(250,204,21,0.6)] uppercase text-xs tracking-widest transition-all duration-200"
               >
-                🛡️ <span>Suporte</span>
+                <span className="text-base">⚔️</span>
+                <span>Registrar Venda</span>
               </button>
-              <button
-                onClick={() => navigate('/admin/recrutas')}
-                className="flex items-center gap-1.5 border border-purple-700/50 bg-purple-950/20 text-purple-400 hover:bg-purple-500 hover:text-white px-3 py-2 rounded-lg font-bold text-[10px] uppercase tracking-widest transition-all"
-              >
-                ⚠️ <span>Recrutas</span>
-              </button>
-              <button
-                onClick={handleLimparFogoAmigo}
-                className="flex items-center gap-1.5 bg-red-950/30 border border-red-800/50 text-red-500 hover:bg-red-600 hover:text-white hover:border-red-600 px-3 py-2 rounded-lg font-bold text-[10px] uppercase tracking-widest transition-all"
-                title="Apagar vendas injetadas por checkout automático"
-              >
-                🧹 <span className="hidden md:inline">Limpar Injetados</span>
-              </button>
+
+              {/* Separador */}
+              <div className="h-8 w-px bg-zinc-800 mx-1 hidden sm:block" />
+
+              {/* ── Gestão ── */}
+              <div className="flex flex-wrap gap-1.5 items-center">
+                <span className="text-[8px] text-zinc-600 font-black uppercase tracking-widest hidden lg:block mr-1">Gestão</span>
+
+                {[
+                  { label: 'Temporadas', icon: '🏴', cor: 'hover:bg-orange-500/20 hover:border-orange-500/60 hover:text-orange-300 hover:shadow-[0_0_12px_rgba(249,115,22,0.3)]', acao: () => setIsModalDesafioOpen(true) },
+                  { label: 'Produtos',   icon: '📦', cor: 'hover:bg-blue-500/20 hover:border-blue-500/60 hover:text-blue-300 hover:shadow-[0_0_12px_rgba(59,130,246,0.3)]',   acao: () => setIsModalProdutoOpen(true) },
+                  { label: 'Financeiro', icon: '💰', cor: 'hover:bg-emerald-500/20 hover:border-emerald-500/60 hover:text-emerald-300 hover:shadow-[0_0_12px_rgba(16,185,129,0.3)]', acao: () => setIsFinanceiroModalOpen(true) },
+                  { label: 'Planilha',   icon: '📥', cor: 'hover:bg-green-500/20 hover:border-green-500/60 hover:text-green-300 hover:shadow-[0_0_12px_rgba(34,197,94,0.3)]',   acao: () => setIsImportModalOpen(true) },
+                ].map(({ label, icon, cor, acao }) => (
+                  <button
+                    key={label}
+                    onMouseEnter={somHover}
+                    onClick={() => { somClick(); acao(); }}
+                    className={`flex items-center gap-1.5 bg-zinc-900 border border-zinc-700/60 text-zinc-400 px-3 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest transition-all duration-200 ${cor}`}
+                  >
+                    <span>{icon}</span>
+                    <span className="hidden sm:inline">{label}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Separador */}
+              <div className="h-8 w-px bg-zinc-800 mx-1 hidden sm:block" />
+
+              {/* ── Operações ── */}
+              <div className="flex flex-wrap gap-1.5 items-center sm:ml-auto">
+                <span className="text-[8px] text-zinc-600 font-black uppercase tracking-widest hidden lg:block mr-1">Operações</span>
+
+                {[
+                  { label: 'Suporte',          icon: '🛡️', cor: 'hover:bg-purple-500/20 hover:border-purple-500/60 hover:text-purple-300 hover:shadow-[0_0_12px_rgba(168,85,247,0.3)]', acao: () => navigate('/liberacoes') },
+                  { label: 'Recrutas',          icon: '🪖', cor: 'hover:bg-indigo-500/20 hover:border-indigo-500/60 hover:text-indigo-300 hover:shadow-[0_0_12px_rgba(99,102,241,0.3)]',  acao: () => navigate('/admin/recrutas') },
+                  { label: 'Limpar Injetados', icon: '🧹', cor: 'hover:bg-red-500/20 hover:border-red-500/60 hover:text-red-300 hover:shadow-[0_0_12px_rgba(239,68,68,0.3)]',          acao: handleLimparFogoAmigo },
+                ].map(({ label, icon, cor, acao }) => (
+                  <button
+                    key={label}
+                    onMouseEnter={somHover}
+                    onClick={() => { somClick(); acao(); }}
+                    className={`flex items-center gap-1.5 bg-zinc-900 border border-zinc-700/60 text-zinc-400 px-3 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest transition-all duration-200 ${cor}`}
+                  >
+                    <span>{icon}</span>
+                    <span className="hidden sm:inline">{label}</span>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
+
+          {/* Linha decorativa fundo */}
+          <div className="absolute -bottom-3 left-0 right-0 h-px bg-gradient-to-r from-transparent via-zinc-700/40 to-transparent" />
         </div>
 
         {/* RADAR GLOBAL DE BUSCA */}
