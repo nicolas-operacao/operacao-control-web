@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { api } from '../services/api';
 import { somClick, somHover } from '../services/hudSounds';
 
@@ -39,41 +39,51 @@ const formataBRL = (v: number) =>
 
 // ─── MINI GRÁFICO DE BARRAS ───────────────────────────────────────────────────
 
+type TooltipBar = { idx: number; valor: number; count: number; x: number; y: number } | null;
+
 function BarChart({ dados, corBarra }: { dados: BarData[]; corBarra: string }) {
   const max = Math.max(...dados.map(d => d.valor), 1);
-  const CHART_H = 80; // px explícito — percentage heights só funcionam com px no pai
+  const CHART_H = 80;
+  const [tooltip, setTooltip] = useState<TooltipBar>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   return (
-    <div className="flex items-end gap-1.5 w-full">
-      {dados.map((d, i) => {
-        const barPx = d.valor > 0
-          ? Math.max(Math.round((d.valor / max) * CHART_H), 6)
-          : 2;
-        return (
-          <div key={i} className="flex-1 flex flex-col items-center gap-1 group relative">
-            {/* tooltip */}
+    <div className="relative w-full" ref={containerRef}>
+      {/* Tooltip fora do overflow */}
+      {tooltip && (
+        <div
+          className="absolute bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-[10px] font-bold text-white whitespace-nowrap shadow-xl z-20 pointer-events-none"
+          style={{ left: tooltip.x, top: tooltip.y, transform: 'translate(-50%, -100%) translateY(-6px)' }}
+        >
+          {formataBRL(tooltip.valor)}
+          <span className="text-zinc-400 ml-1">({tooltip.count} venda{tooltip.count !== 1 ? 's' : ''})</span>
+        </div>
+      )}
+      <div className="flex items-end gap-1.5 w-full" style={{ paddingTop: 40 }}>
+        {dados.map((d, i) => {
+          const barPx = d.valor > 0 ? Math.max(Math.round((d.valor / max) * CHART_H), 6) : 2;
+          return (
             <div
-              className="absolute left-1/2 -translate-x-1/2 hidden group-hover:flex flex-col items-center z-10 pointer-events-none"
-              style={{ bottom: barPx + 6 }}
+              key={i}
+              className="flex-1 flex flex-col items-center gap-1 cursor-default"
+              onMouseEnter={d.valor > 0 ? (e) => {
+                const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                const cRect = containerRef.current!.getBoundingClientRect();
+                setTooltip({ idx: i, valor: d.valor, count: d.count, x: rect.left - cRect.left + rect.width / 2, y: rect.top - cRect.top - 4 });
+              } : undefined}
+              onMouseLeave={() => setTooltip(null)}
             >
-              <div className="bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-[10px] font-bold text-white whitespace-nowrap shadow-xl">
-                {formataBRL(d.valor)}
-                <span className="text-zinc-400 ml-1">({d.count} venda{d.count !== 1 ? 's' : ''})</span>
+              <div className="w-full flex items-end" style={{ height: CHART_H }}>
+                <div
+                  className={`w-full rounded-t transition-all duration-700 ${corBarra} ${d.valor === 0 ? 'opacity-20' : 'opacity-80 hover:opacity-100'}`}
+                  style={{ height: barPx }}
+                />
               </div>
-              <div className="w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-zinc-700" />
+              <span className="text-[9px] text-zinc-600 font-bold truncate w-full text-center">{d.label}</span>
             </div>
-
-            {/* Área do gráfico com altura fixa em px */}
-            <div className="w-full flex items-end" style={{ height: CHART_H }}>
-              <div
-                className={`w-full rounded-t transition-all duration-700 ${corBarra} ${d.valor === 0 ? 'opacity-20' : 'opacity-100'}`}
-                style={{ height: barPx }}
-              />
-            </div>
-            <span className="text-[9px] text-zinc-600 font-bold truncate w-full text-center">{d.label}</span>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }

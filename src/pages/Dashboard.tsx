@@ -21,6 +21,7 @@ import { ModalEstatisticasPeriodo } from '../components/ModalEstatisticasPeriodo
 import { ModalVendedor } from '../components/ModalVendedor';
 import { somHover, somClick, somVendaAprovada } from '../services/hudSounds';
 import { pedirPermissaoNotificacao } from '../services/notificacoes';
+import { toast } from '../services/toast';
 
 import confetti from 'canvas-confetti'; 
 
@@ -173,40 +174,48 @@ export function Dashboard() {
     );
 
     if (vendasDoRobo.length === 0) {
-      alert("Comandante, não achei vendas com o ID 99999 ou nome 'Checkout Automático'. Se você usou outro ID na hora de importar, me avise para eu ajustar o radar!"); 
+      toast.warning("Nenhuma venda com ID 99999 ou 'Checkout Automático' encontrada.");
       return;
     }
 
-    const confirma = window.confirm(`⚠️ ATENÇÃO: Isso vai apagar TODAS as ${vendasDoRobo.length} vendas importadas incorretamente. Deseja prosseguir?`);
-    if (!confirma) return;
-
-    try {
-      // Deleta uma por uma
-      for (const venda of vendasDoRobo) {
-        await api.delete(`/sales/${venda.id}`);
+    setConfirmDialog({
+      isOpen: true,
+      title: 'LIMPAR IMPORTAÇÃO',
+      message: `Isso vai apagar TODAS as ${vendasDoRobo.length} vendas importadas. Confirma?`,
+      type: 'red',
+      action: async () => {
+        try {
+          for (const venda of vendasDoRobo) {
+            await api.delete(`/sales/${venda.id}`);
+          }
+          somSucesso();
+          toast.success('Base limpa! Vendas importadas removidas.');
+          fetchVendasPlacar();
+        } catch (e) {
+          toast.error('Erro ao limpar algumas vendas.');
+        }
       }
-      somSucesso();
-      alert("🧹 Base limpa! As vendas importadas erradas foram removidas. Os números vão voltar ao normal.");
-      fetchVendasPlacar();
-    } catch (e) {
-      alert("Erro ao limpar algumas vendas.");
-    }
+    });
   };
 
-  function copiarTexto(texto?: string) { if (!texto) return; navigator.clipboard.writeText(texto); alert(`📋 Copiado: ${texto}`); }
+  function copiarTexto(texto?: string) {
+    if (!texto) return;
+    navigator.clipboard.writeText(texto);
+    toast.info(`Copiado: ${texto}`);
+  }
   const openConfirm = (title: string, message: string, type: 'red' | 'blue' | 'green' | 'yellow', action: () => Promise<void>) => { setConfirmDialog({ isOpen: true, title, message, type, action }); };
   const executeConfirm = async () => { setConfirmDialog(prev => ({ ...prev, isOpen: false })); await confirmDialog.action(); };
   function openRefundModal(venda: Venda) { setSelectedSaleToAction(venda); setIsRefundModalOpen(true); }
   function openAdminEditModal(venda: Venda) { setSelectedSaleToAction(venda); setIsAdminEditModalOpen(true); }
 
-  const handleAprovarEdicao = (id: string) => openConfirm('APROVAR CORREÇÃO', 'Confirma a alteração?', 'blue', async () => { try { await api.post(`/sales/${id}/approve-edit`); somSucesso(); fetchVendasPlacar(); } catch (error) { alert("Erro ao aprovar."); }});
-  const handleRejeitarEdicao = (id: string) => openConfirm('REJEITAR CORREÇÃO', 'O vendedor será notificado.', 'red', async () => { try { await api.post(`/sales/${id}/reject-edit`); somAlerta(); fetchVendasPlacar(); } catch (error) { alert("Erro ao rejeitar."); }});
-  const handleAprovarVenda = (id: string) => openConfirm('LIBERAR VENDA', 'Esta venda será creditada.', 'green', async () => { try { await api.post(`/sales/${id}/approve`); somDinheiro(); lancarConfetes(); fetchVendasPlacar(); } catch (error) { alert("Erro ao liberar."); }});
-  const handleDeleteVenda = (id: string) => openConfirm('EXCLUIR VENDA', '⚠️ ALERTA: Esta venda será apagada.', 'red', async () => { try { await api.delete(`/sales/${id}`); somAlerta(); fetchVendasPlacar(); } catch (error) { alert('Erro ao excluir.'); }});
-  const batchApproveEdits = () => openConfirm('APROVAR SELECIONADOS', `Aprovar ${selectedEdits.length} correções?`, 'blue', async () => { try { await Promise.all(selectedEdits.map(id => api.post(`/sales/${id}/approve-edit`))); somSucesso(); fetchVendasPlacar(); } catch (error) { alert("Erro."); }});
-  const batchRejectEdits = () => openConfirm('REJEITAR SELECIONADOS', `Rejeitar ${selectedEdits.length} correções?`, 'red', async () => { try { await Promise.all(selectedEdits.map(id => api.post(`/sales/${id}/reject-edit`))); somAlerta(); fetchVendasPlacar(); } catch (error) { alert("Erro."); }});
-  const batchApproveSales = () => openConfirm('LIBERAR SELECIONADAS', `Liberar ${selectedSales.length} vendas?`, 'green', async () => { try { await Promise.all(selectedSales.map(id => api.post(`/sales/${id}/approve`))); somDinheiro(); lancarConfetes(); fetchVendasPlacar(); } catch (error) { alert("Erro."); }});
-  const batchDeleteSales = () => openConfirm('EXCLUIR SELECIONADAS', `⚠️ ALERTA: APAGAR ${selectedSales.length} vendas?`, 'red', async () => { try { await Promise.all(selectedSales.map(id => api.delete(`/sales/${id}`))); somAlerta(); fetchVendasPlacar(); } catch (error) { alert("Erro."); }});
+  const handleAprovarEdicao = (id: string) => openConfirm('APROVAR CORREÇÃO', 'Confirma a alteração?', 'blue', async () => { try { await api.post(`/sales/${id}/approve-edit`); somSucesso(); fetchVendasPlacar(); } catch (error) { toast.error('Erro ao aprovar.'); }});
+  const handleRejeitarEdicao = (id: string) => openConfirm('REJEITAR CORREÇÃO', 'O vendedor será notificado.', 'red', async () => { try { await api.post(`/sales/${id}/reject-edit`); somAlerta(); fetchVendasPlacar(); } catch (error) { toast.error('Erro ao rejeitar.'); }});
+  const handleAprovarVenda = (id: string) => openConfirm('LIBERAR VENDA', 'Esta venda será creditada.', 'green', async () => { try { await api.post(`/sales/${id}/approve`); somDinheiro(); lancarConfetes(); fetchVendasPlacar(); } catch (error) { toast.error('Erro ao liberar.'); }});
+  const handleDeleteVenda = (id: string) => openConfirm('EXCLUIR VENDA', '⚠️ ALERTA: Esta venda será apagada.', 'red', async () => { try { await api.delete(`/sales/${id}`); somAlerta(); fetchVendasPlacar(); } catch (error) { toast.error('Erro ao excluir.'); }});
+  const batchApproveEdits = () => openConfirm('APROVAR SELECIONADOS', `Aprovar ${selectedEdits.length} correções?`, 'blue', async () => { try { await Promise.all(selectedEdits.map(id => api.post(`/sales/${id}/approve-edit`))); somSucesso(); fetchVendasPlacar(); } catch (error) { toast.error('Erro ao aprovar.'); }});
+  const batchRejectEdits = () => openConfirm('REJEITAR SELECIONADOS', `Rejeitar ${selectedEdits.length} correções?`, 'red', async () => { try { await Promise.all(selectedEdits.map(id => api.post(`/sales/${id}/reject-edit`))); somAlerta(); fetchVendasPlacar(); } catch (error) { toast.error('Erro ao rejeitar.'); }});
+  const batchApproveSales = () => openConfirm('LIBERAR SELECIONADAS', `Liberar ${selectedSales.length} vendas?`, 'green', async () => { try { await Promise.all(selectedSales.map(id => api.post(`/sales/${id}/approve`))); somDinheiro(); lancarConfetes(); fetchVendasPlacar(); } catch (error) { toast.error('Erro ao liberar.'); }});
+  const batchDeleteSales = () => openConfirm('EXCLUIR SELECIONADAS', `⚠️ ALERTA: APAGAR ${selectedSales.length} vendas?`, 'red', async () => { try { await Promise.all(selectedSales.map(id => api.delete(`/sales/${id}`))); somAlerta(); fetchVendasPlacar(); } catch (error) { toast.error('Erro ao excluir.'); }});
 
   const edicoesPendentes = todasVendas.filter(v => v.edit_status === 'pendente');
   const vendasPendentes = todasVendas.filter(v => v.status === 'pendente_liberacao' || v.status === 'pendente_boleto' || v.status === 'pendente');
@@ -215,7 +224,7 @@ export function Dashboard() {
   const selectAllEdits = () => setSelectedEdits(selectedEdits.length === edicoesPendentes.length ? [] : edicoesPendentes.map(e => e.id));
   const selectAllSales = () => setSelectedSales(selectedSales.length === vendasPendentes.length ? [] : vendasPendentes.map(v => v.id));
   function handleLogout() { localStorage.removeItem('user'); localStorage.removeItem('token'); navigate('/'); }
-  function handleFiltrar(e: React.FormEvent) { e.preventDefault(); if (!dataInicio || !dataFim) { alert("Insira a data!"); return; } setVendedorSelecionado(''); setVisaoAtiva('periodo'); somSucesso(); }
+  function handleFiltrar(e: React.FormEvent) { e.preventDefault(); if (!dataInicio || !dataFim) { toast.warning('Insira as datas para filtrar.'); return; } setVendedorSelecionado(''); setVisaoAtiva('periodo'); somSucesso(); }
 
   const vendasTabela = todasVendas.filter(v => {
     if (!visaoAtiva || !v.created_at) return false;

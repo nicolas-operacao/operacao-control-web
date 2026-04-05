@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import confetti from 'canvas-confetti';
 import { somClick, somHover } from '../services/hudSounds';
+import { toast } from '../services/toast';
 
 type Produto = {
   id: number;
@@ -61,17 +62,13 @@ export function ModalRegistrarVenda({ isOpen, onClose, produtos, user, onVendaRe
         customer_email: customerEmail, customer_phone: customerPhone, payment_method: paymentMethod,
         sale_value: Number(saleValue), sale_date: saleDate
       });
-      somSucesso(); 
-      lancarConfetes(); 
-      alert('⚡ Venda registrada com sucesso!');
-      
-      // Limpa os campos
+      somSucesso();
+      lancarConfetes();
+      toast.success('Venda registrada com sucesso!');
       setCustomerName(''); setCustomerEmail(''); setCustomerPhone(''); setSaleDate(hoje);
-      
-      // Avisa o Dashboard para atualizar a tela e fechar o modal
-      onVendaRegistrada(); 
-    } catch (error: any) { 
-      alert('Erro ao registrar venda.'); 
+      onVendaRegistrada();
+    } catch (error: any) {
+      toast.error('Erro ao registrar venda.');
     } finally { 
       setIsLoading(false); 
     }

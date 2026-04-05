@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { api } from '../services/api';
 import { somClick, somHover } from '../services/hudSounds';
+import { toast } from '../services/toast';
 
 type Produto = {
   id: number;
@@ -30,17 +31,17 @@ export function ModalGerenciarProdutos({ isOpen, onClose, produtos, onAtualizarL
     try {
       if (editandoProdutoId) {
         await api.put(`/products/${editandoProdutoId}`, { nome: novoProdutoNome, valor: Number(novoProdutoValor) });
-        alert('✅ Produto atualizado!');
+        toast.success('Produto atualizado!');
       } else {
         await api.post('/products', { nome: novoProdutoNome, valor: Number(novoProdutoValor) });
-        alert('✅ Produto cadastrado!');
+        toast.success('Produto cadastrado!');
       }
-      setNovoProdutoNome(''); 
-      setNovoProdutoValor(''); 
+      setNovoProdutoNome('');
+      setNovoProdutoValor('');
       setEditandoProdutoId(null);
-      onAtualizarLista(); // Avisa o Dashboard para recarregar a lista
+      onAtualizarLista();
     } catch (error) {
-      alert('Erro ao salvar produto.');
+      toast.error('Erro ao salvar produto.');
     }
   }
 

@@ -131,73 +131,70 @@ export function Login() {
     );
   }
 
-  // ==========================================
-  // 🔥 FASE 1: TELA DE LOGIN TÁTICO
-  // ==========================================
   return (
-    <div className="min-h-screen bg-zinc-950 flex flex-col justify-center items-center p-4 relative overflow-hidden">
-      
-      {/* Fundo da tela de Login com detalhe amarelo */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-yellow-900/5 via-zinc-950 to-zinc-950 z-0"></div>
+    <div className="min-h-screen bg-zinc-950 flex flex-col justify-center items-center p-4 relative overflow-hidden font-sans">
 
-      <div className="bg-zinc-900 border border-zinc-800 p-8 md:p-10 rounded-2xl shadow-[0_0_50px_rgba(0,0,0,0.5)] w-full max-w-md z-10 relative overflow-hidden">
-        
-        {/* 🔥 TELA DE CARREGAMENTO (SPINNER) QUE COBRE O FORMULÁRIO */}
-        {isLoading && (
-          <div className="absolute inset-0 bg-zinc-900/90 backdrop-blur-sm z-20 flex flex-col items-center justify-center animate-in fade-in duration-200">
-            <div className="w-14 h-14 border-4 border-zinc-800 border-t-yellow-400 rounded-full animate-spin shadow-[0_0_15px_rgba(250,204,21,0.5)] mb-4"></div>
-            <h3 className="text-yellow-400 font-black tracking-widest text-xs uppercase animate-pulse">
-              Autenticando...
-            </h3>
-            <p className="text-zinc-500 text-[9px] uppercase font-bold mt-2 tracking-widest">
-              Verificando Servidor Seguro
-            </p>
-          </div>
-        )}
+      {/* Gradientes de fundo */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-yellow-400/5 rounded-full blur-[120px]" />
+        <div className="absolute bottom-0 left-0 w-64 h-64 bg-yellow-600/5 rounded-full blur-[80px]" />
+        <div className="absolute top-0 right-0 w-48 h-48 bg-zinc-700/20 rounded-full blur-[80px]" />
+      </div>
 
-        <div className="text-center mb-10">
-          <h1 className="text-3xl font-black text-white uppercase tracking-tight">
-            Identificação <br/><span className="text-yellow-400 drop-shadow-[0_0_10px_rgba(250,204,21,0.2)]">Tática</span>
-          </h1>
-          <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest mt-3">
-            Acesse o Comando Central | OP Control
-          </p>
+      {/* Logo + título acima do card */}
+      <div className="z-10 text-center mb-8 animate-in fade-in slide-in-from-top-4 duration-500">
+        <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-yellow-400 shadow-[0_0_40px_rgba(250,204,21,0.4)] mb-4">
+          <span className="text-4xl font-black text-black leading-none select-none">OC</span>
         </div>
+        <h1 className="text-2xl font-black text-white uppercase tracking-[0.2em]">Operação Control</h1>
+        <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest mt-1">Sistema Tático de Vendas</p>
+      </div>
 
-        {/* ALERTA DE ERRO VISUAL (Substitui o window.alert feio) */}
-        {error && (
-          <div className="bg-red-950/30 border border-red-500/50 p-4 rounded-lg mb-6 flex items-center gap-3 animate-in shake">
-            <span className="text-red-500 text-xl">⚠️</span>
-            <p className="text-red-400 text-xs font-bold uppercase tracking-wide">{error}</p>
+      {/* Card */}
+      <div className="bg-zinc-900/80 backdrop-blur border border-zinc-800 p-8 rounded-2xl shadow-[0_0_60px_rgba(0,0,0,0.6)] w-full max-w-sm z-10 relative overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
+
+        {/* Linha decorativa topo */}
+        <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-yellow-400/60 to-transparent" />
+
+        {/* Overlay de loading */}
+        {isLoading && (
+          <div className="absolute inset-0 bg-zinc-900/90 backdrop-blur-sm z-20 flex flex-col items-center justify-center animate-in fade-in duration-200 rounded-2xl">
+            <div className="w-12 h-12 border-4 border-zinc-800 border-t-yellow-400 rounded-full animate-spin shadow-[0_0_15px_rgba(250,204,21,0.4)] mb-3" />
+            <p className="text-yellow-400 font-black text-xs uppercase tracking-widest animate-pulse">Autenticando...</p>
           </div>
         )}
 
-        <form onSubmit={handleLogin} className="space-y-6">
+        <h2 className="text-lg font-black text-white uppercase tracking-widest mb-6 text-center">Acesso ao Comando</h2>
+
+        {error && (
+          <div className="bg-red-950/40 border border-red-500/40 p-3 rounded-xl mb-5 flex items-center gap-3 animate-in fade-in duration-200">
+            <span className="text-red-400 text-base flex-shrink-0">⚠️</span>
+            <p className="text-red-300 text-xs font-bold">{error}</p>
+          </div>
+        )}
+
+        <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label className="block text-zinc-400 text-[10px] font-black uppercase tracking-widest mb-2">
-              E-mail Operacional
-            </label>
-            <input 
-              type="email" 
-              required 
-              value={email} 
-              onChange={(e) => setEmail(e.target.value)} 
-              placeholder="nicolas@comando.com"
-              className="w-full bg-zinc-950 border border-zinc-800 text-white rounded-lg p-4 focus:outline-none focus:border-yellow-400 transition-colors" 
+            <label className="block text-zinc-500 text-[10px] font-black uppercase tracking-widest mb-1.5">E-mail</label>
+            <input
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="seu@email.com"
+              className="w-full bg-zinc-950 border border-zinc-800 hover:border-zinc-700 focus:border-yellow-400 text-white rounded-xl px-4 py-3 text-sm outline-none transition-colors placeholder:text-zinc-700"
             />
           </div>
 
           <div>
-            <label className="block text-zinc-400 text-[10px] font-black uppercase tracking-widest mb-2">
-              Senha de Acesso
-            </label>
-            <input 
-              type="password" 
-              required 
-              value={password} 
-              onChange={(e) => setPassword(e.target.value)} 
+            <label className="block text-zinc-500 text-[10px] font-black uppercase tracking-widest mb-1.5">Senha</label>
+            <input
+              type="password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
-              className="w-full bg-zinc-950 border border-zinc-800 text-white rounded-lg p-4 focus:outline-none focus:border-yellow-400 transition-colors" 
+              className="w-full bg-zinc-950 border border-zinc-800 hover:border-zinc-700 focus:border-yellow-400 text-white rounded-xl px-4 py-3 text-sm outline-none transition-colors placeholder:text-zinc-700"
             />
           </div>
 
@@ -206,17 +203,16 @@ export function Login() {
             onMouseEnter={somHover}
             onClick={somClick}
             disabled={isLoading}
-            className="w-full bg-yellow-400 hover:bg-yellow-300 text-black font-black py-4 rounded-lg mt-4 uppercase tracking-widest shadow-[0_0_15px_rgba(250,204,21,0.3)] transition-transform hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed"
+            className="w-full bg-yellow-400 hover:bg-yellow-300 active:scale-95 text-black font-black py-3.5 rounded-xl mt-2 uppercase tracking-widest shadow-[0_0_20px_rgba(250,204,21,0.25)] hover:shadow-[0_0_30px_rgba(250,204,21,0.4)] transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm"
           >
-            CONFIRMAR IDENTIDADE ⚡
+            Entrar ⚡
           </button>
         </form>
 
-        <div className="mt-8 pt-6 border-t border-zinc-800 text-center">
-          <p className="text-zinc-500 text-xs mb-2">Ainda não faz parte da tropa?</p>
-          {/* 🔥 Link de Cadastro mantido como /cadastro */}
-          <Link to="/cadastro" className="text-yellow-400 font-bold text-xs uppercase tracking-widest hover:text-yellow-300 transition-colors">
-            ALISTE-SE AQUI
+        <div className="mt-6 pt-5 border-t border-zinc-800/60 text-center">
+          <p className="text-zinc-600 text-xs mb-1.5">Ainda não tem conta?</p>
+          <Link to="/cadastro" className="text-yellow-400 hover:text-yellow-300 font-bold text-xs uppercase tracking-widest transition-colors">
+            Alistamento →
           </Link>
         </div>
       </div>

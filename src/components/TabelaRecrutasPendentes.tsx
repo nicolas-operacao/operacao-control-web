@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { BotaoHUD } from './BotaoHUD';
+import { toast } from '../services/toast';
 
 type User = {
   id: string;
@@ -28,10 +29,10 @@ export function TabelaRecrutasPendentes() {
   async function handleApprove(id: string) {
     try {
       await api.patch(`/admin/${id}/approve`);
-      alert('Recruta aprovado com sucesso!');
+      toast.success('Recruta aprovado com sucesso!');
       setPendingUsers(pendingUsers.filter(user => user.id !== id));
     } catch (error) {
-      alert('Erro ao aprovar usuário.');
+      toast.error('Erro ao aprovar usuário.');
     }
   }
 

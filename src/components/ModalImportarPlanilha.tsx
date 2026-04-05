@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { api } from '../services/api';
 import { somClick, somHover } from '../services/hudSounds';
+import { toast } from '../services/toast';
 
 interface Props {
   isOpen: boolean;
@@ -55,7 +56,7 @@ export function ModalImportarPlanilha({ isOpen, onClose, vendasAtuais, onSuccess
     reader.onload = (event) => {
       const text = event.target?.result as string;
       const rows = text.split(/\r?\n/);
-      if (rows.length < 2) { alert("O arquivo parece vazio ou inválido."); return; }
+      if (rows.length < 2) { toast.warning("O arquivo parece vazio ou inválido."); return; }
 
       const separator = rows[0].includes(';') ? ';' : ',';
       const headers = parseCSVLine(rows[0], separator).map(h => h.toLowerCase());
@@ -75,7 +76,7 @@ export function ModalImportarPlanilha({ isOpen, onClose, vendasAtuais, onSuccess
       const idxStatusPgto = headers.findIndex(h => h === 'status pedido' || h === 'situação' || h === 'status');
 
       if (idxNome === -1 || idxEmail === -1 || idxValor === -1) {
-        alert("Erro: Não encontramos as colunas necessárias na planilha."); return;
+        toast.error("Colunas necessárias não encontradas na planilha."); return;
       }
 
       const dadosExtraidos: LinhaPlanilha[] = [];
@@ -154,7 +155,7 @@ export function ModalImportarPlanilha({ isOpen, onClose, vendasAtuais, onSuccess
   const handleSincronizar = async () => {
     const vendasNovas = linhas.filter(l => l.statusImportacao === 'NOVA');
     if (vendasNovas.length === 0) {
-      alert("Nenhuma venda nova para importar!"); return;
+      toast.info("Nenhuma venda nova para importar."); return;
     }
 
     setIsUploading(true);
@@ -180,10 +181,10 @@ export function ModalImportarPlanilha({ isOpen, onClose, vendasAtuais, onSuccess
       }
 
       somSucesso();
-      alert(`✅ ${vendasNovas.length} vendas de Checkout importadas com sucesso!`);
+      toast.success(`${vendasNovas.length} vendas importadas com sucesso!`);
       setLinhas([]); onSuccess();
     } catch {
-      alert('🚨 Erro ao enviar algumas vendas.');
+      toast.error("Erro ao enviar algumas vendas.");
     } finally { setIsUploading(false); }
   };
 

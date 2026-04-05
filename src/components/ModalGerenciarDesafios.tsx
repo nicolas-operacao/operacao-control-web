@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { somClick, somHover } from '../services/hudSounds';
+import { toast } from '../services/toast';
 
 type Challenge = {
   id: string;
@@ -28,6 +29,7 @@ export function ModalGerenciarDesafios({ isOpen, onClose, onAtualizar }: ModalGe
   
   // 🔥 ESTADOS DE EDIÇÃO
   const [isEditing, setIsEditing] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [editingChallengeId, setEditingChallengeId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -82,49 +84,49 @@ export function ModalGerenciarDesafios({ isOpen, onClose, onAtualizar }: ModalGe
       if (isEditing && editingChallengeId) {
         // EDIÇÃO (PUT)
         await api.put(`/challenges/${editingChallengeId}`, payload);
-        alert('⚙️ Operação ATUALIZADA com sucesso!');
+        toast.success('Operação atualizada com sucesso!');
       } else {
-        // CRIAÇÃO (POST)
         await api.post('/challenges', payload);
-        alert('🎯 Operação criada com sucesso!');
+        toast.success('Operação criada com sucesso!');
       }
 
       handleResetForm();
       fetchDesafios();
-      onAtualizar(); // Gatilho para atualizar o Dashboard Principal na hora!
-    
+      onAtualizar();
+
     } catch (error: any) {
       const mensagemReal = error.response?.data?.error || error.message;
-      alert(`🚨 FALHA NA OPERAÇÃO:\n${mensagemReal}`);
+      toast.error(`Falha na operação: ${mensagemReal}`);
     } finally {
       setIsLoading(false);
     }
   }
 
   async function handleAtivar(id: string) {
-    if(!window.confirm("Confirmar ativação desta operação como Meta Global?")) return;
     try {
       await api.put(`/challenges/${id}/active`);
       fetchDesafios();
-      onAtualizar(); 
-      alert('⚔️ Operação ativada! O placar principal foi atualizado.');
+      onAtualizar();
+      toast.success('Operação ativada! O placar foi atualizado.');
     } catch (error) {
-      alert('Erro ao ativar operação.');
+      toast.error('Erro ao ativar operação.');
     }
   }
 
-  // 🔥 TÁTICA: handleDelete (Exclui a operação)
   async function handleDelete(id: string) {
-    const cancelado = window.confirm("⚠️ ATENÇÃO COMANDANTE!\nTem certeza que deseja ELIMINAR permanentemente esta operação do arquivo morto? Isso não pode ser desfeito.");
-    if(!cancelado) return;
+    setConfirmDelete(id);
+  }
 
+  async function confirmarDelete() {
+    if (!confirmDelete) return;
     try {
-      await api.delete(`/challenges/${id}`);
+      await api.delete(`/challenges/${confirmDelete}`);
       fetchDesafios();
-      alert('💥 Operação eliminada com sucesso!');
+      toast.success('Operação eliminada com sucesso!');
     } catch (error: any) {
-      const mensagemReal = error.response?.data?.error || error.message;
-      alert(`🚨 FALHA NA ELIMINAÇÃO:\n${mensagemReal}`);
+      toast.error(`Falha: ${error.response?.data?.error || error.message}`);
+    } finally {
+      setConfirmDelete(null);
     }
   }
 
@@ -244,6 +246,20 @@ export function ModalGerenciarDesafios({ isOpen, onClose, onAtualizar }: ModalGe
 
         </div>
       </div>
+
+      {/* Modal de confirmação de exclusão */}
+      {confirmDelete && (
+        <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4">
+          <div className="bg-zinc-900 border border-red-500/40 rounded-2xl w-full max-w-sm p-6 space-y-4 shadow-2xl animate-in zoom-in duration-150">
+            <p className="text-red-400 font-black text-lg uppercase tracking-wider">Confirmar exclusão?</p>
+            <p className="text-zinc-400 text-sm">Esta ação é permanente e não pode ser desfeita.</p>
+            <div className="flex gap-3 pt-2">
+              <button onMouseEnter={somHover} onClick={() => { somClick(); setConfirmDelete(null); }} className="flex-1 border border-zinc-700 hover:bg-zinc-800 text-white font-bold py-3 rounded-xl text-sm uppercase tracking-widest transition-colors">Cancelar</button>
+              <button onMouseEnter={somHover} onClick={() => { somClick(); confirmarDelete(); }} className="flex-1 bg-red-600 hover:bg-red-500 text-white font-black py-3 rounded-xl text-sm uppercase tracking-widest transition-colors">Eliminar</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

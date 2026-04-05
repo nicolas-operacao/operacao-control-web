@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { somClick, somHover } from '../services/hudSounds';
 import { BotaoHUD } from '../components/BotaoHUD';
+import { toast } from '../services/toast';
 
 type Venda = {
   id: string;
@@ -48,7 +49,7 @@ export function Liberacoes() {
       await api.post(`/sales/${id}/approve`);
       setVendas(prev => prev.filter(v => v.id !== id));
     } catch (e: any) {
-      alert(`Erro: ${e.response?.data?.error || e.message}`);
+      toast.error(`Erro: ${(e as any).response?.data?.error || (e as any).message}`);
     } finally {
       setAprovando(null);
     }

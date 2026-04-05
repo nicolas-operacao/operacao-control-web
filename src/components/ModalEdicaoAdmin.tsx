@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { somClick, somHover } from '../services/hudSounds';
+import { toast } from '../services/toast';
 
 interface Props { isOpen: boolean; onClose: () => void; venda: any; produtos: any[]; onSuccess: () => void; }
 
@@ -23,9 +24,9 @@ export function ModalEdicaoAdmin({ isOpen, onClose, venda, produtos, onSuccess }
     try {
       const novaData = new Date(`${formData.sale_date}T12:00:00Z`).toISOString();
       await api.put(`/sales/${venda.id}`, { ...formData, sale_value: Number(formData.sale_value), created_at: novaData });
-      somSucesso(); alert('✅ Venda atualizada com sucesso!');
+      somSucesso(); toast.success('Venda atualizada com sucesso!');
       onSuccess();
-    } catch (error) { alert(`🚨 Erro ao editar.`); } finally { setIsLoading(false); }
+    } catch (error) { toast.error('Erro ao editar venda.'); } finally { setIsLoading(false); }
   }
 
   return (

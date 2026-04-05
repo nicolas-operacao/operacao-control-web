@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { api } from '../services/api';
 import { somClick, somHover } from '../services/hudSounds';
+import { toast } from '../services/toast';
 
 interface Props { isOpen: boolean; onClose: () => void; venda: any; onSuccess: () => void; }
 
@@ -17,9 +18,9 @@ export function ModalReembolsoAdmin({ isOpen, onClose, venda, onSuccess }: Props
     e.preventDefault(); setIsLoading(true);
     try {
       await api.post(`/sales/${venda.id}/cancel`, { reason: refundReason });
-      somAlerta(); alert('🔴 Reembolso efetuado com sucesso!');
+      somAlerta(); toast.success('Reembolso efetuado com sucesso!');
       setRefundReason(''); onSuccess();
-    } catch (error: any) { alert(`🚨 Erro: ${error.response?.data?.error || error.message}`); } finally { setIsLoading(false); }
+    } catch (error: any) { toast.error(`Erro: ${error.response?.data?.error || error.message}`); } finally { setIsLoading(false); }
   }
 
   return (

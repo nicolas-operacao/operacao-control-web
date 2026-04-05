@@ -7,10 +7,12 @@ import { Suporte } from './pages/Suporte';
 import { RecrutasAdmin } from './pages/RecrutasAdmin';
 import { Perfil } from './pages/Perfil';
 import { PrivateRoute } from './components/PrivateRoute';
+import { ToastContainer } from './components/ToastContainer';
 
 export default function App() {
   return (
     <BrowserRouter>
+      <ToastContainer />
       <Routes>
         {/* Rotas Públicas (Qualquer um acessa) */}
         <Route path="/" element={<Login />} />

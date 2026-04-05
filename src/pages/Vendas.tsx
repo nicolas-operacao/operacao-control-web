@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
+import { toast } from '../services/toast';
 import { somClick, somHover, somVendaAprovada } from '../services/hudSounds';
 import { GuerraEquipes } from '../components/GuerraEquipes';
 import { ModalMensagemTatica } from '../components/ModalMensagemTatica';
@@ -205,12 +206,12 @@ export function Vendas() {
         sale_value: Number(saleValue), sale_date: saleDate
       });
 
-      alert('⚡ Venda registrada com sucesso!');
+      toast.success('Venda registrada com sucesso!');
       resetForm();
       setIsModalOpen(false);
       fetchData(false);
     } catch (error: any) {
-      alert('Erro ao registrar venda.');
+      toast.error('Erro ao registrar venda.');
     } finally {
       setIsLoading(false);
     }
@@ -238,12 +239,12 @@ export function Vendas() {
         newData: newData
       });
 
-      alert('🛡️ Solicitação de edição enviada ao Comando Militar! Aguarde aprovação.');
+      toast.info('Solicitação enviada! Aguarde aprovação do Admin.');
       resetForm();
       setIsEditModalOpen(false);
       fetchData(false);
     } catch (error: any) {
-      alert('Erro ao solicitar edição. Fale com o suporte.');
+      toast.error('Erro ao solicitar edição.');
     } finally {
       setIsLoading(false);
     }

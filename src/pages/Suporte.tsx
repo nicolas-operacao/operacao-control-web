@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { somClick, somHover } from '../services/hudSounds';
+import { toast } from '../services/toast';
 
 type Venda = {
   id: string;
@@ -25,6 +26,7 @@ export function Suporte() {
   const [filtroDias, setFiltroDias] = useState<number>(7); 
   const [searchTerm, setSearchTerm] = useState(''); 
   const [isLoading, setIsLoading] = useState(false);
+  const [filtroVendedor, setFiltroVendedor] = useState('');
 
   // 🔥 ESTADO DAS GUIAS (TABS)
   const [abaAtiva, setAbaAtiva] = useState<'aprovadas' | 'canceladas'>('aprovadas');
@@ -61,7 +63,7 @@ export function Suporte() {
   function copiarEmail(email?: string) {
     if (!email) return;
     navigator.clipboard.writeText(email);
-    alert(`📧 E-mail copiado para a área de transferência:\n${email}`);
+    toast.info(`E-mail copiado: ${email}`);
   }
 
   async function handleConfirmRefund(e: React.FormEvent) {
@@ -74,15 +76,13 @@ export function Suporte() {
         reason: refundReason
       });
 
-      new Audio('https://actions.google.com/sounds/v1/alarms/buzzer_alarm.ogg').play().catch(()=>{});
-      
-      alert('🔴 Reembolso efetuado! O valor foi removido do placar do vendedor.');
+      toast.success('Reembolso efetuado! Valor removido do placar.');
       setIsRefundModalOpen(false);
       setSelectedSale(null);
-      fetchVendas(); 
+      fetchVendas();
     } catch (error: any) {
       const mensagemReal = error.response?.data?.error || error.message;
-      alert(`🚨 ERRO DO SERVIDOR: ${mensagemReal}`);
+      toast.error(`Erro: ${mensagemReal}`);
     } finally {
       setIsLoading(false);
     }
@@ -108,6 +108,8 @@ export function Suporte() {
       (venda.customer_email && venda.customer_email.toLowerCase().includes(termo)) ||
       (venda.customer_phone && venda.customer_phone.toLowerCase().includes(termo));
 
+    if (filtroVendedor && venda.seller_name?.toLowerCase() !== filtroVendedor.toLowerCase()) return false;
+
     if (searchTerm.trim() === '') {
       return dentroDaData;
     } else {
@@ -115,6 +117,8 @@ export function Suporte() {
     }
 
   }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+  const vendedores = [...new Set(vendas.map(v => v.seller_name).filter(Boolean))].sort() as string[];
 
   const formataBRL = (valor: number) => 
     valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -175,14 +179,25 @@ export function Suporte() {
           <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4 border-b border-zinc-800 pb-6">
             
             <div className="flex flex-col md:flex-row items-center gap-3 w-full">
-              <div className="w-full md:w-96">
-                <input 
+              <div className="w-full md:w-80">
+                <input
                   type="text"
                   placeholder="Buscar por cliente, e-mail ou telefone..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className={`w-full bg-zinc-950 border ${abaAtiva === 'canceladas' ? 'border-red-900/50 focus:border-red-500' : 'border-zinc-700 focus:border-purple-500'} text-white rounded p-3 text-xs outline-none transition-colors placeholder:text-zinc-600`}
                 />
+              </div>
+
+              <div className="w-full md:w-48">
+                <select
+                  value={filtroVendedor}
+                  onChange={(e) => setFiltroVendedor(e.target.value)}
+                  className="w-full bg-zinc-950 border border-zinc-700 focus:border-purple-500 text-white rounded p-3 text-xs outline-none transition-colors cursor-pointer"
+                >
+                  <option value="">Todos os vendedores</option>
+                  {vendedores.map(v => <option key={v} value={v}>{v}</option>)}
+                </select>
               </div>
 
               <div className="flex items-center gap-2 bg-zinc-950 p-1.5 rounded-lg border border-zinc-800 w-full md:w-auto justify-center ml-auto">
