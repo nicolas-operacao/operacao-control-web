@@ -1,4 +1,5 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
+import confetti from 'canvas-confetti';
 import { api } from '../services/api';
 import { somClick, somHover } from '../services/hudSounds';
 
@@ -99,6 +100,8 @@ export function PainelVendedor({ userId, userName, equipe }: Props) {
   const [editandoFoto, setEditandoFoto] = useState(false);
   const [novaFoto, setNovaFoto] = useState('');
   const [salvandoFoto, setSalvandoFoto] = useState(false);
+  const [patenteCelebrada, setPatenteCelebrada] = useState<{ pat: typeof PATENTES[0]; nivel: number } | null>(null);
+  const jaChecouPatente = useRef(false);
 
   const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const isB = (equipe || '').trim().toUpperCase() === 'B';
@@ -116,9 +119,35 @@ export function PainelVendedor({ userId, userName, equipe }: Props) {
           api.get('/ranking'),
           api.get('/missions'),
         ]);
-        setStats(statsRes.data);
+        const s = statsRes.data;
+        setStats(s);
         setRanking(Array.isArray(rankRes.data) ? rankRes.data : (rankRes.data?.data ?? []));
         setMissoes(Array.isArray(missoesRes.data) ? missoesRes.data : []);
+
+        // ── Verificar subida de patente ─────────────────────────────────────
+        if (!jaChecouPatente.current) {
+          jaChecouPatente.current = true;
+          const chave = `patente_${userId}`;
+          const mesCount = s?.mes?.count ?? 0;
+          const nivelAtual = calcNivel(mesCount);
+          const anterior = localStorage.getItem(chave);
+          // anterior formato: "tiIndex_nivel"
+          if (anterior) {
+            const [tiAnterior, nivelAnterior] = anterior.split('_').map(Number);
+            const subiu = nivelAtual.ti > tiAnterior || (nivelAtual.ti === tiAnterior && nivelAtual.nivel > nivelAnterior);
+            if (subiu) {
+              setPatenteCelebrada({ pat: nivelAtual.pat, nivel: nivelAtual.nivel });
+              const cores = [nivelAtual.pat.cor, '#facc15', '#ffffff'];
+              setTimeout(() => {
+                confetti({ particleCount: 200, spread: 120, origin: { y: 0.4 }, colors: cores });
+                setTimeout(() => confetti({ particleCount: 100, spread: 80, angle: 60, origin: { x: 0, y: 0.5 }, colors: cores }), 400);
+                setTimeout(() => confetti({ particleCount: 100, spread: 80, angle: 120, origin: { x: 1, y: 0.5 }, colors: cores }), 400);
+              }, 500);
+              setTimeout(() => setPatenteCelebrada(null), 8000);
+            }
+          }
+          localStorage.setItem(chave, `${nivelAtual.ti}_${nivelAtual.nivel}`);
+        }
       } catch { /* silencioso */ }
       finally { setLoading(false); }
     }
@@ -196,6 +225,37 @@ export function PainelVendedor({ userId, userName, equipe }: Props) {
 
   return (
     <div className="space-y-4 mb-8">
+
+      {/* ── CELEBRAÇÃO DE SUBIDA DE PATENTE ── */}
+      {patenteCelebrada && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center" onClick={() => setPatenteCelebrada(null)}>
+          <div className="absolute inset-0 bg-black/85 backdrop-blur-md" />
+          <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+            <div className="w-96 h-96 rounded-full blur-[140px] animate-pulse" style={{ backgroundColor: patenteCelebrada.pat.cor + '30' }} />
+          </div>
+          <div className="relative z-10 w-full max-w-sm mx-4 animate-in zoom-in-90 duration-300" onClick={e => e.stopPropagation()}>
+            <div className="rounded-3xl overflow-hidden border-2 shadow-2xl" style={{ borderColor: patenteCelebrada.pat.cor, boxShadow: `0 0 60px ${patenteCelebrada.pat.cor}60` }}>
+              <div className="h-1.5 animate-pulse" style={{ background: `linear-gradient(to right, ${patenteCelebrada.pat.cor}, #facc15, ${patenteCelebrada.pat.cor})` }} />
+              <div className="bg-zinc-950 p-8 text-center space-y-4">
+                <div className="text-7xl animate-bounce leading-none select-none">{patenteCelebrada.pat.icone}</div>
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.4em] text-zinc-500 mb-1">Promoção de Patente!</p>
+                  <p className="text-4xl font-black uppercase" style={{ color: patenteCelebrada.pat.cor }}>{patenteCelebrada.pat.nome}</p>
+                  <p className="text-zinc-400 text-sm mt-1">Nível {patenteCelebrada.nivel}</p>
+                </div>
+                <p className="text-zinc-500 text-sm">Você subiu de patente! Continue avançando!</p>
+                <button
+                  onClick={() => setPatenteCelebrada(null)}
+                  className="w-full font-black py-3 rounded-2xl uppercase tracking-widest text-black transition-all active:scale-95"
+                  style={{ backgroundColor: patenteCelebrada.pat.cor }}
+                >
+                  Continuar ⚡
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── HERO: Patente + Frase ── */}
       <div

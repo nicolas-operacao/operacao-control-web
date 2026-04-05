@@ -20,6 +20,7 @@ import { ModalRankingHistorico } from '../components/ModalRankingHistorico';
 import { ModalEstatisticasPeriodo } from '../components/ModalEstatisticasPeriodo';
 import { ModalVendedor } from '../components/ModalVendedor';
 import { somHover, somClick, somVendaAprovada } from '../services/hudSounds';
+import { pedirPermissaoNotificacao } from '../services/notificacoes';
 
 import confetti from 'canvas-confetti'; 
 
@@ -102,7 +103,7 @@ export function Dashboard() {
 
   const lancarConfetes = () => confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 }, colors: ['#FACC15', '#22C55E', '#3B82F6'] });
 
-  useEffect(() => { fetchProdutos(); fetchVendasPlacar(); fetchDesafioAtivo(); }, []);
+  useEffect(() => { fetchProdutos(); fetchVendasPlacar(); fetchDesafioAtivo(); pedirPermissaoNotificacao(); }, []);
 
   // Polling: notifica admin quando nova venda é registrada (a cada 15s)
   useEffect(() => {
@@ -116,6 +117,15 @@ export function Dashboard() {
           setNovaVendaToast(`🔔 ${diff} nova${diff > 1 ? 's' : ''} venda${diff > 1 ? 's' : ''} registrada${diff > 1 ? 's' : ''}!`);
           fetchVendasPlacar();
           setTimeout(() => setNovaVendaToast(null), 4000);
+          // Notificação nativa (funciona mesmo com aba em segundo plano)
+          if (Notification.permission === 'granted') {
+            const msg = diff === 1 ? 'Nova venda registrada!' : `${diff} novas vendas registradas!`;
+            if (navigator.serviceWorker?.controller) {
+              navigator.serviceWorker.controller.postMessage({ type: 'NOVA_VENDA_ADMIN', body: msg });
+            } else {
+              new Notification('⚡ Operação Control', { body: msg, icon: '/icon.svg' });
+            }
+          }
         }
         lastSalesCountRef.current = count;
       } catch { /* silencioso */ }

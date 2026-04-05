@@ -3,8 +3,9 @@ import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { Cadastro } from './pages/Cadastro';
 import { Vendas } from './pages/Vendas';
-import { Suporte } from './pages/Suporte'; 
-import { RecrutasAdmin } from './pages/RecrutasAdmin'; 
+import { Suporte } from './pages/Suporte';
+import { RecrutasAdmin } from './pages/RecrutasAdmin';
+import { Perfil } from './pages/Perfil';
 import { PrivateRoute } from './components/PrivateRoute';
 
 export default function App() {
@@ -20,6 +21,7 @@ export default function App() {
         <Route path="/vendas" element={<PrivateRoute><Vendas /></PrivateRoute>} />
         <Route path="/liberacoes" element={<PrivateRoute><Suporte /></PrivateRoute>} />
         <Route path="/admin/recrutas" element={<PrivateRoute><RecrutasAdmin /></PrivateRoute>} />
+        <Route path="/perfil" element={<PrivateRoute><Perfil /></PrivateRoute>} />
       </Routes>
     </BrowserRouter>
   );

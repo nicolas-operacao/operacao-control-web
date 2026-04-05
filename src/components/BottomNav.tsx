@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import { somClick, somHover } from '../services/hudSounds';
 
 interface BottomNavProps {
@@ -6,6 +7,7 @@ interface BottomNavProps {
 }
 
 export function BottomNav({ activeTab, onNovaVenda }: BottomNavProps) {
+  const navigate = useNavigate();
   const userString = localStorage.getItem('user');
   const user = userString ? JSON.parse(userString) : { role: 'vendedor' };
   const role = user?.role ?? 'vendedor';
@@ -27,18 +29,7 @@ export function BottomNav({ activeTab, onNovaVenda }: BottomNavProps) {
   }
 
   function handlePerfil() {
-    const div = document.createElement('div');
-    div.id = '__toast_perfil';
-    div.style.cssText = [
-      'position:fixed', 'bottom:90px', 'left:50%', 'transform:translateX(-50%)',
-      'background:#27272a', 'border:1px solid #3f3f46', 'color:#fafafa',
-      'padding:12px 20px', 'border-radius:10px', 'font-size:13px',
-      'font-weight:700', 'z-index:9999', 'pointer-events:none',
-      'white-space:nowrap', 'box-shadow:0 4px 20px rgba(0,0,0,0.5)',
-    ].join(';');
-    div.textContent = '👤 Página de perfil em breve!';
-    document.body.appendChild(div);
-    setTimeout(() => div.remove(), 2500);
+    navigate('/perfil');
   }
 
   // Itens para vendedor

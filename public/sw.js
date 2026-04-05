@@ -18,6 +18,19 @@ self.addEventListener('message', (event) => {
       data: { url: '/' },
     });
   }
+
+  if (event.data?.type === 'NOVA_VENDA_ADMIN') {
+    const { body } = event.data;
+    self.registration.showNotification('🔔 Operação Control', {
+      body: body || 'Nova venda registrada!',
+      icon: '/icon.svg',
+      badge: '/icon.svg',
+      vibrate: [100, 50, 200],
+      tag: 'nova-venda-admin',
+      renotify: true,
+      data: { url: '/dashboard' },
+    });
+  }
 });
 
 // Clique na notificação: abre o app
