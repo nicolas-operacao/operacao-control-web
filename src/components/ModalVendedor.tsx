@@ -41,14 +41,21 @@ const formataBRL = (v: number) =>
 
 function BarChart({ dados, corBarra }: { dados: BarData[]; corBarra: string }) {
   const max = Math.max(...dados.map(d => d.valor), 1);
+  const CHART_H = 80; // px explícito — percentage heights só funcionam com px no pai
+
   return (
-    <div className="flex items-end gap-1.5 h-24 w-full">
+    <div className="flex items-end gap-1.5 w-full">
       {dados.map((d, i) => {
-        const pct = (d.valor / max) * 100;
+        const barPx = d.valor > 0
+          ? Math.max(Math.round((d.valor / max) * CHART_H), 6)
+          : 2;
         return (
           <div key={i} className="flex-1 flex flex-col items-center gap-1 group relative">
             {/* tooltip */}
-            <div className="absolute bottom-full mb-1.5 left-1/2 -translate-x-1/2 hidden group-hover:flex flex-col items-center z-10 pointer-events-none">
+            <div
+              className="absolute left-1/2 -translate-x-1/2 hidden group-hover:flex flex-col items-center z-10 pointer-events-none"
+              style={{ bottom: barPx + 6 }}
+            >
               <div className="bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-[10px] font-bold text-white whitespace-nowrap shadow-xl">
                 {formataBRL(d.valor)}
                 <span className="text-zinc-400 ml-1">({d.count} venda{d.count !== 1 ? 's' : ''})</span>
@@ -56,10 +63,11 @@ function BarChart({ dados, corBarra }: { dados: BarData[]; corBarra: string }) {
               <div className="w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-zinc-700" />
             </div>
 
-            <div className="w-full flex-1 flex items-end">
+            {/* Área do gráfico com altura fixa em px */}
+            <div className="w-full flex items-end" style={{ height: CHART_H }}>
               <div
                 className={`w-full rounded-t transition-all duration-700 ${corBarra} ${d.valor === 0 ? 'opacity-20' : 'opacity-100'}`}
-                style={{ height: `${Math.max(pct, d.valor > 0 ? 8 : 2)}%` }}
+                style={{ height: barPx }}
               />
             </div>
             <span className="text-[9px] text-zinc-600 font-bold truncate w-full text-center">{d.label}</span>
