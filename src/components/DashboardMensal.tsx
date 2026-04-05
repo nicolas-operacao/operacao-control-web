@@ -146,7 +146,7 @@ export function DashboardMensal({ vendas, mes, ano }: Props) {
         </div>
 
         <div className="overflow-x-auto pb-1">
-          <div className="flex items-end gap-[3px] min-w-max" style={{ height: '144px', paddingTop: '40px' }}>
+          <div className="flex items-end gap-[3px] min-w-max" style={{ height: '170px', paddingTop: '66px' }}>
             {porDia.map(({ dia, valor, count }, idx) => {
               const metric = chartMode === 'valor' ? valor : count;
               const maxMetric = chartMode === 'valor' ? maxValor : maxCount;
