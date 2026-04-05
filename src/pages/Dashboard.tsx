@@ -17,6 +17,8 @@ import { ModalMensagemTatica } from '../components/ModalMensagemTatica';
 import { BannerPWA } from '../components/BannerPWA';
 import { ModalGerenciarMissoes } from '../components/ModalGerenciarMissoes';
 import { ModalRankingHistorico } from '../components/ModalRankingHistorico';
+import { ModalEstatisticasPeriodo } from '../components/ModalEstatisticasPeriodo';
+import { ModalVendedor } from '../components/ModalVendedor';
 import { somHover, somClick, somVendaAprovada } from '../services/hudSounds';
 
 import confetti from 'canvas-confetti'; 
@@ -40,6 +42,8 @@ export function Dashboard() {
   const [isFinanceiroModalOpen, setIsFinanceiroModalOpen] = useState(false);
   const [isModalMissoesOpen, setIsModalMissoesOpen] = useState(false);
   const [isModalHistoricoOpen, setIsModalHistoricoOpen] = useState(false);
+  const [modalPeriodo, setModalPeriodo] = useState<'hoje' | 'semana' | 'mes' | null>(null);
+  const [vendedorModalAdmin, setVendedorModalAdmin] = useState<any | null>(null);
   const [novaVendaToast, setNovaVendaToast] = useState<string | null>(null);
   const lastSalesCountRef = useRef<number | null>(null);
 
@@ -586,15 +590,117 @@ export function Dashboard() {
           )}
         </div>
 
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 shadow-xl flex flex-col xl:flex-row items-end gap-6">
-          <div className="w-full xl:flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div><label className="block text-zinc-400 text-xs font-bold uppercase tracking-widest mb-2 text-yellow-400">🎯 Caçar Soldado</label><select value={vendedorSelecionado} onChange={(e) => { const nome = e.target.value; setVendedorSelecionado(nome); if (nome) { setVisaoAtiva('vendedor'); setDataInicio(''); setDataFim(''); } else { setVisaoAtiva(null); } }} className="w-full bg-zinc-950 border border-zinc-700 text-white rounded p-3 cursor-pointer"><option value="">Selecione um soldado...</option>{vendedoresUnicos.map(nome => <option key={nome} value={nome}>{nome}</option>)}</select></div>
-            <div><label className="block text-zinc-400 text-xs font-bold uppercase tracking-widest mb-2 text-blue-400">💳 Método de Pagamento</label><select value={metodoPagamentoFiltro} onChange={(e) => setMetodoPagamentoFiltro(e.target.value)} className="w-full bg-zinc-950 border border-zinc-700 text-white rounded p-3 cursor-pointer"><option value="">Todos</option><option value="PIX">PIX</option><option value="Cartão">Cartões</option><option value="Boleto Parcelado">Boleto</option></select></div>
-          </div>
-          <div className="w-full xl:w-auto flex flex-col md:flex-row items-end gap-4 border-t xl:border-t-0 xl:border-l border-zinc-800 pt-4 xl:pt-0 xl:pl-6">
-            <div className="w-full md:w-auto"><label className="block text-zinc-400 text-xs font-bold uppercase tracking-widest mb-2">Inicial</label><input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} className="w-full bg-zinc-950 border border-zinc-700 text-white rounded p-3 [color-scheme:dark]" /></div>
-            <div className="w-full md:w-auto"><label className="block text-zinc-400 text-xs font-bold uppercase tracking-widest mb-2">Final</label><input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} className="w-full bg-zinc-950 border border-zinc-700 text-white rounded p-3 [color-scheme:dark]" /></div>
-            <button onClick={handleFiltrar} className="w-full md:w-auto bg-zinc-800 hover:bg-yellow-400 hover:text-black text-white font-black py-3 px-8 rounded transition-all uppercase tracking-widest border border-zinc-700">Filtrar</button>
+        {/* ── Grade de Vendedores ── */}
+        {(() => {
+          const BRT_MS_V = 3 * 60 * 60 * 1000;
+          const vendedoresMap = new Map<string, { id: string; nome: string; equipe: string; totalMes: number; qtdMes: number; totalHoje: number; foto_url?: string }>();
+          const nowBRT = new Date(Date.now() - BRT_MS_V);
+          const hoje = { y: nowBRT.getUTCFullYear(), m: nowBRT.getUTCMonth(), d: nowBRT.getUTCDate() };
+
+          todasVendas.forEach(v => {
+            if (!v.seller_name || v.seller_name === 'Desconhecido' || v.status !== 'aprovada') return;
+            const key = String(v.seller_id ?? v.seller_name);
+            if (!vendedoresMap.has(key)) {
+              vendedoresMap.set(key, { id: key, nome: v.seller_name, equipe: '', totalMes: 0, qtdMes: 0, totalHoje: 0 });
+            }
+            const entry = vendedoresMap.get(key)!;
+            const brt = new Date(new Date(v.created_at).getTime() - BRT_MS_V);
+            if (brt.getUTCFullYear() === mesSelecionado.ano && brt.getUTCMonth() === mesSelecionado.mes) {
+              entry.totalMes += Number(v.sale_value);
+              entry.qtdMes++;
+            }
+            if (brt.getUTCFullYear() === hoje.y && brt.getUTCMonth() === hoje.m && brt.getUTCDate() === hoje.d) {
+              entry.totalHoje += Number(v.sale_value);
+            }
+          });
+
+          const lista = Array.from(vendedoresMap.values()).sort((a, b) => b.totalMes - a.totalMes);
+          const NOMES_MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+          if (lista.length === 0) return null;
+
+          return (
+            <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4 md:p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-white font-black text-sm uppercase tracking-widest flex items-center gap-2">
+                  🎯 Soldados — {NOMES_MESES[mesSelecionado.mes]} {mesSelecionado.ano}
+                </h3>
+                <span className="text-zinc-600 text-[10px] font-bold uppercase">Clique para ver detalhes</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-2.5">
+                {lista.map((v, idx) => {
+                  const iniciais = v.nome.split(' ').map((p: string) => p[0]).slice(0, 2).join('').toUpperCase();
+                  const POSICOES = ['🥇', '🥈', '🥉'];
+                  const medalha = idx < 3 ? POSICOES[idx] : null;
+                  return (
+                    <button
+                      key={v.id}
+                      onMouseEnter={somHover}
+                      onClick={() => {
+                        somClick();
+                        setVendedorModalAdmin({
+                          id: v.id,
+                          nome: v.nome,
+                          equipe: v.equipe || 'A',
+                          total_vendido: v.totalMes,
+                          total_vendas_count: v.qtdMes,
+                        });
+                      }}
+                      className="relative bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-600 rounded-xl p-3 text-left transition-all duration-200 hover:scale-[1.02] active:scale-95 group"
+                    >
+                      {medalha && (
+                        <span className="absolute top-2 right-2 text-sm">{medalha}</span>
+                      )}
+                      <div className="w-9 h-9 rounded-full bg-zinc-700 border-2 border-zinc-600 flex items-center justify-center mb-2 text-[11px] font-black text-zinc-300">
+                        {iniciais}
+                      </div>
+                      <p className="text-white text-xs font-black truncate leading-tight">{v.nome.split(' ')[0]}</p>
+                      <p className="text-zinc-600 text-[10px] truncate">{v.nome.split(' ').slice(1).join(' ')}</p>
+                      <p className="text-green-400 font-black text-xs mt-2 leading-tight">
+                        {v.totalMes.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                      </p>
+                      <p className="text-zinc-600 text-[10px]">{v.qtdMes} venda{v.qtdMes !== 1 ? 's' : ''}</p>
+                      {v.totalHoje > 0 && (
+                        <span className="inline-block mt-1.5 text-[9px] font-black text-yellow-400 bg-yellow-400/10 border border-yellow-400/20 px-1.5 py-0.5 rounded-full">
+                          ⚡ hoje
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Filtro por período */}
+        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 md:p-5 shadow-xl">
+          <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest mb-3">🔎 Filtrar por Período</p>
+          <div className="flex flex-col sm:flex-row items-end gap-3">
+            <div className="flex-1">
+              <label className="block text-zinc-600 text-[10px] font-bold uppercase mb-1">Início</label>
+              <input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} className="w-full bg-zinc-950 border border-zinc-700 text-white rounded-lg p-2.5 text-sm [color-scheme:dark] focus:outline-none focus:border-yellow-500/50" />
+            </div>
+            <div className="flex-1">
+              <label className="block text-zinc-600 text-[10px] font-bold uppercase mb-1">Fim</label>
+              <input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} className="w-full bg-zinc-950 border border-zinc-700 text-white rounded-lg p-2.5 text-sm [color-scheme:dark] focus:outline-none focus:border-yellow-500/50" />
+            </div>
+            <div className="flex-1">
+              <label className="block text-zinc-600 text-[10px] font-bold uppercase mb-1">Pagamento</label>
+              <select value={metodoPagamentoFiltro} onChange={(e) => setMetodoPagamentoFiltro(e.target.value)} className="w-full bg-zinc-950 border border-zinc-700 text-white rounded-lg p-2.5 text-sm cursor-pointer focus:outline-none focus:border-yellow-500/50">
+                <option value="">Todos</option>
+                <option value="PIX">PIX</option>
+                <option value="Cartão">Cartões</option>
+                <option value="Boleto Parcelado">Boleto</option>
+              </select>
+            </div>
+            <button
+              onMouseEnter={somHover}
+              onClick={() => { somClick(); handleFiltrar({ preventDefault: () => {} } as any); }}
+              className="bg-yellow-400 hover:bg-yellow-300 text-black font-black py-2.5 px-6 rounded-lg text-sm uppercase tracking-widest transition-all active:scale-95"
+            >
+              Filtrar
+            </button>
           </div>
         </div>
 
@@ -648,52 +754,78 @@ export function Dashboard() {
           );
         })()}
 
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
-          <div onClick={() => { setVisaoAtiva('hoje'); setVendedorSelecionado(''); setDataInicio(''); setDataFim(''); }} className={`bg-zinc-900 border-l-4 p-6 rounded-lg shadow-2xl relative overflow-hidden cursor-pointer transform transition-all duration-200 hover:scale-[1.02] group ${visaoAtiva === 'hoje' ? 'border-yellow-400 ring-2 ring-yellow-400/50' : 'border-yellow-400 hover:border-yellow-300'}`}>
-            <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">Vendas Hoje</p><h2 className="text-3xl font-black text-white">{formataBRL(vendasHoje)}</h2><p className="text-zinc-400 text-xs font-bold mt-2 text-yellow-400/80">🔥 {qtdHoje} vendas confirmadas</p>
-          </div>
-          <div onClick={() => { setVisaoAtiva('semana'); setVendedorSelecionado(''); setDataInicio(''); setDataFim(''); }} className={`bg-zinc-900 border-l-4 p-6 rounded-lg shadow-2xl relative overflow-hidden cursor-pointer transform transition-all duration-200 hover:scale-[1.02] group ${visaoAtiva === 'semana' ? 'border-yellow-400 ring-2 ring-yellow-400/50' : 'border-yellow-400 hover:border-yellow-300'}`}>
-            <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">Esta Semana</p><h2 className="text-3xl font-black text-white">{formataBRL(vendasSemana)}</h2><p className="text-zinc-400 text-xs font-bold mt-2 text-yellow-400/80">🔥 {qtdSemana} vendas confirmadas</p>
-          </div>
-          <div onClick={() => { setVisaoAtiva('mes'); setVendedorSelecionado(''); setDataInicio(''); setDataFim(''); }} className={`bg-zinc-900 border-l-4 p-6 rounded-lg shadow-2xl relative overflow-hidden md:col-span-2 cursor-pointer transform transition-all duration-200 hover:scale-[1.02] group ${visaoAtiva === 'mes' ? 'border-yellow-400 ring-2 ring-yellow-400/50' : 'border-yellow-400 hover:border-yellow-300'}`}>
-            <div className="absolute top-0 right-0 p-4 opacity-5 text-yellow-400 text-8xl">🎯</div>
-            <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">Acumulado — {['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][mesSelecionado.mes]} {mesSelecionado.ano}</p>
-            <div className="flex justify-between items-end"><h2 className="text-4xl font-black text-white">{formataBRL(vendasMes)}</h2><span className="text-zinc-500 text-sm font-bold mb-1">Meta: {formataBRL(META_MENSAL)}</span></div>
-            <div className="w-full bg-zinc-950 border border-zinc-800 rounded-full h-4 mt-4 overflow-hidden"><div className="bg-yellow-400 h-4 rounded-full relative transition-all duration-1000" style={{ width: `${progressoMeta}%` }}></div></div>
-            <div className="flex justify-between mt-2"><p className="text-zinc-400 text-xs font-bold text-yellow-400/80">🔥 {qtdMes} vendas confirmadas</p><p className="text-right text-yellow-400/50 text-xs font-bold">{progressoMeta.toFixed(1)}% alcançado</p></div>
-          </div>
-          <div className="bg-zinc-900 border-l-4 border-green-500 p-6 rounded-lg shadow-2xl relative overflow-hidden group cursor-default">
-            <div className="absolute top-0 right-0 p-4 opacity-10 text-green-500 text-8xl">💰</div>
-            <div className="flex justify-between items-center mb-1 relative z-10"><p className="text-zinc-400 text-xs font-bold uppercase tracking-widest">Sua Comissão (1%)</p><button onClick={() => setMostrarComissao(!mostrarComissao)} className="text-zinc-500 hover:text-zinc-300 transition-colors focus:outline-none">{mostrarComissao ? (<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg>) : (<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"></path><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"></path><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"></path><line x1="2" y1="2" x2="22" y2="22"></line></svg>)}</button></div>
-            <h2 className="text-3xl font-black text-green-400 relative z-10">{mostrarComissao ? formataBRL(vendasMes * 0.01) : 'R$ •••••••'}</h2>
-            <p className="text-zinc-500 text-[10px] font-bold mt-2 uppercase tracking-widest relative z-10">Ganhos da Operação</p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+          {/* Card Hoje */}
+          <button
+            onMouseEnter={somHover}
+            onClick={() => { somClick(); setModalPeriodo('hoje'); }}
+            className="bg-zinc-900 border border-zinc-800 hover:border-yellow-400/40 p-4 md:p-5 rounded-xl shadow-xl text-left cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-[0_0_20px_rgba(250,204,21,0.08)] group active:scale-95"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest">⚡ Hoje</p>
+              <span className="text-[9px] text-zinc-700 font-bold uppercase group-hover:text-yellow-400/60 transition-colors">Ver detalhes →</span>
+            </div>
+            <h2 className="text-xl md:text-2xl font-black text-white leading-tight">{formataBRL(vendasHoje)}</h2>
+            <p className="text-yellow-400/70 text-[10px] font-bold mt-2">🔥 {qtdHoje} venda{qtdHoje !== 1 ? 's' : ''} confirmada{qtdHoje !== 1 ? 's' : ''}</p>
+          </button>
+
+          {/* Card Semana */}
+          <button
+            onMouseEnter={somHover}
+            onClick={() => { somClick(); setModalPeriodo('semana'); }}
+            className="bg-zinc-900 border border-zinc-800 hover:border-blue-400/40 p-4 md:p-5 rounded-xl shadow-xl text-left cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-[0_0_20px_rgba(59,130,246,0.08)] group active:scale-95"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest">📅 Semana</p>
+              <span className="text-[9px] text-zinc-700 font-bold uppercase group-hover:text-blue-400/60 transition-colors">Ver detalhes →</span>
+            </div>
+            <h2 className="text-xl md:text-2xl font-black text-white leading-tight">{formataBRL(vendasSemana)}</h2>
+            <p className="text-blue-400/70 text-[10px] font-bold mt-2">🔥 {qtdSemana} venda{qtdSemana !== 1 ? 's' : ''} confirmada{qtdSemana !== 1 ? 's' : ''}</p>
+          </button>
+
+          {/* Card Mês */}
+          <button
+            onMouseEnter={somHover}
+            onClick={() => { somClick(); setModalPeriodo('mes'); }}
+            className="bg-zinc-900 border border-zinc-800 hover:border-green-400/40 p-4 md:p-5 rounded-xl shadow-xl text-left cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-[0_0_20px_rgba(34,197,94,0.08)] group active:scale-95 col-span-2 md:col-span-1"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest">
+                🗓️ {['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][mesSelecionado.mes]} {mesSelecionado.ano}
+              </p>
+              <span className="text-[9px] text-zinc-700 font-bold uppercase group-hover:text-green-400/60 transition-colors">Ver detalhes →</span>
+            </div>
+            <h2 className="text-xl md:text-2xl font-black text-white leading-tight">{formataBRL(vendasMes)}</h2>
+            <div className="w-full bg-zinc-800 rounded-full h-1.5 mt-3 overflow-hidden">
+              <div className="bg-yellow-400 h-1.5 rounded-full transition-all duration-1000" style={{ width: `${progressoMeta}%` }} />
+            </div>
+            <div className="flex justify-between mt-1.5">
+              <p className="text-yellow-400/60 text-[10px] font-bold">🔥 {qtdMes} vendas</p>
+              <p className="text-zinc-600 text-[10px] font-bold">{progressoMeta.toFixed(1)}%</p>
+            </div>
+          </button>
+
+          {/* Card Comissão */}
+          <div className="bg-zinc-900 border border-green-500/20 p-4 md:p-5 rounded-xl shadow-xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-3 opacity-5 text-green-500 text-6xl">💰</div>
+            <div className="flex justify-between items-center mb-2 relative z-10">
+              <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest">💰 Comissão (1%)</p>
+              <button onMouseEnter={somHover} onClick={() => { somClick(); setMostrarComissao(!mostrarComissao); }} className="text-zinc-600 hover:text-zinc-400 transition-colors">
+                {mostrarComissao ? (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" y1="2" x2="22" y2="22"/></svg>
+                )}
+              </button>
+            </div>
+            <h2 className="text-xl md:text-2xl font-black text-green-400 relative z-10">
+              {mostrarComissao ? formataBRL(vendasMes * 0.01) : 'R$ •••••••'}
+            </h2>
+            <p className="text-zinc-600 text-[10px] font-bold mt-2 uppercase tracking-widest relative z-10">Ganhos da Operação</p>
           </div>
         </div>
 
-        {visaoAtiva && visaoAtiva !== 'vendedor' && (<RelatorioBatalha vendas={vendasTabela} titulo={tituloRelatorio} subtitulo={subTituloRelatorio} onClose={() => { setVisaoAtiva(null); setVendedorSelecionado(''); setDataInicio(''); setDataFim(''); }} />)}
-        
-        {visaoAtiva === 'vendedor' && (
-          <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-6 shadow-2xl animate-in fade-in slide-in-from-top-4 duration-300">
-            <div className="flex justify-between items-center mb-6 pb-4 border-b border-zinc-800">
-              <h3 className="text-xl font-black text-white uppercase tracking-wider flex items-center gap-2"><span className="text-yellow-400">⚡</span> Ficha Completa: {vendedorSelecionado}</h3>
-              <button onClick={() => { setVisaoAtiva(null); setVendedorSelecionado(''); setDataInicio(''); setDataFim(''); }} className="text-zinc-500 hover:text-red-500 font-bold uppercase text-xs transition-colors px-3 py-1 border border-zinc-800 rounded hover:border-red-500">FECHAR X</button>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead><tr className="border-b border-zinc-800 text-zinc-500 text-[10px] uppercase tracking-widest"><th className="pb-4 font-black">Data</th><th className="pb-4 font-black">Cliente</th><th className="pb-4 font-black">E-mail</th><th className="pb-4 font-black">Produto</th><th className="pb-4 font-black text-right">Valor</th><th className="pb-4 font-black text-center">Pagamento</th><th className="pb-4 font-black text-center">Status</th><th className="pb-4 font-black text-center">Ações</th></tr></thead>
-                <tbody className="text-sm">
-                  {vendasTabela.length > 0 ? vendasTabela.map(venda => (
-                    <tr key={venda.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/40 transition-colors">
-                      <td className="py-4 text-zinc-400 whitespace-nowrap">{venda.created_at ? new Date(venda.created_at).toLocaleDateString('pt-BR') : '--'}</td><td className="py-4 text-zinc-200 font-medium">{venda.customer_name}</td><td className="py-4 text-zinc-400 select-all cursor-pointer hover:text-blue-300 transition-colors" title="Clique para copiar" onClick={()=>copiarTexto(venda.customer_email)}>{venda.customer_email || '--'}</td><td className="py-4 text-zinc-400 text-xs">{venda.product_name}</td><td className="py-4 text-green-400 font-black text-right whitespace-nowrap">{formataBRL(Number(venda.sale_value))}</td><td className="py-4 text-center text-zinc-400 text-[10px] font-bold uppercase">{venda.payment_method || '--'}</td>
-                      <td className="py-4 text-center"><span className={`px-2 py-1 rounded text-[9px] font-black uppercase tracking-wider ${venda.status === 'aprovada' ? 'bg-green-500/10 text-green-500 border border-green-500/20' : 'bg-yellow-500/10 text-yellow-500 border border-yellow-500/20'}`}>{venda.status === 'aprovada' ? 'Aprovada' : 'Pendente'}</span></td>
-                      <td className="py-4 text-center"><button onClick={() => handleDeleteVenda(venda.id)} className="text-zinc-500 hover:text-red-400 hover:bg-red-500/10 p-2 rounded transition-colors" title="Excluir Venda">🗑️</button></td>
-                    </tr>
-                  )) : (<tr><td colSpan={8} className="py-12 text-center text-zinc-600 uppercase font-black tracking-widest italic">Nenhuma venda encontrada.</td></tr>)}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
+        {visaoAtiva === 'periodo' && (<RelatorioBatalha vendas={vendasTabela} titulo={tituloRelatorio} subtitulo={subTituloRelatorio} onClose={() => { setVisaoAtiva(null); setVendedorSelecionado(''); setDataInicio(''); setDataFim(''); }} />)}
 
         {/* Painel Analítico do Mês */}
         <div className="space-y-4">
@@ -724,6 +856,55 @@ export function Dashboard() {
       <ModalFinanceiro isOpen={isFinanceiroModalOpen} onClose={() => setIsFinanceiroModalOpen(false)} vendas={todasVendas} />
       <ModalGerenciarMissoes isOpen={isModalMissoesOpen} onClose={() => setIsModalMissoesOpen(false)} />
       <ModalRankingHistorico isOpen={isModalHistoricoOpen} onClose={() => setIsModalHistoricoOpen(false)} />
+
+      {/* Modal estatísticas por período */}
+      {modalPeriodo && (() => {
+        const BRT_MS_F = 3 * 60 * 60 * 1000;
+        const nowBRT = new Date(Date.now() - BRT_MS_F);
+        const hojeMs = Date.UTC(nowBRT.getUTCFullYear(), nowBRT.getUTCMonth(), nowBRT.getUTCDate());
+        const diaSemana = nowBRT.getUTCDay() || 7;
+        const inicioSemanaMs = hojeMs - (diaSemana - 1) * 86400000;
+        const inicioMesMs = Date.UTC(nowBRT.getUTCFullYear(), nowBRT.getUTCMonth(), 1);
+
+        const vendasFiltradas = todasVendas.filter(v => {
+          if (!v.created_at) return false;
+          const brt = new Date(new Date(v.created_at).getTime() - BRT_MS_F);
+          const vMs = Date.UTC(brt.getUTCFullYear(), brt.getUTCMonth(), brt.getUTCDate());
+          if (modalPeriodo === 'hoje') return vMs >= hojeMs;
+          if (modalPeriodo === 'semana') return vMs >= inicioSemanaMs;
+          return vMs >= inicioMesMs;
+        });
+
+        const TITULOS = { hoje: '⚡ Vendas de Hoje', semana: '📅 Vendas da Semana', mes: '🗓️ Acumulado do Mês' };
+        return (
+          <ModalEstatisticasPeriodo
+            titulo={TITULOS[modalPeriodo]}
+            periodo={modalPeriodo}
+            vendas={vendasFiltradas}
+            onClose={() => setModalPeriodo(null)}
+          />
+        );
+      })()}
+
+      {/* Modal vendedor via card da grade */}
+      {vendedorModalAdmin && (() => {
+        const VENDAS_POR_NIVEL = 5;
+        const TIER_INICIO = [0, 20, 40, 60, 80];
+        const PATENTES = [
+          { nome: 'Iniciante', icone: '🪖' }, { nome: 'Vendedor', icone: '⚔️' },
+          { nome: 'Veterano', icone: '🛡️' }, { nome: 'Elite', icone: '🌟' }, { nome: 'Lendário', icone: '💎' },
+        ];
+        const c = Math.max(0, vendedorModalAdmin.total_vendas_count || 0);
+        let ti = 0;
+        for (let i = TIER_INICIO.length - 1; i >= 0; i--) { if (c >= TIER_INICIO[i]) { ti = i; break; } }
+        const nivel = Math.floor((c - TIER_INICIO[ti]) / VENDAS_POR_NIVEL) + 1;
+        return (
+          <ModalVendedor
+            vendedor={{ ...vendedorModalAdmin, patente: PATENTES[ti].nome, patenteIcone: PATENTES[ti].icone, nivel }}
+            onClose={() => setVendedorModalAdmin(null)}
+          />
+        );
+      })()}
 
       {/* Toast notificação admin: nova venda registrada */}
       {novaVendaToast && (
