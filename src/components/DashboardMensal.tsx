@@ -145,12 +145,16 @@ export function DashboardMensal({ vendas, mes, ano }: Props) {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <div className="flex items-end gap-[3px] h-36 min-w-max">
+        {/* overflow-x-auto só no wrapper externo; o inner tem overflow-visible para os tooltips aparecerem */}
+        <div className="overflow-x-auto pb-1">
+          <div className="flex items-end gap-[3px] min-w-max" style={{ height: '144px', paddingTop: '40px' }}>
             {porDia.map(({ dia, valor, count }) => {
               const metric = chartMode === 'valor' ? valor : count;
               const maxMetric = chartMode === 'valor' ? maxValor : maxCount;
-              const pct = maxMetric > 0 ? (metric / maxMetric) * 100 : 0;
+              const CHART_H = 100; // px fixo — evita bug de % com pai sem px
+              const barPx = maxMetric > 0 && metric > 0
+                ? Math.max(Math.round((metric / maxMetric) * CHART_H), 4)
+                : 2;
               const hasData = metric > 0;
               const isBest = chartMode === 'valor'
                 ? valor === melhorDia.valor && valor > 0
@@ -158,25 +162,28 @@ export function DashboardMensal({ vendas, mes, ano }: Props) {
 
               return (
                 <div key={dia} className="flex flex-col items-center gap-1 w-8 group relative flex-shrink-0">
-                  {/* Tooltip */}
+                  {/* Tooltip — posicionado acima da barra com transform */}
                   {hasData && (
-                    <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-zinc-800 border border-zinc-600 rounded px-2 py-1.5 text-[9px] font-black whitespace-nowrap z-20 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-xl">
+                    <div
+                      className="absolute left-1/2 -translate-x-1/2 bg-zinc-800 border border-zinc-600 rounded px-2 py-1.5 text-[9px] font-black whitespace-nowrap z-30 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-xl"
+                      style={{ bottom: barPx + 28 }}
+                    >
                       <span className="text-zinc-400 block">Dia {dia}</span>
                       <span className="text-yellow-400 block">{fmt(valor)}</span>
                       <span className="text-zinc-400 block">{count} venda{count !== 1 ? 's' : ''}</span>
                     </div>
                   )}
-                  {/* Bar wrapper */}
-                  <div className="w-full flex items-end" style={{ height: '120px' }}>
+                  {/* Bar wrapper — altura fixa em px */}
+                  <div className="w-full flex items-end" style={{ height: CHART_H }}>
                     <div
                       className={`w-full rounded-t-sm transition-all duration-500 ${
                         isBest
                           ? 'bg-yellow-400 shadow-[0_-4px_12px_rgba(250,204,21,0.4)]'
                           : hasData
                             ? 'bg-yellow-400/50 group-hover:bg-yellow-400'
-                            : 'bg-zinc-800'
+                            : 'bg-zinc-800/40'
                       }`}
-                      style={{ height: `${Math.max(hasData ? pct : 2, hasData ? 4 : 2)}%` }}
+                      style={{ height: barPx }}
                     />
                   </div>
                   {/* Day label */}
