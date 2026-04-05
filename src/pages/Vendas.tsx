@@ -7,6 +7,7 @@ import { ModalMensagemTatica } from '../components/ModalMensagemTatica';
 import { notificarVendaAprovada, pedirPermissaoNotificacao } from '../services/notificacoes';
 import { BannerPWA } from '../components/BannerPWA';
 import { PainelVendedor } from '../components/PainelVendedor';
+import { BottomNav } from '../components/BottomNav';
 import confetti from 'canvas-confetti';
 
 type Produto = {
@@ -460,6 +461,33 @@ export function Vendas() {
                         : <button onMouseEnter={somHover} onClick={() => { somClick(); handleOpenEdit(venda); }} className="text-blue-400 text-[10px] font-bold border border-blue-400/30 bg-blue-950/20 px-3 py-1.5 rounded transition-colors hover:text-blue-300">Corrigir</button>
                     )}
                   </div>
+
+                  {/* Botão WhatsApp — só para vendas aprovadas */}
+                  {isAprovada && (
+                    <button
+                      onMouseEnter={somHover}
+                      onClick={() => {
+                        somClick();
+                        const data = venda.created_at
+                          ? new Date(venda.created_at).toLocaleDateString('pt-BR', { timeZone: 'UTC' })
+                          : '--';
+                        const valor = (Number(venda.sale_value) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                        const msg = [
+                          '✅ Venda registrada!',
+                          `👤 Cliente: ${venda.customer_name}`,
+                          `📦 Produto: ${venda.product_name}`,
+                          `💰 Valor: ${valor}`,
+                          `🗓️ Data: ${data}`,
+                          '',
+                          '— Operação Control ⚡',
+                        ].join('\n');
+                        window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
+                      }}
+                      className="w-full flex items-center justify-center gap-2 bg-green-950/40 border border-green-600/30 hover:bg-green-900/60 text-green-400 text-[11px] font-black uppercase tracking-widest py-2.5 rounded-lg transition-all active:scale-95"
+                    >
+                      <span>📲</span> Compartilhar
+                    </button>
+                  )}
                 </div>
               );
             }) : (
@@ -760,6 +788,11 @@ export function Vendas() {
         </div>
       )}
 
+      {/* Bottom Navigation Mobile */}
+      <BottomNav
+        activeTab="home"
+        onNovaVenda={() => { resetForm(); setIsModalOpen(true); }}
+      />
     </div>
   );
 }

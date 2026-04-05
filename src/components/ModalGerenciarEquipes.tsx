@@ -9,6 +9,7 @@ type Usuario = {
   role: string;
   equipe: string | null;
   foto_url?: string;
+  meta_mensal?: number | null;
 };
 
 interface Props {
@@ -20,6 +21,9 @@ export function ModalGerenciarEquipes({ onClose, onSalvo }: Props) {
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState<string | null>(null);
+  const [salvandoMeta, setSalvandoMeta] = useState<string | null>(null);
+  const [metaEditando, setMetaEditando] = useState<string | null>(null);
+  const [metaValor, setMetaValor] = useState<Record<string, string>>({});
   const [erro, setErro] = useState('');
 
   useEffect(() => {
@@ -32,10 +36,29 @@ export function ModalGerenciarEquipes({ onClose, onSalvo }: Props) {
       const res = await api.get('/users');
       const vendedores = (res.data as Usuario[]).filter(u => u.role === 'vendedor');
       setUsuarios(vendedores);
+      // Inicializa valores de meta
+      const metas: Record<string, string> = {};
+      vendedores.forEach(u => { metas[u.id] = String(u.meta_mensal ?? ''); });
+      setMetaValor(metas);
     } catch {
       setErro('Erro ao carregar usuários.');
     } finally {
       setCarregando(false);
+    }
+  }
+
+  async function salvarMeta(userId: string) {
+    const meta = parseInt(metaValor[userId] ?? '0', 10);
+    if (isNaN(meta) || meta < 0) return;
+    setSalvandoMeta(userId);
+    try {
+      await api.patch(`/users/${userId}/meta`, { meta });
+      setUsuarios(prev => prev.map(u => u.id === userId ? { ...u, meta_mensal: meta } : u));
+      setMetaEditando(null);
+    } catch {
+      setErro('Erro ao salvar meta.');
+    } finally {
+      setSalvandoMeta(null);
     }
   }
 
@@ -66,17 +89,25 @@ export function ModalGerenciarEquipes({ onClose, onSalvo }: Props) {
     const carregandoEste = salvando === u.id;
 
     return (
-      <div key={u.id} className="flex items-center justify-between bg-zinc-900 border border-zinc-800 rounded-lg p-3 gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          {u.foto_url ? (
-            <img src={u.foto_url} alt={u.name} className="w-9 h-9 rounded-full object-cover border-2 border-zinc-700 flex-shrink-0" />
-          ) : (
-            <div className="w-9 h-9 rounded-full bg-zinc-700 flex items-center justify-center flex-shrink-0 border-2 border-zinc-600">
-              <span className="text-xs font-black text-zinc-300">{iniciais}</span>
+      <div key={u.id} className="flex flex-col gap-2 bg-zinc-900 border border-zinc-800 rounded-lg p-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            {u.foto_url ? (
+              <img src={u.foto_url} alt={u.name} className="w-9 h-9 rounded-full object-cover border-2 border-zinc-700 flex-shrink-0" />
+            ) : (
+              <div className="w-9 h-9 rounded-full bg-zinc-700 flex items-center justify-center flex-shrink-0 border-2 border-zinc-600">
+                <span className="text-xs font-black text-zinc-300">{iniciais}</span>
+              </div>
+            )}
+            <div className="min-w-0">
+              <span className="text-zinc-200 font-semibold text-sm truncate block">{u.name}</span>
+              {u.meta_mensal ? (
+                <span className="text-[10px] text-zinc-500">Meta: {u.meta_mensal} vendas/mês</span>
+              ) : (
+                <span className="text-[10px] text-zinc-700">Sem meta definida</span>
+              )}
             </div>
-          )}
-          <span className="text-zinc-200 font-semibold text-sm truncate">{u.name}</span>
-        </div>
+          </div>
 
         <div className="flex items-center gap-2 flex-shrink-0">
           <button
@@ -104,6 +135,48 @@ export function ModalGerenciarEquipes({ onClose, onSalvo }: Props) {
             {carregandoEste ? '...' : estaEquipeB ? '✓ Time B' : 'Time B'}
           </button>
         </div>
+        </div>
+
+        {/* Meta mensal */}
+        <div className="flex items-center gap-2">
+          {metaEditando === u.id ? (
+            <>
+              <input
+                type="number"
+                min="1"
+                value={metaValor[u.id] ?? ''}
+                onChange={e => setMetaValor(prev => ({ ...prev, [u.id]: e.target.value }))}
+                placeholder="Ex: 30"
+                className="w-20 bg-zinc-800 border border-yellow-500/40 rounded-md px-2 py-1 text-white text-xs focus:outline-none"
+                autoFocus
+              />
+              <span className="text-zinc-600 text-xs">vendas/mês</span>
+              <button
+                onMouseEnter={somHover}
+                onClick={() => { somClick(); salvarMeta(u.id); }}
+                disabled={salvandoMeta === u.id}
+                className="px-2 py-1 rounded-md text-xs font-black bg-yellow-400 text-black hover:bg-yellow-300 disabled:opacity-50 transition-all"
+              >
+                {salvandoMeta === u.id ? '...' : '✓'}
+              </button>
+              <button
+                onMouseEnter={somHover}
+                onClick={() => { somClick(); setMetaEditando(null); }}
+                className="px-2 py-1 rounded-md text-xs font-black border border-zinc-700 text-zinc-500 hover:text-zinc-300 transition-all"
+              >
+                ✕
+              </button>
+            </>
+          ) : (
+            <button
+              onMouseEnter={somHover}
+              onClick={() => { somClick(); setMetaEditando(u.id); }}
+              className="text-[10px] font-black border border-zinc-700 text-zinc-600 hover:text-yellow-400 hover:border-yellow-700/50 px-2 py-1 rounded-md transition-all"
+            >
+              🎯 {u.meta_mensal ? `Meta: ${u.meta_mensal}` : 'Definir Meta'}
+            </button>
+          )}
+        </div>
       </div>
     );
   };
@@ -116,7 +189,7 @@ export function ModalGerenciarEquipes({ onClose, onSalvo }: Props) {
         <div className="flex items-center justify-between p-5 border-b border-zinc-800">
           <div>
             <h2 className="text-xl font-black text-white uppercase tracking-widest">⚔️ Gerenciar Squads</h2>
-            <p className="text-zinc-500 text-xs mt-0.5">Mova os vendedores entre as equipes</p>
+            <p className="text-zinc-500 text-xs mt-0.5">Mova vendedores entre equipes e defina metas individuais</p>
           </div>
           <button onMouseEnter={somHover} onClick={() => { somClick(); onClose(); }} className="text-zinc-500 hover:text-white text-2xl font-bold transition-colors">✕</button>
         </div>

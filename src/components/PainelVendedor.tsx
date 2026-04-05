@@ -64,6 +64,20 @@ type Stats = {
   mes:   { valor: number; count: number };
   ultimos7dias: { label: string; valor: number; count: number }[];
   ultimos6meses?: { label: string; valor: number; count: number }[];
+  meta_mensal?: number | null;
+  foto_url?: string | null;
+};
+
+type Missao = {
+  id: string;
+  titulo: string;
+  descricao: string;
+  icone: string;
+  tipo: 'hoje' | 'semana' | 'mes' | 'valor';
+  meta: number;
+  recompensa_xp?: number;
+  ativa: boolean;
+  data_fim: string;
 };
 
 interface Props {
@@ -80,7 +94,11 @@ function Sk({ className }: { className?: string }) {
 export function PainelVendedor({ userId, userName, equipe }: Props) {
   const [stats, setStats]     = useState<Stats | null>(null);
   const [ranking, setRanking] = useState<any[]>([]);
+  const [missoes, setMissoes] = useState<Missao[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editandoFoto, setEditandoFoto] = useState(false);
+  const [novaFoto, setNovaFoto] = useState('');
+  const [salvandoFoto, setSalvandoFoto] = useState(false);
 
   const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const isB = (equipe || '').trim().toUpperCase() === 'B';
@@ -93,19 +111,33 @@ export function PainelVendedor({ userId, userName, equipe }: Props) {
   useEffect(() => {
     async function load() {
       try {
-        const [statsRes, rankRes] = await Promise.all([
+        const [statsRes, rankRes, missoesRes] = await Promise.all([
           api.get(`/sellers/${userId}/stats`),
           api.get('/ranking'),
+          api.get('/missions'),
         ]);
         setStats(statsRes.data);
         setRanking(Array.isArray(rankRes.data) ? rankRes.data : (rankRes.data?.data ?? []));
+        setMissoes(Array.isArray(missoesRes.data) ? missoesRes.data : []);
       } catch { /* silencioso */ }
       finally { setLoading(false); }
     }
     load();
   }, [userId]);
 
-  const { nivelInfo, rankPos, mesmaEquipe, lider, deltaPrimeiro, conquistas, frase } = useMemo(() => {
+  async function salvarFoto() {
+    if (!novaFoto.trim()) return;
+    setSalvandoFoto(true);
+    try {
+      await api.patch(`/users/${userId}/foto`, { foto_url: novaFoto.trim() });
+      setStats(prev => prev ? { ...prev, foto_url: novaFoto.trim() } : prev);
+      setEditandoFoto(false);
+      setNovaFoto('');
+    } catch { /* silencioso */ }
+    finally { setSalvandoFoto(false); }
+  }
+
+  const { nivelInfo, rankPos, mesmaEquipe, lider, deltaPrimeiro, conquistas, frase, projecao, mediaDiaria, diasRestantes, streak } = useMemo(() => {
     const mesCount = stats?.mes?.count ?? 0;
     const nivelInfo = calcNivel(mesCount);
 
@@ -130,7 +162,24 @@ export function PainelVendedor({ userId, userName, equipe }: Props) {
     const conquistas = calcConquistas(stats, rankPos);
     const frase = fraseMotivacional(stats?.hoje?.count ?? 0, rankPos, ranking.length);
 
-    return { nivelInfo, rankPos, mesmaEquipe, lider, deltaPrimeiro, conquistas, frase };
+    // Projeção de fechamento do mês
+    const BRT_MS = 3 * 60 * 60 * 1000;
+    const nowBRT = new Date(Date.now() - BRT_MS);
+    const diaAtual = nowBRT.getUTCDate();
+    const diasNoMes = new Date(nowBRT.getUTCFullYear(), nowBRT.getUTCMonth() + 1, 0).getUTCDate();
+    const diasRestantes = diasNoMes - diaAtual;
+    const mediaDiaria = diaAtual > 0 ? (stats?.mes?.valor ?? 0) / diaAtual : 0;
+    const projecao = (stats?.mes?.valor ?? 0) + mediaDiaria * diasRestantes;
+
+    // Streak: dias consecutivos com pelo menos 1 venda (de hoje para trás)
+    const dias7 = stats?.ultimos7dias ?? [];
+    let streak = 0;
+    for (let i = dias7.length - 1; i >= 0; i--) {
+      if (dias7[i].count > 0) streak++;
+      else break;
+    }
+
+    return { nivelInfo, rankPos, mesmaEquipe, lider, deltaPrimeiro, conquistas, frase, projecao, mediaDiaria, diasRestantes, streak };
   }, [stats, ranking, userId, equipe]);
 
   // ─── BARRA 7 DIAS ──────────────────────────────────────────────────────────
@@ -158,13 +207,33 @@ export function PainelVendedor({ userId, userName, equipe }: Props) {
 
         <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center gap-4">
 
-          {/* Ícone + patente */}
+          {/* Avatar + patente */}
           <div className="flex items-center gap-4 flex-1 min-w-0">
-            <div
-              className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl flex items-center justify-center text-4xl sm:text-5xl flex-shrink-0"
-              style={{ background: `${nivelInfo.pat.cor}15`, border: `2px solid ${nivelInfo.pat.cor}50`, boxShadow: `0 0 20px ${nivelInfo.pat.glow}` }}
-            >
-              {nivelInfo.pat.icone}
+            <div className="relative flex-shrink-0">
+              {stats?.foto_url ? (
+                <img
+                  src={stats.foto_url}
+                  alt={userName}
+                  className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover"
+                  style={{ border: `2px solid ${nivelInfo.pat.cor}50`, boxShadow: `0 0 20px ${nivelInfo.pat.glow}` }}
+                />
+              ) : (
+                <div
+                  className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl flex items-center justify-center text-4xl sm:text-5xl"
+                  style={{ background: `${nivelInfo.pat.cor}15`, border: `2px solid ${nivelInfo.pat.cor}50`, boxShadow: `0 0 20px ${nivelInfo.pat.glow}` }}
+                >
+                  {nivelInfo.pat.icone}
+                </div>
+              )}
+              {/* Botão editar foto */}
+              <button
+                onMouseEnter={somHover}
+                onClick={() => { somClick(); setEditandoFoto(true); setNovaFoto(stats?.foto_url ?? ''); }}
+                className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-zinc-800 border border-zinc-600 hover:border-yellow-400/60 flex items-center justify-center text-[11px] transition-all hover:bg-zinc-700"
+                title="Editar foto"
+              >
+                ✏️
+              </button>
             </div>
 
             <div className="min-w-0">
@@ -324,6 +393,40 @@ export function PainelVendedor({ userId, userName, equipe }: Props) {
         </div>
       )}
 
+      {/* ── Projeção de Fechamento do Mês ── */}
+      {(() => {
+        const META_PADRAO = 400000;
+        const bateAMeta = projecao >= META_PADRAO;
+        const diff = META_PADRAO - projecao;
+        return (
+          <div className={`rounded-xl border p-4 md:p-5 ${bateAMeta ? 'bg-green-950/20 border-green-500/40 shadow-[0_0_15px_rgba(34,197,94,0.1)]' : 'bg-yellow-950/10 border-yellow-700/30'}`}>
+            <div className="flex items-center justify-between mb-3 gap-2">
+              <p className="text-zinc-400 text-[10px] font-black uppercase tracking-widest">
+                📈 Projeção do Mês
+              </p>
+              <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full border ${bateAMeta ? 'bg-green-500/10 text-green-400 border-green-500/30' : 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30'}`}>
+                {diasRestantes}d restantes
+              </span>
+            </div>
+            <p className={`text-2xl md:text-3xl font-black leading-none mb-2 ${bateAMeta ? 'text-green-400' : 'text-yellow-400'}`}>
+              {fmt(projecao)}
+            </p>
+            <p className="text-zinc-500 text-[11px] mb-3">
+              Baseado na sua média de {fmt(mediaDiaria)}/dia · {diasRestantes} dias restantes
+            </p>
+            {bateAMeta ? (
+              <div className="bg-green-950/40 border border-green-500/30 rounded-lg px-3 py-2 text-green-400 text-xs font-black uppercase tracking-widest flex items-center gap-2">
+                <span>🎯</span> Você vai bater a meta!
+              </div>
+            ) : (
+              <div className="bg-yellow-950/40 border border-yellow-500/30 rounded-lg px-3 py-2 text-yellow-400 text-xs font-black uppercase tracking-widest flex items-center gap-2">
+                <span>⚠️</span> Faltam {fmt(diff)} para bater a meta
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
       {/* ── Conquistas ── */}
       <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 md:p-5">
         <p className="text-zinc-400 text-[10px] font-black uppercase tracking-widest mb-4">🏅 Conquistas do Mês</p>
@@ -347,6 +450,44 @@ export function PainelVendedor({ userId, userName, equipe }: Props) {
           ))}
         </div>
       </div>
+
+      {/* ── Streak de dias consecutivos ── */}
+      {(() => {
+        let bgClass = 'bg-zinc-900 border-zinc-800';
+        let textClass = 'text-zinc-400';
+        let msg = 'Faça uma venda hoje para começar o streak!';
+        let icone = '💤';
+
+        if (streak >= 7) {
+          bgClass = 'bg-red-950/30 border-red-500/40 shadow-[0_0_15px_rgba(239,68,68,0.15)]';
+          textClass = 'text-red-400';
+          msg = `${streak} dias seguidos! IMPARÁVEL!`;
+          icone = '💥';
+        } else if (streak >= 3) {
+          bgClass = 'bg-orange-950/30 border-orange-500/40 shadow-[0_0_12px_rgba(249,115,22,0.15)]';
+          textClass = 'text-orange-400';
+          msg = `${streak} dias consecutivos — você está em chamas!`;
+          icone = '🔥🔥';
+        } else if (streak === 1) {
+          bgClass = 'bg-yellow-950/20 border-yellow-700/30';
+          textClass = 'text-yellow-400';
+          msg = '1 dia consecutivo — continua!';
+          icone = '🔥';
+        }
+
+        return (
+          <div className={`rounded-xl border p-4 flex items-center gap-4 ${bgClass}`}>
+            <span className="text-3xl leading-none flex-shrink-0">{icone}</span>
+            <div className="min-w-0">
+              <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest mb-0.5">Streak</p>
+              <p className={`text-sm font-black ${textClass}`}>{msg}</p>
+            </div>
+            {streak > 0 && (
+              <div className={`ml-auto flex-shrink-0 text-3xl font-black ${textClass}`}>{streak}</div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* ── Meta Diária gamificada ── */}
       {(() => {
@@ -385,6 +526,139 @@ export function PainelVendedor({ userId, userName, equipe }: Props) {
           </div>
         );
       })()}
+
+      {/* ── Meta Individual do Mês ── */}
+      {stats?.meta_mensal && stats.meta_mensal > 0 && (() => {
+        const count = stats.mes?.count ?? 0;
+        const meta = stats.meta_mensal;
+        const pct = Math.min((count / meta) * 100, 100);
+        const atingiu = count >= meta;
+        return (
+          <div className={`rounded-xl border p-4 md:p-5 ${atingiu ? 'bg-green-950/20 border-green-400/30 shadow-[0_0_15px_rgba(34,197,94,0.1)]' : 'bg-zinc-900 border-zinc-800'}`}>
+            <div className="flex justify-between items-center mb-3">
+              <p className="text-zinc-400 text-[10px] font-black uppercase tracking-widest">
+                🎖️ Meta Individual do Mês
+              </p>
+              <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${atingiu ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-zinc-800 text-zinc-500'}`}>
+                {count} / {meta} vendas
+              </span>
+            </div>
+            <div className="h-3 bg-zinc-800 rounded-full overflow-hidden mb-2">
+              <div
+                className="h-3 rounded-full transition-all duration-1000"
+                style={{
+                  width: `${pct}%`,
+                  background: atingiu ? 'linear-gradient(90deg, #16a34a, #22c55e)' : `linear-gradient(90deg, ${corEquipe}80, ${corEquipe})`,
+                  boxShadow: atingiu ? '0 0 10px rgba(34,197,94,0.5)' : undefined,
+                }}
+              />
+            </div>
+            <p className={`text-xs font-bold ${atingiu ? 'text-green-400' : 'text-zinc-500'}`}>
+              {atingiu
+                ? `🏆 Meta atingida! ${count} de ${meta} vendas — você é uma lenda!`
+                : `Faltam ${meta - count} venda${meta - count !== 1 ? 's' : ''} para atingir sua meta de ${meta} este mês`}
+            </p>
+          </div>
+        );
+      })()}
+
+      {/* ── Missões Ativas ── */}
+      {missoes.length > 0 && (
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4 md:p-5">
+          <p className="text-zinc-400 text-[10px] font-black uppercase tracking-widest mb-3">⚡ Missões Ativas</p>
+          <div className="space-y-2">
+            {missoes.map(m => {
+              const progresso = m.tipo === 'hoje' ? (stats?.hoje?.count ?? 0)
+                : m.tipo === 'semana' ? (stats?.semana?.count ?? 0)
+                : m.tipo === 'mes' ? (stats?.mes?.count ?? 0)
+                : (stats?.mes?.valor ?? 0);
+              const pct = Math.min((progresso / m.meta) * 100, 100);
+              const completa = progresso >= m.meta;
+              const valorLabel = m.tipo === 'valor'
+                ? progresso.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+                : progresso;
+              const metaLabel = m.tipo === 'valor'
+                ? m.meta.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+                : m.meta;
+
+              return (
+                <div
+                  key={m.id}
+                  className={`flex items-center gap-3 rounded-xl p-3 border transition-all ${
+                    completa
+                      ? 'bg-yellow-950/20 border-yellow-400/30 shadow-[0_0_10px_rgba(250,204,21,0.1)]'
+                      : 'bg-zinc-950 border-zinc-800'
+                  }`}
+                >
+                  <span className="text-2xl flex-shrink-0">{m.icone}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className={`text-xs font-black ${completa ? 'text-yellow-400' : 'text-white'}`}>{m.titulo}</p>
+                      <span className={`text-[9px] font-black ${completa ? 'text-yellow-400' : 'text-zinc-500'}`}>
+                        {valorLabel} / {metaLabel}
+                      </span>
+                    </div>
+                    <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                      <div
+                        className="h-1.5 rounded-full transition-all duration-700"
+                        style={{
+                          width: `${pct}%`,
+                          background: completa ? 'linear-gradient(90deg, #ca8a04, #facc15)' : `linear-gradient(90deg, ${corEquipe}80, ${corEquipe})`,
+                        }}
+                      />
+                    </div>
+                    {m.recompensa_xp && (
+                      <p className={`text-[10px] mt-0.5 ${completa ? 'text-yellow-500' : 'text-zinc-600'}`}>
+                        {completa ? '✅ Concluída!' : m.descricao} {m.recompensa_xp > 0 && `· ⚡ ${m.recompensa_xp} XP`}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal editar foto de perfil ── */}
+      {editandoFoto && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-5 w-full max-w-sm space-y-4">
+            <h3 className="text-white font-black text-lg uppercase tracking-wider">📸 Foto de Perfil</h3>
+            <p className="text-zinc-500 text-xs">Cole a URL de uma imagem para usar como foto de perfil.</p>
+            <input
+              type="url"
+              value={novaFoto}
+              onChange={e => setNovaFoto(e.target.value)}
+              placeholder="https://exemplo.com/minha-foto.jpg"
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-yellow-500/60"
+              autoFocus
+            />
+            {novaFoto && (
+              <div className="flex justify-center">
+                <img src={novaFoto} alt="preview" className="w-20 h-20 rounded-xl object-cover border-2 border-zinc-700" onError={e => (e.currentTarget.style.display = 'none')} />
+              </div>
+            )}
+            <div className="flex gap-2">
+              <button
+                onMouseEnter={somHover}
+                onClick={() => { somClick(); salvarFoto(); }}
+                disabled={salvandoFoto || !novaFoto.trim()}
+                className="flex-1 bg-yellow-400 hover:bg-yellow-300 disabled:opacity-50 text-black font-black py-2 rounded-lg text-sm uppercase tracking-wider transition-all active:scale-95"
+              >
+                {salvandoFoto ? 'Salvando...' : '✓ Salvar'}
+              </button>
+              <button
+                onMouseEnter={somHover}
+                onClick={() => { somClick(); setEditandoFoto(false); }}
+                className="px-4 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 font-black py-2 rounded-lg text-sm transition-all"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

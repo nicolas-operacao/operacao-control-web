@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { GuerraEquipes } from '../components/GuerraEquipes';
@@ -15,7 +15,9 @@ import { ModalImportarPlanilha } from '../components/ModalImportarPlanilha';
 import { ModalFinanceiro } from '../components/ModalFinanceiro';
 import { ModalMensagemTatica } from '../components/ModalMensagemTatica';
 import { BannerPWA } from '../components/BannerPWA';
-import { somHover, somClick } from '../services/hudSounds';
+import { ModalGerenciarMissoes } from '../components/ModalGerenciarMissoes';
+import { ModalRankingHistorico } from '../components/ModalRankingHistorico';
+import { somHover, somClick, somVendaAprovada } from '../services/hudSounds';
 
 import confetti from 'canvas-confetti'; 
 
@@ -33,9 +35,13 @@ export function Dashboard() {
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [isModalProdutoOpen, setIsModalProdutoOpen] = useState(false);
   const [isModalVendaOpen, setIsModalVendaOpen] = useState(false);
-  const [isModalDesafioOpen, setIsModalDesafioOpen] = useState(false); 
+  const [isModalDesafioOpen, setIsModalDesafioOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [isFinanceiroModalOpen, setIsFinanceiroModalOpen] = useState(false); // 🔥 ESTADO DO FINANCEIRO
+  const [isFinanceiroModalOpen, setIsFinanceiroModalOpen] = useState(false);
+  const [isModalMissoesOpen, setIsModalMissoesOpen] = useState(false);
+  const [isModalHistoricoOpen, setIsModalHistoricoOpen] = useState(false);
+  const [novaVendaToast, setNovaVendaToast] = useState<string | null>(null);
+  const lastSalesCountRef = useRef<number | null>(null);
 
   const [mainRefreshTrigger, setMainRefreshTrigger] = useState(0);
 
@@ -93,6 +99,27 @@ export function Dashboard() {
   const lancarConfetes = () => confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 }, colors: ['#FACC15', '#22C55E', '#3B82F6'] });
 
   useEffect(() => { fetchProdutos(); fetchVendasPlacar(); fetchDesafioAtivo(); }, []);
+
+  // Polling: notifica admin quando nova venda é registrada (a cada 15s)
+  useEffect(() => {
+    async function checkNovasVendas() {
+      try {
+        const res = await api.get('/ranking/ping');
+        const count: number = res.data?.total_sales_count ?? res.data?.count ?? 0;
+        if (lastSalesCountRef.current !== null && count > lastSalesCountRef.current) {
+          const diff = count - lastSalesCountRef.current;
+          somVendaAprovada();
+          setNovaVendaToast(`🔔 ${diff} nova${diff > 1 ? 's' : ''} venda${diff > 1 ? 's' : ''} registrada${diff > 1 ? 's' : ''}!`);
+          fetchVendasPlacar();
+          setTimeout(() => setNovaVendaToast(null), 4000);
+        }
+        lastSalesCountRef.current = count;
+      } catch { /* silencioso */ }
+    }
+    checkNovasVendas();
+    const t = setInterval(checkNovasVendas, 15000);
+    return () => clearInterval(t);
+  }, []);
 
   async function fetchDesafioAtivo() { try { const response = await api.get('/challenges'); setDesafioAtivo(response.data.find((c: any) => c.is_active) || null); } catch (error) {} }
   async function fetchProdutos() { try { const response = await api.get('/products'); setProdutos(response.data); } catch (error) {} }
@@ -208,6 +235,33 @@ export function Dashboard() {
 
   const progressoMeta = Math.min((vendasMes / META_MENSAL) * 100, 100);
   const formataBRL = (valor: number) => valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+  function exportarCSV() {
+    const cabecalho = 'Data,Vendedor,Cliente,Email,Telefone,Produto,Pagamento,Valor,Status';
+    const linhas = todasVendas.map(v => {
+      const data = v.created_at ? new Date(v.created_at).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '';
+      const esc = (s?: string) => `"${(s ?? '').replace(/"/g, '""')}"`;
+      return [
+        esc(data),
+        esc(v.seller_name),
+        esc(v.customer_name),
+        esc(v.customer_email),
+        esc(v.customer_phone),
+        esc(v.product_name),
+        esc(v.payment_method),
+        String(Number(v.sale_value).toFixed(2)).replace('.', ','),
+        esc(v.status),
+      ].join(',');
+    });
+    const conteudo = '\uFEFF' + cabecalho + '\n' + linhas.join('\n');
+    const blob = new Blob([conteudo], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `vendas_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
   const vendedoresUnicos = Array.from(new Set(todasVendas.map(v => v.seller_name).filter(nome => nome && nome !== 'Desconhecido'))).sort();
 
   let tituloRelatorio = ''; let subTituloRelatorio = '';
@@ -275,9 +329,12 @@ export function Dashboard() {
 
                 {[
                   { label: 'Temporadas', icon: '🏴', cor: 'hover:bg-orange-500/20 hover:border-orange-500/60 hover:text-orange-300 hover:shadow-[0_0_12px_rgba(249,115,22,0.3)]', acao: () => setIsModalDesafioOpen(true) },
+                  { label: 'Missões',    icon: '🎯', cor: 'hover:bg-yellow-500/20 hover:border-yellow-500/60 hover:text-yellow-300 hover:shadow-[0_0_12px_rgba(250,204,21,0.3)]', acao: () => setIsModalMissoesOpen(true) },
                   { label: 'Produtos',   icon: '📦', cor: 'hover:bg-blue-500/20 hover:border-blue-500/60 hover:text-blue-300 hover:shadow-[0_0_12px_rgba(59,130,246,0.3)]',   acao: () => setIsModalProdutoOpen(true) },
                   { label: 'Financeiro', icon: '💰', cor: 'hover:bg-emerald-500/20 hover:border-emerald-500/60 hover:text-emerald-300 hover:shadow-[0_0_12px_rgba(16,185,129,0.3)]', acao: () => setIsFinanceiroModalOpen(true) },
                   { label: 'Planilha',   icon: '📥', cor: 'hover:bg-green-500/20 hover:border-green-500/60 hover:text-green-300 hover:shadow-[0_0_12px_rgba(34,197,94,0.3)]',   acao: () => setIsImportModalOpen(true) },
+                  { label: 'Exportar',   icon: '📤', cor: 'hover:bg-teal-500/20 hover:border-teal-500/60 hover:text-teal-300 hover:shadow-[0_0_12px_rgba(20,184,166,0.3)]',     acao: exportarCSV },
+                  { label: 'Histórico',  icon: '📜', cor: 'hover:bg-violet-500/20 hover:border-violet-500/60 hover:text-violet-300 hover:shadow-[0_0_12px_rgba(139,92,246,0.3)]', acao: () => setIsModalHistoricoOpen(true) },
                 ].map(({ label, icon, cor, acao }) => (
                   <button
                     key={label}
@@ -665,6 +722,18 @@ export function Dashboard() {
       
       {/* 🔥 MODAL DO FINANCEIRO INJETADO NO FINAL DO ARQUIVO */}
       <ModalFinanceiro isOpen={isFinanceiroModalOpen} onClose={() => setIsFinanceiroModalOpen(false)} vendas={todasVendas} />
+      <ModalGerenciarMissoes isOpen={isModalMissoesOpen} onClose={() => setIsModalMissoesOpen(false)} />
+      <ModalRankingHistorico isOpen={isModalHistoricoOpen} onClose={() => setIsModalHistoricoOpen(false)} />
+
+      {/* Toast notificação admin: nova venda registrada */}
+      {novaVendaToast && (
+        <div className="fixed top-4 right-4 z-[100] animate-in slide-in-from-top duration-300">
+          <div className="bg-zinc-900 border border-yellow-400/50 rounded-xl px-4 py-3 flex items-center gap-3 shadow-[0_0_30px_rgba(250,204,21,0.2)]">
+            <span className="text-2xl">🔔</span>
+            <p className="text-white font-black text-sm">{novaVendaToast}</p>
+          </div>
+        </div>
+      )}
 
     </div>
   );
