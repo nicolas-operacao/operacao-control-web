@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useRef } from 'react';
 import { somClick, somHover } from '../services/hudSounds';
 
 const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
@@ -33,8 +33,12 @@ const METODO_COR: Record<string, string> = {
   'Débito à vista': 'bg-cyan-500',
 };
 
+type TooltipInfo = { dia: number; valor: number; count: number; x: number; y: number } | null;
+
 export function DashboardMensal({ vendas, mes, ano }: Props) {
   const [chartMode, setChartMode] = useState<'valor' | 'count'>('valor');
+  const [tooltip, setTooltip] = useState<TooltipInfo>(null);
+  const chartRef = useRef<HTMLDivElement>(null);
 
   const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const diasNoMes = new Date(ano, mes + 1, 0).getDate();
@@ -122,7 +126,7 @@ export function DashboardMensal({ vendas, mes, ano }: Props) {
       </div>
 
       {/* Gráfico de barras por dia */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 shadow-xl">
+      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 shadow-xl relative">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-3">
           <h3 className="text-white font-black uppercase tracking-widest text-sm flex items-center gap-2">
             📊 Desempenho Diário — <span className="text-yellow-400">{MESES[mes]} {ano}</span>
@@ -145,9 +149,21 @@ export function DashboardMensal({ vendas, mes, ano }: Props) {
           </div>
         </div>
 
-        <div className="overflow-x-auto pb-1">
-          <div className="flex items-end gap-[3px] min-w-max" style={{ height: '170px', paddingTop: '66px' }}>
-            {porDia.map(({ dia, valor, count }, idx) => {
+        {/* Tooltip renderizado fora do overflow para não ser cortado */}
+        {tooltip && (
+          <div
+            className="absolute bg-zinc-800 border border-zinc-600 rounded px-2.5 py-2 text-[9px] font-black whitespace-nowrap z-30 pointer-events-none shadow-xl"
+            style={{ left: tooltip.x, top: tooltip.y, transform: 'translate(-50%, -100%) translateY(-8px)' }}
+          >
+            <span className="text-zinc-400 block">Dia {tooltip.dia}</span>
+            <span className="text-yellow-400 block">{fmt(tooltip.valor)}</span>
+            <span className="text-zinc-400 block">{tooltip.count} venda{tooltip.count !== 1 ? 's' : ''}</span>
+          </div>
+        )}
+
+        <div className="overflow-x-auto pb-1" ref={chartRef}>
+          <div className="flex items-end gap-[3px] min-w-max" style={{ height: '120px' }}>
+            {porDia.map(({ dia, valor, count }) => {
               const metric = chartMode === 'valor' ? valor : count;
               const maxMetric = chartMode === 'valor' ? maxValor : maxCount;
               const CHART_H = 100;
@@ -158,32 +174,29 @@ export function DashboardMensal({ vendas, mes, ano }: Props) {
               const isBest = chartMode === 'valor'
                 ? valor === melhorDia.valor && valor > 0
                 : count === maxCount && count > 0;
-              // Primeiros 3 dias: tooltip para direita; últimos 3: para esquerda; demais: centralizado
-              const tooltipPos = idx < 3
-                ? 'left-0'
-                : idx >= diasNoMes - 3
-                  ? 'right-0'
-                  : 'left-1/2 -translate-x-1/2';
 
               return (
-                <div key={dia} className="flex flex-col items-center gap-1 w-8 group relative flex-shrink-0">
-                  {hasData && (
-                    <div
-                      className={`absolute ${tooltipPos} bg-zinc-800 border border-zinc-600 rounded px-2 py-1.5 text-[9px] font-black whitespace-nowrap z-30 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-xl`}
-                      style={{ bottom: barPx + 28 }}
-                    >
-                      <span className="text-zinc-400 block">Dia {dia}</span>
-                      <span className="text-yellow-400 block">{fmt(valor)}</span>
-                      <span className="text-zinc-400 block">{count} venda{count !== 1 ? 's' : ''}</span>
-                    </div>
-                  )}
+                <div
+                  key={dia}
+                  className="flex flex-col items-center gap-1 w-8 flex-shrink-0 cursor-default"
+                  onMouseEnter={hasData ? (e) => {
+                    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                    const chartRect = chartRef.current!.getBoundingClientRect();
+                    setTooltip({
+                      dia, valor, count,
+                      x: rect.left - chartRect.left + rect.width / 2,
+                      y: rect.top - chartRect.top - 4,
+                    });
+                  } : undefined}
+                  onMouseLeave={() => setTooltip(null)}
+                >
                   <div className="w-full flex items-end" style={{ height: CHART_H }}>
                     <div
                       className={`w-full rounded-t-sm transition-all duration-500 ${
                         isBest
                           ? 'bg-yellow-400 shadow-[0_-4px_12px_rgba(250,204,21,0.4)]'
                           : hasData
-                            ? 'bg-yellow-400/50 group-hover:bg-yellow-400'
+                            ? 'bg-yellow-400/50 hover:bg-yellow-400'
                             : 'bg-zinc-800/40'
                       }`}
                       style={{ height: barPx }}
