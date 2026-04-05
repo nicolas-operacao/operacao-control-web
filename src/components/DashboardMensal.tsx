@@ -145,13 +145,12 @@ export function DashboardMensal({ vendas, mes, ano }: Props) {
           </div>
         </div>
 
-        {/* overflow-x-auto só no wrapper externo; o inner tem overflow-visible para os tooltips aparecerem */}
         <div className="overflow-x-auto pb-1">
           <div className="flex items-end gap-[3px] min-w-max" style={{ height: '144px', paddingTop: '40px' }}>
-            {porDia.map(({ dia, valor, count }) => {
+            {porDia.map(({ dia, valor, count }, idx) => {
               const metric = chartMode === 'valor' ? valor : count;
               const maxMetric = chartMode === 'valor' ? maxValor : maxCount;
-              const CHART_H = 100; // px fixo — evita bug de % com pai sem px
+              const CHART_H = 100;
               const barPx = maxMetric > 0 && metric > 0
                 ? Math.max(Math.round((metric / maxMetric) * CHART_H), 4)
                 : 2;
@@ -159,13 +158,18 @@ export function DashboardMensal({ vendas, mes, ano }: Props) {
               const isBest = chartMode === 'valor'
                 ? valor === melhorDia.valor && valor > 0
                 : count === maxCount && count > 0;
+              // Primeiros 3 dias: tooltip para direita; últimos 3: para esquerda; demais: centralizado
+              const tooltipPos = idx < 3
+                ? 'left-0'
+                : idx >= diasNoMes - 3
+                  ? 'right-0'
+                  : 'left-1/2 -translate-x-1/2';
 
               return (
                 <div key={dia} className="flex flex-col items-center gap-1 w-8 group relative flex-shrink-0">
-                  {/* Tooltip — posicionado acima da barra com transform */}
                   {hasData && (
                     <div
-                      className="absolute left-1/2 -translate-x-1/2 bg-zinc-800 border border-zinc-600 rounded px-2 py-1.5 text-[9px] font-black whitespace-nowrap z-30 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-xl"
+                      className={`absolute ${tooltipPos} bg-zinc-800 border border-zinc-600 rounded px-2 py-1.5 text-[9px] font-black whitespace-nowrap z-30 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-xl`}
                       style={{ bottom: barPx + 28 }}
                     >
                       <span className="text-zinc-400 block">Dia {dia}</span>
@@ -173,7 +177,6 @@ export function DashboardMensal({ vendas, mes, ano }: Props) {
                       <span className="text-zinc-400 block">{count} venda{count !== 1 ? 's' : ''}</span>
                     </div>
                   )}
-                  {/* Bar wrapper — altura fixa em px */}
                   <div className="w-full flex items-end" style={{ height: CHART_H }}>
                     <div
                       className={`w-full rounded-t-sm transition-all duration-500 ${
@@ -186,7 +189,6 @@ export function DashboardMensal({ vendas, mes, ano }: Props) {
                       style={{ height: barPx }}
                     />
                   </div>
-                  {/* Day label */}
                   <span className={`text-[9px] font-bold ${isBest ? 'text-yellow-400' : 'text-zinc-600'}`}>
                     {dia}
                   </span>
