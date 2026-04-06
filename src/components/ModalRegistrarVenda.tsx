@@ -35,13 +35,15 @@ export function ModalRegistrarVenda({ isOpen, onClose, produtos, user, onVendaRe
     confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 }, colors: ['#FACC15', '#22C55E', '#3B82F6'] });
   };
 
-  // Garante que o primeiro produto já venha selecionado
+  // Inicializa o primeiro produto apenas uma vez (quando produtos carregam e o campo está vazio)
+  const initializedRef = React.useRef(false);
   useEffect(() => {
-    if (produtos.length > 0 && !productName) {
+    if (!initializedRef.current && produtos.length > 0) {
       setProductName(produtos[0].nome);
       setSaleValue(String(produtos[0].valor));
+      initializedRef.current = true;
     }
-  }, [produtos, productName]);
+  }, [produtos]);
 
   if (!isOpen) return null;
 

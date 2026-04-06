@@ -484,15 +484,15 @@ function CardPaymentLink({
           <h3 className="text-white font-black text-base leading-tight">{pl.produto}</h3>
           {pl.descricao && <p className="text-zinc-500 text-xs mt-0.5">{pl.descricao}</p>}
         </div>
-        {isAdmin && (
-          <div className="flex items-center gap-1.5 flex-shrink-0">
-            <button
-              onMouseEnter={somHover}
-              onClick={() => { somClick(); onEditar(pl); }}
-              className="w-8 h-8 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-yellow-400 flex items-center justify-center text-sm transition-all"
-            >
-              ✏️
-            </button>
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          <button
+            onMouseEnter={somHover}
+            onClick={() => { somClick(); onEditar(pl); }}
+            className="w-8 h-8 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-yellow-400 flex items-center justify-center text-sm transition-all"
+          >
+            ✏️
+          </button>
+          {isAdmin && (
             <button
               onMouseEnter={somHover}
               onClick={() => { somClick(); onDeletar(pl.id); }}
@@ -500,8 +500,8 @@ function CardPaymentLink({
             >
               🗑️
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       <div className="px-4 pb-4 space-y-2">
@@ -696,8 +696,8 @@ function AbaLinks({ isAdmin }: { isAdmin: boolean }) {
 
   return (
     <div className="space-y-4">
-      {/* Admin: botão adicionar */}
-      {isAdmin && !showForm && (
+      {/* Botão adicionar — disponível para todos */}
+      {!showForm && (
         <button
           onMouseEnter={somHover}
           onClick={() => { somClick(); setEditando(null); setShowForm(true); }}
@@ -708,7 +708,7 @@ function AbaLinks({ isAdmin }: { isAdmin: boolean }) {
       )}
 
       {/* Formulário */}
-      {showForm && isAdmin && (
+      {showForm && (
         <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-4">
           <p className="text-zinc-400 text-[10px] font-black uppercase tracking-widest mb-3">
             {editando ? '✏️ Editar Links' : '➕ Novo Curso'}

@@ -14,7 +14,7 @@ export function ModalEdicaoAdmin({ isOpen, onClose, venda, produtos, onSuccess }
     if (venda) {
       setFormData({ product_name: venda.product_name, sale_value: String(venda.sale_value), customer_name: venda.customer_name, customer_email: venda.customer_email || '', customer_phone: venda.customer_phone || '', payment_method: venda.payment_method || 'PIX', sale_date: venda.created_at ? new Date(venda.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0] });
     }
-  }, [venda]);
+  }, [venda?.id]); // só reinicializa ao trocar de venda, não em re-renders
 
   if (!isOpen || !venda) return null;
 
