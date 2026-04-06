@@ -155,16 +155,31 @@ export function PainelVendedor({ userId, userName, equipe }: Props) {
     load();
   }, [userId]);
 
-  async function salvarFoto(urlFinal?: string) {
-    const url = urlFinal ?? novaFoto.trim();
-    if (!url) return;
+  const [arquivoFoto, setArquivoFoto] = useState<File | null>(null);
+
+  async function salvarFoto() {
     setSalvandoFoto(true);
     try {
-      await api.patch(`/users/${userId}/foto`, { foto_url: url });
-      setStats(prev => prev ? { ...prev, foto_url: url } : prev);
+      let novaUrl = '';
+      if (arquivoFoto) {
+        // Envia o arquivo via multipart/form-data
+        const form = new FormData();
+        form.append('foto', arquivoFoto);
+        const res = await api.patch(`/users/${userId}/foto`, form, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        novaUrl = res.data?.foto_url ?? '';
+      } else if (novaFoto.trim()) {
+        // Envia uma URL direta
+        const res = await api.patch(`/users/${userId}/foto`, { foto_url: novaFoto.trim() });
+        novaUrl = res.data?.foto_url ?? novaFoto.trim();
+      } else return;
+
+      setStats(prev => prev ? { ...prev, foto_url: novaUrl } : prev);
       setEditandoFoto(false);
       setNovaFoto('');
       setFotoPreview('');
+      setArquivoFoto(null);
     } catch { /* silencioso */ }
     finally { setSalvandoFoto(false); }
   }
@@ -172,13 +187,11 @@ export function PainelVendedor({ userId, userName, equipe }: Props) {
   function handleFotoArquivo(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    setArquivoFoto(file);
     const reader = new FileReader();
-    reader.onload = ev => {
-      const dataUrl = ev.target?.result as string;
-      setFotoPreview(dataUrl);
-      setNovaFoto(dataUrl);
-    };
+    reader.onload = ev => setFotoPreview(ev.target?.result as string);
     reader.readAsDataURL(file);
+    setNovaFoto('');
   }
 
   const { nivelInfo, rankPos, mesmaEquipe, lider, deltaPrimeiro, conquistas, frase, projecao, mediaDiaria, diasRestantes, streak } = useMemo(() => {
@@ -742,14 +755,14 @@ export function PainelVendedor({ userId, userName, equipe }: Props) {
               <button
                 onMouseEnter={somHover}
                 onClick={() => { somClick(); salvarFoto(); }}
-                disabled={salvandoFoto || (!novaFoto.trim() && !fotoPreview)}
+                disabled={salvandoFoto || (!novaFoto.trim() && !arquivoFoto)}
                 className="flex-1 bg-yellow-400 hover:bg-yellow-300 disabled:opacity-50 text-black font-black py-2 rounded-lg text-sm uppercase tracking-wider transition-all active:scale-95"
               >
                 {salvandoFoto ? 'Salvando...' : '✓ Salvar'}
               </button>
               <button
                 onMouseEnter={somHover}
-                onClick={() => { somClick(); setEditandoFoto(false); setNovaFoto(''); setFotoPreview(''); }}
+                onClick={() => { somClick(); setEditandoFoto(false); setNovaFoto(''); setFotoPreview(''); setArquivoFoto(null); }}
                 className="px-4 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 font-black py-2 rounded-lg text-sm transition-all"
               >
                 Cancelar
