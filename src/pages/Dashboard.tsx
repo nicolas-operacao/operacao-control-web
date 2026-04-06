@@ -391,6 +391,7 @@ export function Dashboard() {
               <div className="h-8 w-px bg-zinc-800 mx-1" />
               <div className="flex flex-wrap gap-1.5 items-center ml-auto">
                 {[
+                  { label: 'Arsenal',   icon: '⚡', cor: 'hover:bg-yellow-500/20 hover:border-yellow-500/60 hover:text-yellow-300', acao: () => navigate('/arsenal') },
                   { label: 'Suporte',   icon: '🛡️', cor: 'hover:bg-purple-500/20 hover:border-purple-500/60 hover:text-purple-300', acao: () => navigate('/liberacoes') },
                   { label: 'Recrutas',  icon: '🪖', cor: 'hover:bg-indigo-500/20 hover:border-indigo-500/60 hover:text-indigo-300', acao: () => navigate('/admin/recrutas') },
                   { label: 'Injetados', icon: '🧹', cor: 'hover:bg-red-500/20 hover:border-red-500/60 hover:text-red-300',          acao: handleLimparFogoAmigo },

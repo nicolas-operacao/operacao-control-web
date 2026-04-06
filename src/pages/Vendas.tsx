@@ -334,14 +334,23 @@ export function Vendas() {
               Soldado: <span className="text-white font-bold">{user.name}</span>
             </p>
           </div>
-          <button
-            onMouseEnter={somHover}
-            onClick={() => { somClick(); handleLogout(); }}
-            className="flex items-center gap-1.5 border border-zinc-700 hover:border-red-600 text-zinc-400 hover:text-red-400 px-3 md:px-5 py-2 rounded-lg font-bold transition-all uppercase text-xs"
-          >
-            <span className="hidden sm:inline">Sair da Operação</span>
-            <span className="sm:hidden">Sair</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onMouseEnter={somHover}
+              onClick={() => { somClick(); navigate('/arsenal'); }}
+              className="hidden sm:flex items-center gap-1.5 border border-zinc-700 hover:border-yellow-400/60 text-zinc-400 hover:text-yellow-400 px-3 py-2 rounded-lg font-black transition-all uppercase text-xs"
+            >
+              ⚡ Arsenal
+            </button>
+            <button
+              onMouseEnter={somHover}
+              onClick={() => { somClick(); handleLogout(); }}
+              className="flex items-center gap-1.5 border border-zinc-700 hover:border-red-600 text-zinc-400 hover:text-red-400 px-3 md:px-5 py-2 rounded-lg font-bold transition-all uppercase text-xs"
+            >
+              <span className="hidden sm:inline">Sair da Operação</span>
+              <span className="sm:hidden">Sair</span>
+            </button>
+          </div>
         </div>
 
         {/* 🔥 ALERTA DE BAIXAS */}
