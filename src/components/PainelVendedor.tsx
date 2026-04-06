@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import confetti from 'canvas-confetti';
 import { api } from '../services/api';
-import { somClick, somHover, isSomAtivo, setSomAtivo } from '../services/hudSounds';
+import { somClick, somHover, isSomAtivo, setSomAtivo, setSomAtivoParaUsuario } from '../services/hudSounds';
 
 // ─── SISTEMA DE NÍVEIS (igual ao GuerraEquipes) ────────────────────────────────
 const VENDAS_POR_NIVEL   = 5;
@@ -67,6 +67,7 @@ type Stats = {
   ultimos6meses?: { label: string; valor: number; count: number }[];
   meta_mensal?: number | null;
   foto_url?: string | null;
+  som_desativado?: boolean;
 };
 
 type Missao = {
@@ -113,6 +114,20 @@ export function PainelVendedor({ userId, userName, equipe }: Props) {
   const corBgClass = isB ? 'bg-red-950/30' : 'bg-blue-950/30';
   const nomeEquipe = isB ? 'Equipe B 🔴' : 'Equipe A ⚡';
 
+  // Polling: verifica som_desativado a cada 30s para aplicar mudanças do admin em tempo real
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const res = await api.get(`/sellers/${userId}/stats`);
+        const somDb = res.data?.som_desativado ?? false;
+        setSomAtivoParaUsuario(userId, !somDb);
+        setSomAtivoState(!somDb);
+        setStats(prev => prev ? { ...prev, som_desativado: somDb } : prev);
+      } catch { /* silencioso */ }
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [userId]);
+
   useEffect(() => {
     async function load() {
       try {
@@ -125,6 +140,11 @@ export function PainelVendedor({ userId, userName, equipe }: Props) {
         setStats(s);
         setRanking(Array.isArray(rankRes.data) ? rankRes.data : (rankRes.data?.data ?? []));
         setMissoes(Array.isArray(missoesRes.data) ? missoesRes.data : []);
+
+        // Aplica preferência de som vinda do banco
+        const somDb = s?.som_desativado ?? false;
+        setSomAtivoParaUsuario(userId, !somDb);
+        setSomAtivoState(!somDb);
 
         // ── Verificar subida de patente ─────────────────────────────────────
         if (!jaChecouPatente.current) {

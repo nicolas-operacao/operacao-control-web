@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { toast } from '../services/toast';
-import { somClick, somHover, setSomAtivoParaUsuario } from '../services/hudSounds';
+import { somClick, somHover } from '../services/hudSounds';
 
 type User = {
   id: string;
@@ -11,6 +11,7 @@ type User = {
   status: string;
   role: string;
   equipe?: string;
+  som_desativado?: boolean;
 };
 
 type ResetRequest = {
@@ -417,18 +418,18 @@ export function RecrutasAdmin() {
                         </button>
                         <button
                           onMouseEnter={somHover}
-                          onClick={() => {
+                          onClick={async () => {
                             somClick();
-                            const key = `som_desativado_${u.id}`;
-                            const atual = localStorage.getItem(key) === 'true';
-                            setSomAtivoParaUsuario(u.id, atual); // inverte
-                            // força re-render
-                            setAprovados(prev => [...prev]);
+                            const novoValor = !u.som_desativado;
+                            try {
+                              await api.patch(`/admin/${u.id}/som`, { som_desativado: novoValor });
+                              setAprovados(prev => prev.map(x => x.id === u.id ? { ...x, som_desativado: novoValor } : x));
+                            } catch { toast.error('Erro ao alterar som.'); }
                           }}
-                          title={localStorage.getItem(`som_desativado_${u.id}`) === 'true' ? 'Ativar som' : 'Desativar som'}
+                          title={u.som_desativado ? 'Ativar som' : 'Desativar som'}
                           className="text-zinc-500 hover:text-yellow-400 border border-zinc-700 hover:border-yellow-400/50 px-2 py-1 rounded-lg text-[10px] font-black transition-all"
                         >
-                          {localStorage.getItem(`som_desativado_${u.id}`) === 'true' ? '🔇' : '🔊'}
+                          {u.som_desativado ? '🔇' : '🔊'}
                         </button>
                         <button
                           onMouseEnter={somHover}
