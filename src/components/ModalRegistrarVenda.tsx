@@ -63,9 +63,16 @@ export function ModalRegistrarVenda({ isOpen, onClose, produtos, user, onVendaRe
         customer_email: customerEmail, customer_phone: customerPhone, payment_method: paymentMethod,
         sale_value: Number(saleValue), sale_date: saleDate
       });
-      somSucesso();
-      lancarConfetes();
-      toast.success('Venda registrada com sucesso!');
+      const isPendente = paymentMethod.toLowerCase().includes('boleto parcelado') ||
+        productName.toLowerCase().includes('combo') ||
+        productName.toLowerCase().includes('upgrade');
+      if (isPendente) {
+        toast.info('⏳ Venda enviada para liberação pelo suporte!');
+      } else {
+        somSucesso();
+        lancarConfetes();
+        toast.success('Venda registrada com sucesso!');
+      }
       setCustomerName(''); setCustomerEmail(''); setCustomerPhone(''); setSaleDate(hoje);
       onVendaRegistrada();
     } catch (error: any) {

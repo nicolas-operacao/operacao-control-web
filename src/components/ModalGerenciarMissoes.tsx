@@ -2,13 +2,14 @@ import { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { somClick, somHover } from '../services/hudSounds';
 import { toast } from '../services/toast';
+import { ModalDashboardAbordagem } from './ModalDashboardAbordagem';
 
 type Missao = {
   id: string;
   titulo: string;
   descricao: string;
   icone: string;
-  tipo: 'hoje' | 'semana' | 'mes' | 'valor';
+  tipo: 'hoje' | 'semana' | 'mes' | 'valor' | 'abordagem';
   meta: number;
   recompensa_xp?: number;
   ativa: boolean;
@@ -20,6 +21,7 @@ const TIPO_LABEL: Record<string, string> = {
   semana: 'Vendas na semana',
   mes: 'Vendas no mês',
   valor: 'Valor vendido (R$)',
+  abordagem: 'Abordagem diária',
 };
 
 const ICONES_SUGERIDOS = ['🎯', '🔥', '⚡', '💰', '🏆', '⚔️', '🚀', '💪', '🎖️', '🌟', '💎', '🛡️'];
@@ -36,12 +38,13 @@ export function ModalGerenciarMissoes({ isOpen, onClose }: Props) {
   const [deletando, setDeletando] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editando, setEditando] = useState<Missao | null>(null);
+  const [dashboardMissao, setDashboardMissao] = useState<Missao | null>(null);
 
   // Form state
   const [titulo, setTitulo] = useState('');
   const [descricao, setDescricao] = useState('');
   const [icone, setIcone] = useState('🎯');
-  const [tipo, setTipo] = useState<'hoje' | 'semana' | 'mes' | 'valor'>('hoje');
+  const [tipo, setTipo] = useState<'hoje' | 'semana' | 'mes' | 'valor' | 'abordagem'>('hoje');
   const [meta, setMeta] = useState('5');
   const [recompensaXp, setRecompensaXp] = useState('100');
   const [dataFim, setDataFim] = useState('');
@@ -144,6 +147,13 @@ export function ModalGerenciarMissoes({ isOpen, onClose }: Props) {
   if (!isOpen) return null;
 
   return (
+    <>
+    {dashboardMissao && (
+      <ModalDashboardAbordagem
+        missao={dashboardMissao}
+        onClose={() => setDashboardMissao(null)}
+      />
+    )}
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
       <div className="bg-zinc-950 border border-zinc-800 rounded-t-xl sm:rounded-xl shadow-2xl w-full sm:max-w-2xl max-h-[95dvh] sm:max-h-[90vh] flex flex-col">
 
@@ -221,13 +231,14 @@ export function ModalGerenciarMissoes({ isOpen, onClose }: Props) {
                     <option value="semana">Vendas na semana</option>
                     <option value="mes">Vendas no mês</option>
                     <option value="valor">Valor vendido (R$)</option>
+                    <option value="abordagem">🎯 Abordagem diária</option>
                   </select>
                 </div>
 
                 {/* Meta */}
                 <div>
                   <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">
-                    Meta ({tipo === 'valor' ? 'R$' : 'vendas'})
+                    Meta ({tipo === 'valor' ? 'R$' : tipo === 'abordagem' ? 'abordagens/dia' : 'vendas'})
                   </label>
                   <input
                     type="number"
@@ -349,6 +360,15 @@ export function ModalGerenciarMissoes({ isOpen, onClose }: Props) {
                     >
                       ✏️ Editar
                     </button>
+                    {m.tipo === 'abordagem' && (
+                      <button
+                        onMouseEnter={somHover}
+                        onClick={() => { somClick(); setDashboardMissao(m); }}
+                        className="px-2 py-1 rounded-md text-[10px] font-black border border-blue-800/50 text-blue-400 hover:bg-blue-950/30 transition-all"
+                      >
+                        📊 Stats
+                      </button>
+                    )}
                     <button
                       onMouseEnter={somHover}
                       onClick={() => { somClick(); deletar(m.id); }}
@@ -377,5 +397,6 @@ export function ModalGerenciarMissoes({ isOpen, onClose }: Props) {
         </div>
       </div>
     </div>
+    </>
   );
 }

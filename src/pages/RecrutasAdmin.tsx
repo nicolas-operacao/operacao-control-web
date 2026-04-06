@@ -49,11 +49,20 @@ export function RecrutasAdmin() {
   const [aba, setAba] = useState<'pendentes' | 'tropa' | 'senhas'>('pendentes');
   const [excluindo, setExcluindo] = useState<string | null>(null);
 
-  // Reset de senhas
+  // Reset de senhas (vendedores)
   const [resets, setResets] = useState<ResetRequest[]>([]);
   const [novaSenha, setNovaSenha] = useState('');
   const [resolvendoId, setResolvendoId] = useState<string | null>(null);
   const [salvandoReset, setSalvandoReset] = useState(false);
+
+  // Troca de senha própria (admin)
+  const [modalSenha, setModalSenha] = useState(false);
+  const [senhaAtual, setSenhaAtual] = useState('');
+  const [senhaNova, setSenhaNova] = useState('');
+  const [senhaConfirm, setSenhaConfirm] = useState('');
+  const [salvandoSenha, setSalvandoSenha] = useState(false);
+  const [mostrarAtual, setMostrarAtual] = useState(false);
+  const [mostrarNova, setMostrarNova] = useState(false);
 
   useEffect(() => {
     fetchAll();
@@ -138,12 +147,33 @@ export function RecrutasAdmin() {
     }
   }
 
+  async function salvarSenhaAdmin() {
+    if (!senhaAtual.trim()) { toast.warning('Informe sua senha atual.'); return; }
+    if (senhaNova.length < 6) { toast.warning('A nova senha deve ter ao menos 6 caracteres.'); return; }
+    if (senhaNova !== senhaConfirm) { toast.warning('As senhas não conferem.'); return; }
+    const userStr = localStorage.getItem('user');
+    const userId = userStr ? JSON.parse(userStr).id : null;
+    if (!userId) { toast.error('Sessão inválida. Faça login novamente.'); return; }
+    setSalvandoSenha(true);
+    try {
+      await api.patch('/auth/change-password', { user_id: userId, senha_atual: senhaAtual, nova_senha: senhaNova });
+      toast.success('Senha alterada com sucesso!');
+      setModalSenha(false);
+      setSenhaAtual(''); setSenhaNova(''); setSenhaConfirm('');
+    } catch (e: any) {
+      toast.error(e.response?.data?.error || 'Erro ao alterar senha.');
+    } finally {
+      setSalvandoSenha(false);
+    }
+  }
+
   const aprovadosFiltrados = aprovados.filter(u =>
     u.name.toLowerCase().includes(busca.toLowerCase()) ||
     u.email.toLowerCase().includes(busca.toLowerCase())
   );
 
   return (
+    <>
     <div className="min-h-screen bg-zinc-950 text-zinc-100 p-4 md:p-8 font-sans">
       <div className="max-w-5xl mx-auto space-y-6">
 
@@ -157,13 +187,22 @@ export function RecrutasAdmin() {
               {pendentes.length} pendente(s) · {aprovados.length} na tropa
             </p>
           </div>
-          <button
-            onMouseEnter={somHover}
-            onClick={() => { somClick(); navigate('/dashboard'); }}
-            className="border border-zinc-700 hover:border-zinc-500 text-zinc-400 hover:text-white px-4 py-2 rounded-lg font-bold transition-all text-xs uppercase tracking-widest"
-          >
-            ← Voltar ao Comando
-          </button>
+          <div className="flex gap-2">
+            <button
+              onMouseEnter={somHover}
+              onClick={() => { somClick(); setModalSenha(true); }}
+              className="border border-zinc-700 hover:border-yellow-500/50 text-zinc-400 hover:text-yellow-400 px-4 py-2 rounded-lg font-bold transition-all text-xs uppercase tracking-widest flex items-center gap-1.5"
+            >
+              🔒 Minha Senha
+            </button>
+            <button
+              onMouseEnter={somHover}
+              onClick={() => { somClick(); navigate('/dashboard'); }}
+              className="border border-zinc-700 hover:border-zinc-500 text-zinc-400 hover:text-white px-4 py-2 rounded-lg font-bold transition-all text-xs uppercase tracking-widest"
+            >
+              ← Voltar ao Comando
+            </button>
+          </div>
         </div>
 
         {/* Abas */}
@@ -350,6 +389,7 @@ export function RecrutasAdmin() {
                             <option value="suporte">Suporte</option>
                           </select>
                         </div>
+                        {editRole !== 'suporte' && (
                         <div>
                           <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">Equipe</label>
                           <div className="flex gap-2">
@@ -369,6 +409,7 @@ export function RecrutasAdmin() {
                             ))}
                           </div>
                         </div>
+                        )}
                       </div>
                       <div className="flex gap-2 pt-1">
                         <button
@@ -404,7 +445,7 @@ export function RecrutasAdmin() {
                         <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full border ${ROLE_COLOR[u.role] ?? 'text-zinc-400 bg-zinc-800 border-zinc-700'}`}>
                           {ROLE_LABEL[u.role] ?? u.role}
                         </span>
-                        {u.equipe && (
+                        {u.equipe && u.role !== 'suporte' && (
                           <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full border ${u.equipe.toUpperCase().includes('B') ? 'text-red-400 bg-red-500/10 border-red-500/30' : 'text-blue-400 bg-blue-500/10 border-blue-500/30'}`}>
                             Eq. {u.equipe.toUpperCase().replace('EQUIPE ', '')}
                           </span>
@@ -449,5 +490,109 @@ export function RecrutasAdmin() {
         )}
       </div>
     </div>
+
+    {/* ── MODAL TROCAR MINHA SENHA ── */}
+    {modalSenha && (
+      <div className="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="bg-zinc-950 border border-zinc-800 rounded-2xl w-full max-w-sm shadow-2xl">
+          {/* Header */}
+          <div className="flex items-center justify-between p-5 border-b border-zinc-800">
+            <div>
+              <h2 className="text-base font-black text-white uppercase tracking-widest">🔒 Trocar Senha</h2>
+              <p className="text-zinc-500 text-xs mt-0.5">Somente você altera sua própria senha</p>
+            </div>
+            <button
+              onMouseEnter={somHover}
+              onClick={() => { somClick(); setModalSenha(false); setSenhaAtual(''); setSenhaNova(''); setSenhaConfirm(''); }}
+              className="text-zinc-500 hover:text-white text-xl font-bold"
+            >✕</button>
+          </div>
+
+          <div className="p-5 space-y-4">
+            {/* Senha atual */}
+            <div>
+              <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1.5 tracking-widest">Senha Atual</label>
+              <div className="relative">
+                <input
+                  type={mostrarAtual ? 'text' : 'password'}
+                  value={senhaAtual}
+                  onChange={e => setSenhaAtual(e.target.value)}
+                  placeholder="Sua senha atual"
+                  className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-yellow-500/60 pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setMostrarAtual(v => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white text-sm"
+                >{mostrarAtual ? '🙈' : '👁️'}</button>
+              </div>
+            </div>
+
+            {/* Nova senha */}
+            <div>
+              <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1.5 tracking-widest">Nova Senha</label>
+              <div className="relative">
+                <input
+                  type={mostrarNova ? 'text' : 'password'}
+                  value={senhaNova}
+                  onChange={e => setSenhaNova(e.target.value)}
+                  placeholder="Mínimo 6 caracteres"
+                  className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-yellow-500/60 pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setMostrarNova(v => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white text-sm"
+                >{mostrarNova ? '🙈' : '👁️'}</button>
+              </div>
+            </div>
+
+            {/* Confirmar nova senha */}
+            <div>
+              <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1.5 tracking-widest">Confirmar Nova Senha</label>
+              <input
+                type="password"
+                value={senhaConfirm}
+                onChange={e => setSenhaConfirm(e.target.value)}
+                placeholder="Repita a nova senha"
+                className={`w-full bg-zinc-900 border rounded-xl px-4 py-3 text-white text-sm focus:outline-none transition-colors ${
+                  senhaConfirm && senhaNova !== senhaConfirm
+                    ? 'border-red-500/60 focus:border-red-500'
+                    : senhaConfirm && senhaNova === senhaConfirm
+                    ? 'border-green-500/60 focus:border-green-500'
+                    : 'border-zinc-700 focus:border-yellow-500/60'
+                }`}
+              />
+              {senhaConfirm && senhaNova !== senhaConfirm && (
+                <p className="text-red-400 text-[10px] mt-1">As senhas não conferem</p>
+              )}
+              {senhaConfirm && senhaNova === senhaConfirm && senhaNova.length >= 6 && (
+                <p className="text-green-400 text-[10px] mt-1">✓ Senhas conferem</p>
+              )}
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <button
+                onMouseEnter={somHover}
+                onClick={() => { somClick(); setModalSenha(false); setSenhaAtual(''); setSenhaNova(''); setSenhaConfirm(''); }}
+                className="flex-1 py-2.5 rounded-xl border border-zinc-700 text-zinc-400 font-black text-xs uppercase tracking-widest hover:bg-zinc-800 transition-all"
+              >
+                Cancelar
+              </button>
+              <button
+                onMouseEnter={somHover}
+                onClick={() => { somClick(); salvarSenhaAdmin(); }}
+                disabled={salvandoSenha || !senhaAtual || senhaNova.length < 6 || senhaNova !== senhaConfirm}
+                className="flex-1 py-2.5 rounded-xl font-black text-black text-xs uppercase tracking-widest transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{ background: 'linear-gradient(135deg, #ca8a04, #facc15)' }}
+              >
+                {salvandoSenha ? 'Salvando...' : '✓ Salvar Senha'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }

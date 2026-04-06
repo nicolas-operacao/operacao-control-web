@@ -9,12 +9,15 @@ import { Perfil } from './pages/Perfil';
 import { Arsenal } from './pages/Arsenal';
 import { PrivateRoute } from './components/PrivateRoute';
 import { AdminRoute } from './components/AdminRoute';
+import { SuporteRoute } from './components/SuporteRoute';
 import { ToastContainer } from './components/ToastContainer';
+import { SomPoller } from './components/SomPoller';
 
 export default function App() {
   return (
     <BrowserRouter>
       <ToastContainer />
+      <SomPoller />
       <Routes>
         {/* Rotas Públicas (Qualquer um acessa) */}
         <Route path="/" element={<Login />} />
@@ -24,7 +27,7 @@ export default function App() {
         <Route path="/dashboard" element={<AdminRoute><Dashboard /></AdminRoute>} />
         <Route path="/admin/recrutas" element={<AdminRoute><RecrutasAdmin /></AdminRoute>} />
         <Route path="/vendas" element={<PrivateRoute><Vendas /></PrivateRoute>} />
-        <Route path="/liberacoes" element={<PrivateRoute><Suporte /></PrivateRoute>} />
+        <Route path="/liberacoes" element={<SuporteRoute><Suporte /></SuporteRoute>} />
         <Route path="/perfil" element={<PrivateRoute><Perfil /></PrivateRoute>} />
         <Route path="/arsenal" element={<PrivateRoute><Arsenal /></PrivateRoute>} />
       </Routes>

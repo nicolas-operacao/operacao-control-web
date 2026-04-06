@@ -1,7 +1,10 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import confetti from 'canvas-confetti';
 import { api } from '../services/api';
-import { somClick, somHover, isSomAtivo, setSomAtivo, setSomAtivoParaUsuario } from '../services/hudSounds';
+import { somClick, somHover, somLevelUp, isSomAtivo, setSomAtivo, setSomAtivoParaUsuario } from '../services/hudSounds';
+import { NivelUpCelebration } from './NivelUpCelebration';
+import { MissaoAnuncio } from './MissaoAnuncio';
+import { ModalRegistrarAbordagem } from './ModalRegistrarAbordagem';
 
 // ─── SISTEMA DE NÍVEIS (igual ao GuerraEquipes) ────────────────────────────────
 const VENDAS_POR_NIVEL   = 5;
@@ -75,7 +78,7 @@ type Missao = {
   titulo: string;
   descricao: string;
   icone: string;
-  tipo: 'hoje' | 'semana' | 'mes' | 'valor';
+  tipo: 'hoje' | 'semana' | 'mes' | 'valor' | 'abordagem';
   meta: number;
   recompensa_xp?: number;
   ativa: boolean;
@@ -104,7 +107,10 @@ export function PainelVendedor({ userId, userName, equipe }: Props) {
   const [salvandoFoto, setSalvandoFoto] = useState(false);
   const [fotoPreview, setFotoPreview] = useState('');
   const [patenteCelebrada, setPatenteCelebrada] = useState<{ pat: typeof PATENTES[0]; nivel: number } | null>(null);
+  const [nivelCelebrado, setNivelCelebrado] = useState<{ pat: typeof PATENTES[0]; nivel: number } | null>(null);
   const jaChecouPatente = useRef(false);
+  const [missaoAnuncio, setMissaoAnuncio] = useState<any | null>(null);
+  const [abordagemMissao, setAbordagemMissao] = useState<any | null>(null);
 
   const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const isB = (equipe || '').trim().toUpperCase() === 'B';
@@ -128,6 +134,37 @@ export function PainelVendedor({ userId, userName, equipe }: Props) {
     return () => clearInterval(interval);
   }, [userId]);
 
+  // Polling: verifica novas missões de abordagem a cada 60s
+  useEffect(() => {
+    const chaveVistas = `missoes_abordagem_vistas_${userId}`;
+
+    async function verificarMissoes() {
+      try {
+        const res = await api.get('/missions');
+        const todas: any[] = Array.isArray(res.data) ? res.data : [];
+        const abordagens = todas.filter((m: any) => m.tipo === 'abordagem' && m.ativa);
+        if (abordagens.length === 0) return;
+
+        const vistasStr = localStorage.getItem(chaveVistas);
+        const vistas: string[] = vistasStr ? JSON.parse(vistasStr) : [];
+
+        // Missão de abordagem nova (não vista ainda)
+        const nova = abordagens.find((m: any) => !vistas.includes(m.id));
+        if (nova) {
+          setMissaoAnuncio(nova);
+          localStorage.setItem(chaveVistas, JSON.stringify([...vistas, nova.id]));
+        }
+        // Atualiza lista de missões visíveis
+        setMissoes(todas);
+      } catch { /* silencioso */ }
+    }
+
+    // Checa imediatamente ao montar, depois a cada 60s
+    verificarMissoes();
+    const interval = setInterval(verificarMissoes, 60000);
+    return () => clearInterval(interval);
+  }, [userId]);
+
   useEffect(() => {
     async function load() {
       try {
@@ -146,26 +183,36 @@ export function PainelVendedor({ userId, userName, equipe }: Props) {
         setSomAtivoParaUsuario(userId, !somDb);
         setSomAtivoState(!somDb);
 
-        // ── Verificar subida de patente ─────────────────────────────────────
+        // ── Verificar subida de patente / nível ─────────────────────────────
         if (!jaChecouPatente.current) {
           jaChecouPatente.current = true;
           const chave = `patente_${userId}`;
           const mesCount = s?.mes?.count ?? 0;
           const nivelAtual = calcNivel(mesCount);
           const anterior = localStorage.getItem(chave);
-          // anterior formato: "tiIndex_nivel"
           if (anterior) {
             const [tiAnterior, nivelAnterior] = anterior.split('_').map(Number);
-            const subiu = nivelAtual.ti > tiAnterior || (nivelAtual.ti === tiAnterior && nivelAtual.nivel > nivelAnterior);
-            if (subiu) {
+            const subiuPatente = nivelAtual.ti > tiAnterior;
+            const subiuNivel   = !subiuPatente && nivelAtual.ti === tiAnterior && nivelAtual.nivel > nivelAnterior;
+
+            if (subiuPatente) {
+              // Celebração épica de patente (já existente)
               setPatenteCelebrada({ pat: nivelAtual.pat, nivel: nivelAtual.nivel });
               const cores = [nivelAtual.pat.cor, '#facc15', '#ffffff'];
               setTimeout(() => {
                 confetti({ particleCount: 200, spread: 120, origin: { y: 0.4 }, colors: cores });
-                setTimeout(() => confetti({ particleCount: 100, spread: 80, angle: 60, origin: { x: 0, y: 0.5 }, colors: cores }), 400);
+                setTimeout(() => confetti({ particleCount: 100, spread: 80, angle: 60,  origin: { x: 0, y: 0.5 }, colors: cores }), 400);
                 setTimeout(() => confetti({ particleCount: 100, spread: 80, angle: 120, origin: { x: 1, y: 0.5 }, colors: cores }), 400);
               }, 500);
               setTimeout(() => setPatenteCelebrada(null), 8000);
+            } else if (subiuNivel) {
+              // Celebração cinematográfica de nível
+              setNivelCelebrado({ pat: nivelAtual.pat, nivel: nivelAtual.nivel });
+              somLevelUp();
+              const cores = [nivelAtual.pat.cor, '#facc15', '#ffffff'];
+              setTimeout(() => {
+                confetti({ particleCount: 120, spread: 100, origin: { y: 0.5 }, colors: cores, scalar: 1.2 });
+              }, 400);
             }
           }
           localStorage.setItem(chave, `${nivelAtual.ti}_${nivelAtual.nivel}`);
@@ -274,6 +321,35 @@ export function PainelVendedor({ userId, userName, equipe }: Props) {
 
   return (
     <div className="space-y-4 mb-8">
+
+      {/* ── CELEBRAÇÃO DE SUBIDA DE NÍVEL ── */}
+      {nivelCelebrado && (
+        <NivelUpCelebration
+          nivel={nivelCelebrado.nivel}
+          patNome={nivelCelebrado.pat.nome}
+          patCor={nivelCelebrado.pat.cor}
+          patIcone={nivelCelebrado.pat.icone}
+          onClose={() => setNivelCelebrado(null)}
+        />
+      )}
+
+      {/* ── ANÚNCIO DE NOVA MISSÃO DE ABORDAGEM ── */}
+      {missaoAnuncio && (
+        <MissaoAnuncio
+          missao={missaoAnuncio}
+          onClose={() => setMissaoAnuncio(null)}
+        />
+      )}
+
+      {/* ── MODAL REGISTRAR ABORDAGENS ── */}
+      {abordagemMissao && (
+        <ModalRegistrarAbordagem
+          missao={abordagemMissao}
+          userId={userId}
+          userName={(() => { try { return JSON.parse(localStorage.getItem('user') ?? '{}')?.name ?? 'Vendedor'; } catch { return 'Vendedor'; } })()}
+          onClose={() => setAbordagemMissao(null)}
+        />
+      )}
 
       {/* ── CELEBRAÇÃO DE SUBIDA DE PATENTE ── */}
       {patenteCelebrada && (
@@ -694,12 +770,14 @@ export function PainelVendedor({ userId, userName, equipe }: Props) {
           <p className="text-zinc-400 text-[10px] font-black uppercase tracking-widest mb-3">⚡ Missões Ativas</p>
           <div className="space-y-2">
             {missoes.map(m => {
-              const progresso = m.tipo === 'hoje' ? (stats?.hoje?.count ?? 0)
+              const isAbordagem = m.tipo === 'abordagem';
+              const progresso = isAbordagem ? 0
+                : m.tipo === 'hoje' ? (stats?.hoje?.count ?? 0)
                 : m.tipo === 'semana' ? (stats?.semana?.count ?? 0)
                 : m.tipo === 'mes' ? (stats?.mes?.count ?? 0)
                 : (stats?.mes?.valor ?? 0);
-              const pct = Math.min((progresso / m.meta) * 100, 100);
-              const completa = progresso >= m.meta;
+              const pct = isAbordagem ? 0 : Math.min((progresso / m.meta) * 100, 100);
+              const completa = !isAbordagem && progresso >= m.meta;
               const valorLabel = m.tipo === 'valor'
                 ? progresso.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
                 : progresso;
@@ -710,35 +788,59 @@ export function PainelVendedor({ userId, userName, equipe }: Props) {
               return (
                 <div
                   key={m.id}
-                  className={`flex items-center gap-3 rounded-xl p-3 border transition-all ${
+                  className={`rounded-xl p-3 border transition-all ${
                     completa
                       ? 'bg-yellow-950/20 border-yellow-400/30 shadow-[0_0_10px_rgba(250,204,21,0.1)]'
+                      : isAbordagem
+                      ? 'bg-blue-950/10 border-blue-800/30'
                       : 'bg-zinc-950 border-zinc-800'
                   }`}
                 >
-                  <span className="text-2xl flex-shrink-0">{m.icone}</span>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-1">
-                      <p className={`text-xs font-black ${completa ? 'text-yellow-400' : 'text-white'}`}>{m.titulo}</p>
-                      <span className={`text-[9px] font-black ${completa ? 'text-yellow-400' : 'text-zinc-500'}`}>
-                        {valorLabel} / {metaLabel}
-                      </span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl flex-shrink-0">{m.icone}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className={`text-xs font-black ${completa ? 'text-yellow-400' : isAbordagem ? 'text-blue-300' : 'text-white'}`}>{m.titulo}</p>
+                        {!isAbordagem && (
+                          <span className={`text-[9px] font-black ${completa ? 'text-yellow-400' : 'text-zinc-500'}`}>
+                            {valorLabel} / {metaLabel}
+                          </span>
+                        )}
+                        {isAbordagem && (
+                          <span className="text-[9px] font-black text-blue-400">🎯 {m.meta}/dia</span>
+                        )}
+                      </div>
+                      {!isAbordagem && (
+                        <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                          <div
+                            className="h-1.5 rounded-full transition-all duration-700"
+                            style={{
+                              width: `${pct}%`,
+                              background: completa ? 'linear-gradient(90deg, #ca8a04, #facc15)' : `linear-gradient(90deg, ${corEquipe}80, ${corEquipe})`,
+                            }}
+                          />
+                        </div>
+                      )}
+                      {m.recompensa_xp && !isAbordagem && (
+                        <p className={`text-[10px] mt-0.5 ${completa ? 'text-yellow-500' : 'text-zinc-600'}`}>
+                          {completa ? '✅ Concluída!' : m.descricao} {m.recompensa_xp > 0 && `· ⚡ ${m.recompensa_xp} XP`}
+                        </p>
+                      )}
+                      {isAbordagem && (
+                        <p className="text-zinc-500 text-[10px] mt-0.5">{m.descricao || 'Registre suas abordagens do dia'}</p>
+                      )}
                     </div>
-                    <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-                      <div
-                        className="h-1.5 rounded-full transition-all duration-700"
-                        style={{
-                          width: `${pct}%`,
-                          background: completa ? 'linear-gradient(90deg, #ca8a04, #facc15)' : `linear-gradient(90deg, ${corEquipe}80, ${corEquipe})`,
-                        }}
-                      />
-                    </div>
-                    {m.recompensa_xp && (
-                      <p className={`text-[10px] mt-0.5 ${completa ? 'text-yellow-500' : 'text-zinc-600'}`}>
-                        {completa ? '✅ Concluída!' : m.descricao} {m.recompensa_xp > 0 && `· ⚡ ${m.recompensa_xp} XP`}
-                      </p>
-                    )}
                   </div>
+                  {isAbordagem && (
+                    <button
+                      onMouseEnter={somHover}
+                      onClick={() => { somClick(); setAbordagemMissao(m); }}
+                      className="mt-2 w-full py-2 rounded-lg text-xs font-black uppercase tracking-wider text-black transition-all active:scale-95"
+                      style={{ background: 'linear-gradient(135deg, #1d4ed8, #3b82f6)' }}
+                    >
+                      📝 Registrar Abordagens de Hoje
+                    </button>
+                  )}
                 </div>
               );
             })}

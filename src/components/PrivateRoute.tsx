@@ -1,16 +1,12 @@
 import { Navigate } from 'react-router-dom';
 
-// Esse componente recebe uma tela "filha" (children), que no nosso caso será o Dashboard
 export function PrivateRoute({ children }: { children: React.ReactNode }) {
-  
-  // Verifica se o usuário foi salvo na memória pelo Login
-  const user = localStorage.getItem('user');
+  const userStr = localStorage.getItem('user');
+  if (!userStr) return <Navigate to="/" replace />;
 
-  // Se não tiver usuário logado, redireciona (Navigate) para a tela inicial
-  if (!user) {
-    return <Navigate to="/" replace />;
-  }
+  const user = JSON.parse(userStr);
+  // Suporte só acessa /liberacoes — qualquer outra rota privada redireciona
+  if (user.role === 'suporte') return <Navigate to="/liberacoes" replace />;
 
-  // Se tiver usuário logado, deixa a tela que estava dentro dele renderizar
   return children;
 }

@@ -123,6 +123,56 @@ export function somAlerta() {
   note(ctx, 220, 'sawtooth', t + 0.10, 0.12, 0.18);
 }
 
+/** Level Up: trilha de ação épica — bass hit + fanfarra ascendente + shimmer final */
+export function somLevelUp() {
+  const ctx = getCtx();
+  if (!ctx) return;
+  const t = ctx.currentTime;
+
+  // ── Bass punch ───────────────────────────────────────────
+  note(ctx,  60, 'sawtooth', t,        0.40, 0.18, 0.005);
+  note(ctx,  80, 'sine',     t,        0.30, 0.18, 0.005);
+
+  // ── Batida de tambor (burst de ruído via buffer) ─────────
+  try {
+    const bufLen = Math.floor(ctx.sampleRate * 0.12);
+    const buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < bufLen; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / bufLen);
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.5, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+    src.connect(g);
+    g.connect(ctx.destination);
+    src.start(t);
+  } catch { /* silencioso */ }
+
+  // ── Acorde de tensão (t+0.10) ───────────────────────────
+  note(ctx, 220, 'sawtooth', t + 0.10, 0.18, 0.25, 0.02);
+  note(ctx, 277, 'sawtooth', t + 0.10, 0.14, 0.25, 0.02);
+  note(ctx, 330, 'sawtooth', t + 0.10, 0.12, 0.25, 0.02);
+
+  // ── Fanfarra ascendente (t+0.35) ────────────────────────
+  note(ctx, 392, 'sine', t + 0.35, 0.22, 0.20, 0.01);
+  note(ctx, 523, 'sine', t + 0.52, 0.24, 0.20, 0.01);
+  note(ctx, 659, 'sine', t + 0.68, 0.26, 0.22, 0.01);
+  note(ctx, 784, 'sine', t + 0.83, 0.30, 0.28, 0.01);
+
+  // ── Acorde vitória + harmônicos (t+1.10) ────────────────
+  note(ctx,  784, 'sine',     t + 1.10, 0.28, 0.55, 0.01);
+  note(ctx,  988, 'sine',     t + 1.10, 0.20, 0.55, 0.01);
+  note(ctx, 1175, 'sine',     t + 1.10, 0.16, 0.55, 0.01);
+  note(ctx, 1568, 'sine',     t + 1.10, 0.10, 0.50, 0.01);
+  note(ctx,  392, 'triangle', t + 1.10, 0.14, 0.55, 0.02);
+
+  // ── Shimmer final (t+1.50) ───────────────────────────────
+  note(ctx, 2093, 'sine', t + 1.50, 0.08, 0.40, 0.01);
+  note(ctx, 2637, 'sine', t + 1.65, 0.06, 0.35, 0.01);
+  note(ctx, 3136, 'sine', t + 1.80, 0.04, 0.30, 0.01);
+}
+
 /** Dinheiro: caixa registradora — bipe agudo + shimmer */
 export function somDinheiro() {
   const ctx = getCtx();
