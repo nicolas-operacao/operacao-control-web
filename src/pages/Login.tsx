@@ -9,6 +9,7 @@ export function Login() {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   // Reset de senha
   const [showReset, setShowReset] = useState(false);
@@ -210,14 +211,24 @@ export function Login() {
 
           <div>
             <label className="block text-zinc-500 text-[10px] font-black uppercase tracking-widest mb-1.5">Senha</label>
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              className="w-full bg-zinc-950 border border-zinc-800 hover:border-zinc-700 focus:border-yellow-400 text-white rounded-xl px-4 py-3 text-sm outline-none transition-colors placeholder:text-zinc-700"
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full bg-zinc-950 border border-zinc-800 hover:border-zinc-700 focus:border-yellow-400 text-white rounded-xl px-4 py-3 pr-12 text-sm outline-none transition-colors placeholder:text-zinc-700"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(v => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors p-1"
+                tabIndex={-1}
+              >
+                {showPassword ? '🙈' : '👁️'}
+              </button>
+            </div>
           </div>
 
           <button
