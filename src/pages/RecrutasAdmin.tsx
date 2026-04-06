@@ -13,6 +13,16 @@ type User = {
   equipe?: string;
 };
 
+type ResetRequest = {
+  id: string;
+  user_id: string;
+  user_name: string;
+  user_email: string;
+  status: string;
+  created_at: string;
+  nova_senha_temp?: string;
+};
+
 const ROLE_LABEL: Record<string, string> = {
   vendedor: 'Vendedor',
   admin: 'Admin',
@@ -35,8 +45,14 @@ export function RecrutasAdmin() {
   const [editEquipe, setEditEquipe] = useState('');
   const [salvando, setSalvando] = useState(false);
   const [busca, setBusca] = useState('');
-  const [aba, setAba] = useState<'pendentes' | 'tropa'>('pendentes');
+  const [aba, setAba] = useState<'pendentes' | 'tropa' | 'senhas'>('pendentes');
   const [excluindo, setExcluindo] = useState<string | null>(null);
+
+  // Reset de senhas
+  const [resets, setResets] = useState<ResetRequest[]>([]);
+  const [novaSenha, setNovaSenha] = useState('');
+  const [resolvendoId, setResolvendoId] = useState<string | null>(null);
+  const [salvandoReset, setSalvandoReset] = useState(false);
 
   useEffect(() => {
     fetchAll();
@@ -45,16 +61,34 @@ export function RecrutasAdmin() {
   async function fetchAll() {
     setLoading(true);
     try {
-      const [pendRes, aprovRes] = await Promise.all([
+      const [pendRes, aprovRes, resetRes] = await Promise.all([
         api.get('/admin/pending'),
         api.get('/admin/users'),
+        api.get('/auth/reset-requests'),
       ]);
       setPendentes(Array.isArray(pendRes.data) ? pendRes.data : []);
       setAprovados(Array.isArray(aprovRes.data) ? aprovRes.data : []);
+      setResets(Array.isArray(resetRes.data) ? resetRes.data : []);
     } catch {
       toast.error('Erro ao carregar usuários.');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function resolverReset(id: string) {
+    if (!novaSenha.trim()) { toast.warning('Digite a nova senha.'); return; }
+    setSalvandoReset(true);
+    try {
+      const res = await api.patch(`/auth/reset-requests/${id}/resolve`, { nova_senha: novaSenha });
+      toast.success(res.data.message);
+      setResets(prev => prev.filter(r => r.id !== id));
+      setResolvendoId(null);
+      setNovaSenha('');
+    } catch {
+      toast.error('Erro ao redefinir senha.');
+    } finally {
+      setSalvandoReset(false);
     }
   }
 
@@ -152,10 +186,101 @@ export function RecrutasAdmin() {
           >
             ⚔️ Tropa Ativa ({aprovados.length})
           </button>
+          <button
+            onMouseEnter={somHover}
+            onClick={() => { somClick(); setAba('senhas'); }}
+            className={`relative px-5 py-2.5 rounded-lg font-black text-xs uppercase tracking-widest transition-all ${aba === 'senhas' ? 'bg-orange-500 text-white' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}
+          >
+            🔑 Senhas
+            {resets.length > 0 && (
+              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white text-[9px] font-black flex items-center justify-center">
+                {resets.length}
+              </span>
+            )}
+          </button>
         </div>
 
         {loading ? (
           <div className="text-center text-zinc-500 py-16 animate-pulse font-black uppercase tracking-widest">Carregando tropa...</div>
+        ) : aba === 'senhas' ? (
+          /* ── RESETS DE SENHA ── */
+          <div className="space-y-3">
+            {resets.length === 0 ? (
+              <div className="border-2 border-dashed border-zinc-800 rounded-xl p-12 text-center">
+                <p className="text-4xl mb-3">🔑</p>
+                <p className="text-zinc-400 font-black uppercase tracking-widest">Nenhum pedido pendente</p>
+                <p className="text-zinc-600 text-xs mt-1">Nenhum vendedor solicitou reset de senha.</p>
+              </div>
+            ) : (
+              resets.map(r => (
+                <div key={r.id} className="bg-zinc-900 border border-orange-500/20 rounded-xl p-4">
+                  {resolvendoId === r.id ? (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-zinc-800 flex items-center justify-center text-lg font-black text-zinc-400">
+                          {r.user_name[0]?.toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="text-white font-black text-sm">{r.user_name}</p>
+                          <p className="text-zinc-500 text-xs">{r.user_email}</p>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">Nova Senha</label>
+                        <input
+                          type="text"
+                          value={novaSenha}
+                          onChange={e => setNovaSenha(e.target.value)}
+                          placeholder="Digite a nova senha..."
+                          className="w-full bg-zinc-800 border border-zinc-700 focus:border-orange-500/60 text-white rounded-lg px-3 py-2 text-sm outline-none placeholder:text-zinc-600"
+                        />
+                        <p className="text-zinc-600 text-[10px] mt-1">Defina uma senha simples e informe ao vendedor pelo WhatsApp.</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onMouseEnter={somHover}
+                          onClick={() => { somClick(); resolverReset(r.id); }}
+                          disabled={salvandoReset}
+                          className="flex-1 bg-orange-500 hover:bg-orange-400 disabled:opacity-50 text-white font-black py-2 rounded-lg text-xs uppercase tracking-widest transition-all"
+                        >
+                          {salvandoReset ? 'Salvando...' : '✓ Redefinir Senha'}
+                        </button>
+                        <button
+                          onMouseEnter={somHover}
+                          onClick={() => { somClick(); setResolvendoId(null); setNovaSenha(''); }}
+                          className="px-4 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 font-black py-2 rounded-lg text-xs transition-all"
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-9 h-9 flex-shrink-0 rounded-xl bg-orange-950/40 border border-orange-500/30 flex items-center justify-center text-lg font-black text-orange-400">
+                          {r.user_name[0]?.toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-white font-black text-sm truncate">{r.user_name}</p>
+                          <p className="text-zinc-500 text-xs truncate">{r.user_email}</p>
+                          <p className="text-orange-400/60 text-[10px] font-bold mt-0.5">
+                            {new Date(r.created_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onMouseEnter={somHover}
+                        onClick={() => { somClick(); setResolvendoId(r.id); setNovaSenha(''); }}
+                        className="flex-shrink-0 bg-orange-500/10 hover:bg-orange-500 border border-orange-500/30 hover:border-orange-500 text-orange-400 hover:text-white px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all"
+                      >
+                        🔑 Redefinir
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
         ) : aba === 'pendentes' ? (
           /* ── PENDENTES ── */
           pendentes.length === 0 ? (

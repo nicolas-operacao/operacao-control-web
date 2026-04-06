@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { api } from '../services/api';
 import { somClick, somHover, somLogin } from '../services/hudSounds';
@@ -9,7 +9,29 @@ export function Login() {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  
+
+  // Reset de senha
+  const [showReset, setShowReset] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetMsg, setResetMsg] = useState('');
+  const [resetError, setResetError] = useState('');
+
+  async function handleResetRequest(e: React.FormEvent) {
+    e.preventDefault();
+    setResetLoading(true);
+    setResetError('');
+    setResetMsg('');
+    try {
+      const res = await api.post('/auth/reset-request', { email: resetEmail });
+      setResetMsg(res.data.message);
+    } catch (err: any) {
+      setResetError(err.response?.data?.error || 'Erro ao enviar pedido.');
+    } finally {
+      setResetLoading(false);
+    }
+  }
+
   // Estados para a tela de Boas-vindas Tática
   const [showSuccess, setShowSuccess] = useState(false);
   const [userName, setUserName] = useState('');
@@ -209,13 +231,82 @@ export function Login() {
           </button>
         </form>
 
-        <div className="mt-6 pt-5 border-t border-zinc-800/60 text-center">
-          <p className="text-zinc-600 text-xs mb-1.5">Ainda não tem conta?</p>
+        <div className="mt-6 pt-5 border-t border-zinc-800/60 text-center space-y-2">
+          <button
+            type="button"
+            onClick={() => { somClick(); setShowReset(true); setResetMsg(''); setResetError(''); setResetEmail(''); }}
+            className="text-zinc-500 hover:text-zinc-300 text-xs font-bold uppercase tracking-widest transition-colors"
+          >
+            Esqueci minha senha
+          </button>
+          <p className="text-zinc-600 text-xs">Ainda não tem conta?</p>
           <Link to="/cadastro" className="text-yellow-400 hover:text-yellow-300 font-bold text-xs uppercase tracking-widest transition-colors">
             Alistamento →
           </Link>
         </div>
       </div>
+
+      {/* Modal de reset de senha */}
+      {showReset && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 w-full max-w-sm space-y-4 animate-in zoom-in duration-200">
+            <div className="flex items-center justify-between">
+              <h3 className="text-white font-black text-base uppercase tracking-wider">🔑 Redefinir Senha</h3>
+              <button onClick={() => setShowReset(false)} className="text-zinc-500 hover:text-white text-xl">&times;</button>
+            </div>
+
+            {resetMsg ? (
+              <div className="bg-green-950/40 border border-green-500/30 rounded-xl p-4 text-center space-y-3">
+                <p className="text-4xl">✅</p>
+                <p className="text-green-400 font-bold text-sm">{resetMsg}</p>
+                <p className="text-zinc-500 text-xs">O administrador irá te enviar a nova senha em breve.</p>
+                <button
+                  onClick={() => setShowReset(false)}
+                  className="w-full bg-zinc-800 hover:bg-zinc-700 text-white font-black py-2 rounded-xl text-xs uppercase tracking-widest transition-all"
+                >
+                  Fechar
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleResetRequest} className="space-y-4">
+                <p className="text-zinc-400 text-xs">Digite seu e-mail cadastrado. O administrador irá redefinir sua senha e te informar a nova.</p>
+
+                {resetError && (
+                  <div className="bg-red-950/40 border border-red-500/40 p-3 rounded-xl">
+                    <p className="text-red-300 text-xs font-bold">{resetError}</p>
+                  </div>
+                )}
+
+                <input
+                  type="email"
+                  required
+                  value={resetEmail}
+                  onChange={e => setResetEmail(e.target.value)}
+                  placeholder="seu@email.com"
+                  className="w-full bg-zinc-950 border border-zinc-800 focus:border-yellow-400 text-white rounded-xl px-4 py-3 text-sm outline-none placeholder:text-zinc-700 transition-colors"
+                />
+
+                <div className="flex gap-2">
+                  <button
+                    type="submit"
+                    disabled={resetLoading}
+                    className="flex-1 bg-yellow-400 hover:bg-yellow-300 disabled:opacity-50 text-black font-black py-3 rounded-xl text-xs uppercase tracking-widest transition-all active:scale-95"
+                  >
+                    {resetLoading ? 'Enviando...' : 'Solicitar Reset'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowReset(false)}
+                    className="px-4 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 font-black py-3 rounded-xl text-xs transition-all"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
