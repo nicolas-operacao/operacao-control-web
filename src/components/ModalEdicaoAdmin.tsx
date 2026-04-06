@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
-import { somClick, somHover } from '../services/hudSounds';
+import { somClick, somHover, somSucesso } from '../services/hudSounds';
 import { toast } from '../services/toast';
 
 interface Props { isOpen: boolean; onClose: () => void; venda: any; produtos: any[]; onSuccess: () => void; }
@@ -9,7 +9,6 @@ export function ModalEdicaoAdmin({ isOpen, onClose, venda, produtos, onSuccess }
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({ product_name: '', sale_value: '', customer_name: '', customer_email: '', customer_phone: '', payment_method: 'PIX', sale_date: '' });
 
-  const somSucesso = () => new Audio('https://actions.google.com/sounds/v1/cartoon/bell_ding.ogg').play().catch(() => {});
 
   useEffect(() => {
     if (venda) {
@@ -30,9 +29,10 @@ export function ModalEdicaoAdmin({ isOpen, onClose, venda, produtos, onSuccess }
   }
 
   return (
-    <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
-      <div className="bg-zinc-900 border border-blue-500/30 rounded-2xl w-full max-w-xl shadow-2xl animate-in zoom-in duration-150">
-        <div className="p-6 border-b border-zinc-800 flex justify-between items-center bg-blue-900/10"><h2 className="text-xl font-black text-blue-400 uppercase flex items-center gap-2">✏️ Editar Venda Global</h2><button onMouseEnter={somHover} onClick={() => { somClick(); onClose(); }} className="text-zinc-500 hover:text-white text-2xl">&times;</button></div>
+    <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+      <div className="bg-zinc-900 border border-blue-500/30 rounded-t-2xl sm:rounded-2xl w-full sm:max-w-xl shadow-2xl animate-in slide-in-from-bottom-4 sm:zoom-in duration-200 max-h-[95dvh] overflow-y-auto overscroll-contain">
+        <div className="sm:hidden flex justify-center pt-3 pb-1"><div className="w-10 h-1 bg-zinc-700 rounded-full" /></div>
+        <div className="p-5 border-b border-zinc-800 flex justify-between items-center bg-blue-900/10"><h2 className="text-xl font-black text-blue-400 uppercase flex items-center gap-2">✏️ Editar Venda Global</h2><button onMouseEnter={somHover} onClick={() => { somClick(); onClose(); }} className="text-zinc-500 hover:text-white text-2xl">&times;</button></div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
             <div className="grid grid-cols-2 gap-4">
                 <div><label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">Produto</label><select value={formData.product_name} onChange={(e) => setFormData({...formData, product_name: e.target.value})} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-sm text-white cursor-pointer">{produtos.map(p => <option key={p.id} value={p.nome}>{p.nome}</option>)}</select></div>

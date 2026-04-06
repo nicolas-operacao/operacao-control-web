@@ -1,1 +1,81 @@
 @import "tailwindcss";
+
+/* ── Base Mobile ─────────────────────────────────────────────────────────────── */
+
+/* Remove highlight azul ao tocar em elementos no iOS/Android */
+* {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+}
+
+/* Inputs e textareas: remove tap highlight e seleção de texto */
+input, textarea, select, button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Scroll suave em toda a página */
+html {
+  scroll-behavior: smooth;
+  /* Previne bounce effect horizontal no iOS */
+  overflow-x: hidden;
+}
+
+body {
+  /* Previne overflow horizontal no body */
+  overflow-x: hidden;
+  /* Suporte ao safe-area do iOS (notch/home indicator) */
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Previne zoom automático em inputs no iOS (font-size >= 16px) */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="tel"],
+input[type="url"],
+input[type="date"],
+input[type="search"],
+select,
+textarea {
+  font-size: 16px !important;
+}
+
+/* Botões: cursor pointer e sem duplo-tap zoom */
+button, [role="button"] {
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+/* Garantia de que nada ultrapasse a largura da tela */
+img, video, iframe {
+  max-width: 100%;
+}
+
+/* Animações: reduz movimento para usuários que preferem */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Safe area para Fixed elements no iOS */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Scrollbar mais fina para mobile */
+@media (max-width: 768px) {
+  ::-webkit-scrollbar {
+    width: 2px;
+    height: 2px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.1);
+    border-radius: 999px;
+  }
+}

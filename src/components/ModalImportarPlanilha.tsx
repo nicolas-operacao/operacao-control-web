@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { api } from '../services/api';
-import { somClick, somHover } from '../services/hudSounds';
+import { somClick, somHover, somSucesso } from '../services/hudSounds';
 import { toast } from '../services/toast';
 
 interface Props {
@@ -31,7 +31,6 @@ export function ModalImportarPlanilha({ isOpen, onClose, vendasAtuais, onSuccess
   const [linhas, setLinhas] = useState<LinhaPlanilha[]>([]);
   const [isUploading, setIsUploading] = useState(false);
 
-  const somSucesso = () => new Audio('https://actions.google.com/sounds/v1/cartoon/bell_ding.ogg').play().catch(() => {});
 
   if (!isOpen) return null;
 
@@ -192,8 +191,8 @@ export function ModalImportarPlanilha({ isOpen, onClose, vendasAtuais, onSuccess
   const qtdDuplicadas = linhas.filter(l => l.statusImportacao === 'DUPLICADA').length;
 
   return (
-    <div className="fixed inset-0 bg-black/95 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-zinc-900 border border-blue-500/30 rounded-2xl w-full max-w-5xl shadow-2xl animate-in zoom-in duration-150 flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 bg-black/95 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+      <div className="bg-zinc-900 border border-blue-500/30 rounded-t-2xl sm:rounded-2xl w-full sm:max-w-5xl shadow-2xl animate-in slide-in-from-bottom-4 sm:zoom-in duration-200 flex flex-col max-h-[95dvh] sm:max-h-[90vh]">
         <div className="p-6 border-b border-zinc-800 flex justify-between items-center bg-blue-900/10">
           <h2 className="text-xl font-black text-blue-400 uppercase flex items-center gap-2">
             {/* 🔥 ERRO CORRIGIDO AQUI ABAIXO: envolvi o < com chaves {'<'} */}

@@ -48,6 +48,12 @@ export function BottomNav({ activeTab, onNovaVenda }: BottomNavProps) {
       destaque: true,
     },
     {
+      id: 'arsenal',
+      label: 'Arsenal',
+      icon: '⚡',
+      onClick: () => navigate('/arsenal'),
+    },
+    {
       id: 'ranking',
       label: 'Ranking',
       icon: '🏆',
@@ -94,33 +100,36 @@ export function BottomNav({ activeTab, onNovaVenda }: BottomNavProps) {
         if (el) el.scrollIntoView({ behavior: 'smooth' });
       },
     },
+    {
+      id: 'arsenal',
+      label: 'Arsenal',
+      icon: '⚡',
+      onClick: () => navigate('/arsenal'),
+    },
   ];
 
   const itens = (isAdmin || isSuport) ? itensAdmin : itensVendedor;
 
   return (
-    <nav
-      className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-zinc-950 border-t border-zinc-800"
-      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
-    >
+    <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-zinc-950/95 backdrop-blur-md border-t border-zinc-800/80">
       <div className="flex items-stretch">
         {itens.map((item) => {
           const isActive = activeTab === item.id;
           return (
             <button
               key={item.id}
-              onMouseEnter={somHover}
               onClick={() => { somClick(); item.onClick(); }}
-              className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-2 px-1 transition-all active:scale-95
+              className={`flex-1 flex flex-col items-center justify-center gap-1 transition-all active:scale-95 select-none
                 ${item.destaque
-                  ? 'bg-yellow-400 text-black shadow-[0_-4px_20px_rgba(250,204,21,0.3)]'
+                  ? 'bg-yellow-400 text-black shadow-[0_-6px_24px_rgba(250,204,21,0.35)]'
                   : isActive
                   ? 'text-yellow-400'
-                  : 'text-zinc-500 hover:text-zinc-300'
+                  : 'text-zinc-500'
                 }`}
+              style={{ minHeight: '56px', paddingBottom: 'max(8px, env(safe-area-inset-bottom))' }}
             >
-              <span className="text-xl leading-none">{item.icon}</span>
-              <span className={`text-[9px] font-black uppercase tracking-wider leading-none ${item.destaque ? 'text-black' : ''}`}>
+              <span className="text-2xl leading-none">{item.icon}</span>
+              <span className={`text-[10px] font-black uppercase tracking-wider leading-none mt-0.5 ${item.destaque ? 'text-black' : ''}`}>
                 {item.label}
               </span>
             </button>

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { api } from '../services/api';
-import { somClick, somHover } from '../services/hudSounds';
+import { somClick, somHover, somLogin } from '../services/hudSounds';
 
 export function Login() {
   const navigate = useNavigate();
@@ -42,7 +42,7 @@ export function Login() {
       setUserName(user.name);
       setShowSuccess(true);
       setIsLoading(false);
-      new Audio('https://actions.google.com/sounds/v1/cartoon/bell_ding.ogg').play().catch(() => {});
+      somLogin();
 
       // Busca ranking em paralelo para montar a mensagem tática (não bloqueia a tela)
       const normaliza = (eq: string) => String(eq || '').trim().toUpperCase();

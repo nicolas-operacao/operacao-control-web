@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import confetti from 'canvas-confetti';
-import { somClick, somHover } from '../services/hudSounds';
+import { somClick, somHover, somSucesso } from '../services/hudSounds';
 import { toast } from '../services/toast';
 
 type Produto = {
@@ -31,7 +31,6 @@ export function ModalRegistrarVenda({ isOpen, onClose, produtos, user, onVendaRe
   const [saleValue, setSaleValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const somSucesso = () => new Audio('https://actions.google.com/sounds/v1/cartoon/bell_ding.ogg').play().catch(()=>{});
   const lancarConfetes = () => {
     confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 }, colors: ['#FACC15', '#22C55E', '#3B82F6'] });
   };
@@ -75,15 +74,19 @@ export function ModalRegistrarVenda({ isOpen, onClose, produtos, user, onVendaRe
   }
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-        
-        <div className="bg-zinc-950 p-6 border-b border-zinc-800 flex justify-between items-center">
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+      <div className="bg-zinc-900 border border-zinc-800 rounded-t-2xl sm:rounded-2xl w-full sm:max-w-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 sm:zoom-in duration-200 max-h-[95dvh] flex flex-col">
+        {/* Pill drag handle — visível só no mobile */}
+        <div className="sm:hidden flex justify-center pt-3 pb-1 flex-shrink-0">
+          <div className="w-10 h-1 bg-zinc-700 rounded-full" />
+        </div>
+
+        <div className="bg-zinc-950 p-4 md:p-6 border-b border-zinc-800 flex justify-between items-center flex-shrink-0">
           <h2 className="text-2xl font-black text-yellow-400 uppercase tracking-wider">🎯 Venda do Comando</h2>
           <button onClick={onClose} className="text-zinc-500 hover:text-white text-2xl font-bold leading-none">&times;</button>
         </div>
 
-        <form onSubmit={handleRegisterSale} className="p-6 space-y-4">
+        <form onSubmit={handleRegisterSale} className="p-4 md:p-6 space-y-4 overflow-y-auto flex-1 overscroll-contain">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">Produto Vendido</label>

@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useRef } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import confetti from 'canvas-confetti';
 import { api } from '../services/api';
 import { somClick, somHover } from '../services/hudSounds';
@@ -100,6 +100,7 @@ export function PainelVendedor({ userId, userName, equipe }: Props) {
   const [editandoFoto, setEditandoFoto] = useState(false);
   const [novaFoto, setNovaFoto] = useState('');
   const [salvandoFoto, setSalvandoFoto] = useState(false);
+  const [fotoPreview, setFotoPreview] = useState('');
   const [patenteCelebrada, setPatenteCelebrada] = useState<{ pat: typeof PATENTES[0]; nivel: number } | null>(null);
   const jaChecouPatente = useRef(false);
 
@@ -154,16 +155,30 @@ export function PainelVendedor({ userId, userName, equipe }: Props) {
     load();
   }, [userId]);
 
-  async function salvarFoto() {
-    if (!novaFoto.trim()) return;
+  async function salvarFoto(urlFinal?: string) {
+    const url = urlFinal ?? novaFoto.trim();
+    if (!url) return;
     setSalvandoFoto(true);
     try {
-      await api.patch(`/users/${userId}/foto`, { foto_url: novaFoto.trim() });
-      setStats(prev => prev ? { ...prev, foto_url: novaFoto.trim() } : prev);
+      await api.patch(`/users/${userId}/foto`, { foto_url: url });
+      setStats(prev => prev ? { ...prev, foto_url: url } : prev);
       setEditandoFoto(false);
       setNovaFoto('');
+      setFotoPreview('');
     } catch { /* silencioso */ }
     finally { setSalvandoFoto(false); }
+  }
+
+  function handleFotoArquivo(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const dataUrl = ev.target?.result as string;
+      setFotoPreview(dataUrl);
+      setNovaFoto(dataUrl);
+    };
+    reader.readAsDataURL(file);
   }
 
   const { nivelInfo, rankPos, mesmaEquipe, lider, deltaPrimeiro, conquistas, frase, projecao, mediaDiaria, diasRestantes, streak } = useMemo(() => {
@@ -265,10 +280,10 @@ export function PainelVendedor({ userId, userName, equipe }: Props) {
         {/* Fundo sutil */}
         <div className="absolute inset-0 opacity-5" style={{ background: `radial-gradient(ellipse at top left, ${nivelInfo.pat.cor}, transparent 60%)` }} />
 
-        <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+        <div className="relative z-10 flex flex-col gap-4">
 
-          {/* Avatar + patente */}
-          <div className="flex items-center gap-4 flex-1 min-w-0">
+          {/* Top row: avatar + patente + ranking */}
+          <div className="flex items-start gap-4 flex-1 min-w-0">
             <div className="relative flex-shrink-0">
               {stats?.foto_url ? (
                 <img
@@ -306,7 +321,7 @@ export function PainelVendedor({ userId, userName, equipe }: Props) {
               </p>
 
               {/* Barra de XP */}
-              <div className="mt-2 w-48 sm:w-64">
+              <div className="mt-2 w-full max-w-[16rem]">
                 <div className="flex justify-between text-[10px] font-black uppercase text-zinc-600 mb-1">
                   <span>{nivelInfo.xp}/{nivelInfo.xpMax} para nível {nivelInfo.nivel + 1}</span>
                   {nivelInfo.prox && <span style={{ color: nivelInfo.prox.cor }}>{nivelInfo.prox.icone} {nivelInfo.prox.nome}</span>}
@@ -328,25 +343,27 @@ export function PainelVendedor({ userId, userName, equipe }: Props) {
             </div>
           </div>
 
-          {/* Frase + ranking */}
-          <div className="flex flex-col items-start sm:items-end gap-2 sm:text-right">
-            <div className={`px-3 py-1.5 rounded-lg border ${corBorderClass} ${corBgClass}`}>
-              <p className={`text-[10px] font-black uppercase tracking-widest ${corEquipeClass}`}>{nomeEquipe}</p>
+          {/* Ranking (alinhado à direita no top row) */}
+          <div className="ml-auto flex-shrink-0 flex flex-col items-end gap-1.5">
+            <div className={`px-2.5 py-1 rounded-lg border ${corBorderClass} ${corBgClass}`}>
+              <p className={`text-[9px] font-black uppercase tracking-wider ${corEquipeClass}`}>{nomeEquipe}</p>
             </div>
             {rankPos > 0 && (
-              <div className="flex items-center gap-2">
-                <span className="text-2xl">{rankPos === 1 ? '👑' : rankPos <= 3 ? '🏆' : '🎖️'}</span>
-                <div>
-                  <p className="text-zinc-500 text-[10px] font-black uppercase">Ranking Geral</p>
-                  <p className="text-white font-black text-lg">{rankPos}º lugar</p>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xl">{rankPos === 1 ? '👑' : rankPos <= 3 ? '🏆' : '🎖️'}</span>
+                <div className="text-right">
+                  <p className="text-zinc-500 text-[9px] font-black uppercase">Ranking</p>
+                  <p className="text-white font-black text-base leading-tight">{rankPos}º</p>
                 </div>
               </div>
             )}
-            <p className={`text-xs font-bold italic ${frase.cor} flex items-center gap-1`}>
-              <span>{frase.emoji}</span> {frase.texto}
-            </p>
           </div>
         </div>
+
+        {/* Frase motivacional — abaixo, largura total */}
+        <p className={`text-xs font-bold italic ${frase.cor} flex items-center gap-1.5`}>
+          <span>{frase.emoji}</span> {frase.texto}
+        </p>
       </div>
 
       {/* ── KPI Cards: Hoje / Semana / Mês ── */}
@@ -490,7 +507,7 @@ export function PainelVendedor({ userId, userName, equipe }: Props) {
       {/* ── Conquistas ── */}
       <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 md:p-5">
         <p className="text-zinc-400 text-[10px] font-black uppercase tracking-widest mb-4">🏅 Conquistas do Mês</p>
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+        <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
           {conquistas.map(c => (
             <div
               key={c.id}
@@ -685,32 +702,54 @@ export function PainelVendedor({ userId, userName, equipe }: Props) {
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-5 w-full max-w-sm space-y-4">
             <h3 className="text-white font-black text-lg uppercase tracking-wider">📸 Foto de Perfil</h3>
-            <p className="text-zinc-500 text-xs">Cole a URL de uma imagem para usar como foto de perfil.</p>
+
+            {/* Upload de arquivo */}
+            <div>
+              <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1.5">Enviar arquivo</label>
+              <label className="flex items-center justify-center gap-2 w-full border-2 border-dashed border-zinc-700 hover:border-yellow-400/50 rounded-xl p-4 cursor-pointer transition-all group">
+                <span className="text-2xl group-hover:scale-110 transition-transform">📁</span>
+                <span className="text-zinc-400 text-xs font-bold group-hover:text-yellow-400 transition-colors">Escolher imagem do dispositivo</span>
+                <input type="file" accept="image/*" onChange={handleFotoArquivo} className="hidden" />
+              </label>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-px bg-zinc-800" />
+              <span className="text-zinc-600 text-[10px] font-black uppercase">ou cole uma URL</span>
+              <div className="flex-1 h-px bg-zinc-800" />
+            </div>
+
             <input
               type="url"
-              value={novaFoto}
-              onChange={e => setNovaFoto(e.target.value)}
+              value={fotoPreview ? '' : novaFoto}
+              onChange={e => { setNovaFoto(e.target.value); setFotoPreview(''); }}
               placeholder="https://exemplo.com/minha-foto.jpg"
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-yellow-500/60"
-              autoFocus
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-yellow-500/60 placeholder:text-zinc-600"
             />
-            {novaFoto && (
+
+            {(fotoPreview || novaFoto) && (
               <div className="flex justify-center">
-                <img src={novaFoto} alt="preview" className="w-20 h-20 rounded-xl object-cover border-2 border-zinc-700" onError={e => (e.currentTarget.style.display = 'none')} />
+                <img
+                  src={fotoPreview || novaFoto}
+                  alt="preview"
+                  className="w-24 h-24 rounded-xl object-cover border-2 border-zinc-700 shadow-lg"
+                  onError={e => (e.currentTarget.style.display = 'none')}
+                />
               </div>
             )}
+
             <div className="flex gap-2">
               <button
                 onMouseEnter={somHover}
                 onClick={() => { somClick(); salvarFoto(); }}
-                disabled={salvandoFoto || !novaFoto.trim()}
+                disabled={salvandoFoto || (!novaFoto.trim() && !fotoPreview)}
                 className="flex-1 bg-yellow-400 hover:bg-yellow-300 disabled:opacity-50 text-black font-black py-2 rounded-lg text-sm uppercase tracking-wider transition-all active:scale-95"
               >
                 {salvandoFoto ? 'Salvando...' : '✓ Salvar'}
               </button>
               <button
                 onMouseEnter={somHover}
-                onClick={() => { somClick(); setEditandoFoto(false); }}
+                onClick={() => { somClick(); setEditandoFoto(false); setNovaFoto(''); setFotoPreview(''); }}
                 className="px-4 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 font-black py-2 rounded-lg text-sm transition-all"
               >
                 Cancelar

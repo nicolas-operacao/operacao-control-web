@@ -85,3 +85,31 @@ export function somLogin() {
   note(ctx, 880,  'sine', t,        0.15, 0.12);
   note(ctx, 1100, 'sine', t + 0.15, 0.18, 0.18);
 }
+
+/** Sucesso genérico: ding suave tipo confirmação */
+export function somSucesso() {
+  const ctx = getCtx();
+  if (!ctx) return;
+  const t = ctx.currentTime;
+  note(ctx, 660, 'sine', t,        0.14, 0.12);
+  note(ctx, 880, 'sine', t + 0.10, 0.16, 0.16);
+}
+
+/** Alerta / cancelamento: buzz descendente */
+export function somAlerta() {
+  const ctx = getCtx();
+  if (!ctx) return;
+  const t = ctx.currentTime;
+  note(ctx, 320, 'sawtooth', t,        0.10, 0.12);
+  note(ctx, 220, 'sawtooth', t + 0.10, 0.12, 0.18);
+}
+
+/** Dinheiro: caixa registradora — bipe agudo + shimmer */
+export function somDinheiro() {
+  const ctx = getCtx();
+  if (!ctx) return;
+  const t = ctx.currentTime;
+  note(ctx, 1200, 'sine', t,        0.18, 0.10);
+  note(ctx, 1600, 'sine', t + 0.06, 0.14, 0.10);
+  note(ctx, 2000, 'sine', t + 0.12, 0.10, 0.14);
+}

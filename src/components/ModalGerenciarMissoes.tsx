@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { somClick, somHover } from '../services/hudSounds';
+import { toast } from '../services/toast';
 
 type Missao = {
   id: string;
@@ -33,7 +34,6 @@ export function ModalGerenciarMissoes({ isOpen, onClose }: Props) {
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
   const [deletando, setDeletando] = useState<string | null>(null);
-  const [erro, setErro] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editando, setEditando] = useState<Missao | null>(null);
 
@@ -52,12 +52,11 @@ export function ModalGerenciarMissoes({ isOpen, onClose }: Props) {
 
   async function fetchMissoes() {
     setCarregando(true);
-    setErro('');
     try {
       const res = await api.get('/missions');
       setMissoes(Array.isArray(res.data) ? res.data : []);
     } catch {
-      setErro('Erro ao carregar missões.');
+      toast.error('Erro ao carregar missões.');
     } finally {
       setCarregando(false);
     }
@@ -91,10 +90,9 @@ export function ModalGerenciarMissoes({ isOpen, onClose }: Props) {
   }
 
   async function salvar() {
-    if (!titulo.trim()) { setErro('Título é obrigatório.'); return; }
-    if (!dataFim) { setErro('Data de encerramento é obrigatória.'); return; }
+    if (!titulo.trim()) { toast.warning('Título é obrigatório.'); return; }
+    if (!dataFim) { toast.warning('Data de encerramento é obrigatória.'); return; }
     setSalvando(true);
-    setErro('');
     try {
       const payload = {
         titulo: titulo.trim(),
@@ -111,10 +109,11 @@ export function ModalGerenciarMissoes({ isOpen, onClose }: Props) {
       } else {
         await api.post('/missions', payload);
       }
+      toast.success(editando ? 'Missão atualizada!' : 'Missão criada!');
       await fetchMissoes();
       setShowForm(false);
     } catch {
-      setErro('Erro ao salvar missão.');
+      toast.error('Erro ao salvar missão.');
     } finally {
       setSalvando(false);
     }
@@ -125,8 +124,9 @@ export function ModalGerenciarMissoes({ isOpen, onClose }: Props) {
     try {
       await api.delete(`/missions/${id}`);
       setMissoes(prev => prev.filter(m => m.id !== id));
+      toast.success('Missão removida.');
     } catch {
-      setErro('Erro ao deletar missão.');
+      toast.error('Erro ao deletar missão.');
     } finally {
       setDeletando(null);
     }
@@ -137,15 +137,15 @@ export function ModalGerenciarMissoes({ isOpen, onClose }: Props) {
       await api.put(`/missions/${m.id}`, { ...m, ativa: !m.ativa });
       setMissoes(prev => prev.map(x => x.id === m.id ? { ...x, ativa: !x.ativa } : x));
     } catch {
-      setErro('Erro ao atualizar missão.');
+      toast.error('Erro ao atualizar missão.');
     }
   }
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-zinc-950 border border-zinc-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+      <div className="bg-zinc-950 border border-zinc-800 rounded-t-xl sm:rounded-xl shadow-2xl w-full sm:max-w-2xl max-h-[95dvh] sm:max-h-[90vh] flex flex-col">
 
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-zinc-800">
@@ -158,10 +158,6 @@ export function ModalGerenciarMissoes({ isOpen, onClose }: Props) {
 
         {/* Body */}
         <div className="overflow-y-auto flex-1 p-5 space-y-4">
-          {erro && (
-            <div className="bg-red-950/50 border border-red-800 text-red-400 rounded-lg p-3 text-sm">{erro}</div>
-          )}
-
           {/* Form criar/editar */}
           {showForm && (
             <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-4 space-y-3">
@@ -279,7 +275,7 @@ export function ModalGerenciarMissoes({ isOpen, onClose }: Props) {
                 </button>
                 <button
                   onMouseEnter={somHover}
-                  onClick={() => { somClick(); setShowForm(false); setErro(''); }}
+                  onClick={() => { somClick(); setShowForm(false); }}
                   className="px-4 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 font-black py-2 rounded-lg text-sm transition-all"
                 >
                   Cancelar

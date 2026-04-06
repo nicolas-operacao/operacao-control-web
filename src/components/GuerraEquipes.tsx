@@ -364,43 +364,43 @@ export function GuerraEquipes({ refreshTrigger, isAdmin = false }: GuerraEquipes
           <div className="grid grid-cols-3 gap-2 items-stretch">
 
             {/* Equipe A */}
-            <div className={`rounded-2xl p-4 md:p-5 flex flex-col items-center justify-center transition-all duration-500 ${
+            <div className={`rounded-2xl p-3 md:p-5 flex flex-col items-center justify-center transition-all duration-500 ${
               liderA
                 ? 'bg-blue-950/50 border-2 border-blue-400/60 shadow-[0_0_30px_rgba(59,130,246,0.25),inset_0_0_30px_rgba(59,130,246,0.05)]'
                 : 'bg-blue-950/10 border border-blue-900/20'
             }`}>
-              {liderA && <div className="text-3xl mb-1 drop-shadow-[0_0_15px_rgba(250,204,21,0.8)] animate-bounce">🏆</div>}
-              <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-blue-400 mb-1">⚡ Equipe A</p>
+              {liderA && <div className="text-2xl md:text-3xl mb-1 drop-shadow-[0_0_15px_rgba(250,204,21,0.8)] animate-bounce">🏆</div>}
+              <p className="text-[9px] md:text-xs font-black uppercase tracking-widest text-blue-400 mb-1 text-center">⚡ Equipe A</p>
               <p
-                className="font-black leading-none text-center"
+                className="font-black leading-none text-center break-all"
                 style={{
-                  fontSize: 'clamp(1rem, 3vw, 1.75rem)',
+                  fontSize: 'clamp(0.75rem, 4vw, 1.75rem)',
                   color: liderA ? '#93c5fd' : '#3b82f6',
                   textShadow: liderA ? '0 0 20px rgba(59,130,246,0.8)' : 'none',
                 }}
               >
                 {fmt(totalA)}
               </p>
-              <p className="text-[10px] text-blue-900/60 font-bold mt-1">
+              <p className="text-[9px] text-blue-900/60 font-bold mt-1 text-center">
                 {equipeA.filter(v => v.total_vendido > 0).length} ativo{equipeA.filter(v => v.total_vendido > 0).length !== 1 ? 's' : ''}
               </p>
             </div>
 
             {/* VS central */}
-            <div className="flex flex-col items-center justify-center gap-2">
+            <div className="flex flex-col items-center justify-center gap-1.5">
               {/* Status */}
-              <div className={`text-[9px] md:text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-full border transition-all duration-500 text-center ${
+              <div className={`text-[8px] md:text-[10px] font-black uppercase tracking-widest px-1.5 py-1 rounded-full border transition-all duration-500 text-center leading-tight ${
                 empate || totalGeral === 0
                   ? 'text-zinc-400 border-zinc-700 bg-zinc-900'
                   : liderA
                     ? 'text-blue-300 border-blue-600/60 bg-blue-950/50'
                     : 'text-red-300 border-red-600/60 bg-red-950/50'
               }`}>
-                {totalGeral === 0 ? '— VS —' : empate ? '🤝 Empate' : liderA ? '⚡ A lidera' : '🔥 B lidera'}
+                {totalGeral === 0 ? 'VS' : empate ? '🤝' : liderA ? '⚡ A' : '🔥 B'}
               </div>
 
               {/* VS badge */}
-              <div className={`w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center border-4 font-black text-xl md:text-2xl italic transition-all duration-500 ${
+              <div className={`w-10 h-10 md:w-16 md:h-16 rounded-full flex items-center justify-center border-4 font-black text-base md:text-2xl italic transition-all duration-500 ${
                 liderA ? 'border-blue-500/60 bg-blue-950/40 text-blue-300 shadow-[0_0_25px_rgba(59,130,246,0.4)]'
                   : liderB ? 'border-red-500/60 bg-red-950/40 text-red-300 shadow-[0_0_25px_rgba(239,68,68,0.4)]'
                   : 'border-zinc-700 bg-zinc-900 text-zinc-500'
@@ -410,36 +410,45 @@ export function GuerraEquipes({ refreshTrigger, isAdmin = false }: GuerraEquipes
 
               {/* Delta */}
               {delta > 0 && (
-                <div className="text-center">
-                  <p className="text-[9px] text-zinc-600 font-bold uppercase">diferença</p>
-                  <p className={`text-xs font-black ${liderA ? 'text-blue-400' : 'text-red-400'}`}>{fmt(delta)}</p>
+                <div className="text-center hidden sm:block">
+                  <p className="text-[9px] text-zinc-600 font-bold uppercase">dif.</p>
+                  <p className={`text-[10px] font-black ${liderA ? 'text-blue-400' : 'text-red-400'}`}>{fmt(delta)}</p>
                 </div>
               )}
             </div>
 
             {/* Equipe B */}
-            <div className={`rounded-2xl p-4 md:p-5 flex flex-col items-center justify-center transition-all duration-500 ${
+            <div className={`rounded-2xl p-3 md:p-5 flex flex-col items-center justify-center transition-all duration-500 ${
               liderB
                 ? 'bg-red-950/50 border-2 border-red-400/60 shadow-[0_0_30px_rgba(239,68,68,0.25),inset_0_0_30px_rgba(239,68,68,0.05)]'
                 : 'bg-red-950/10 border border-red-900/20'
             }`}>
-              {liderB && <div className="text-3xl mb-1 drop-shadow-[0_0_15px_rgba(250,204,21,0.8)] animate-bounce">🏆</div>}
-              <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-red-400 mb-1">Equipe B 🔥</p>
+              {liderB && <div className="text-2xl md:text-3xl mb-1 drop-shadow-[0_0_15px_rgba(250,204,21,0.8)] animate-bounce">🏆</div>}
+              <p className="text-[9px] md:text-xs font-black uppercase tracking-widest text-red-400 mb-1 text-center">Equipe B 🔥</p>
               <p
-                className="font-black leading-none text-center"
+                className="font-black leading-none text-center break-all"
                 style={{
-                  fontSize: 'clamp(1rem, 3vw, 1.75rem)',
+                  fontSize: 'clamp(0.75rem, 4vw, 1.75rem)',
                   color: liderB ? '#fca5a5' : '#ef4444',
                   textShadow: liderB ? '0 0 20px rgba(239,68,68,0.8)' : 'none',
                 }}
               >
                 {fmt(totalB)}
               </p>
-              <p className="text-[10px] text-red-900/60 font-bold mt-1">
+              <p className="text-[9px] text-red-900/60 font-bold mt-1 text-center">
                 {equipeB.filter(v => v.total_vendido > 0).length} ativo{equipeB.filter(v => v.total_vendido > 0).length !== 1 ? 's' : ''}
               </p>
             </div>
           </div>
+
+          {/* Delta visível no mobile abaixo do placar */}
+          {delta > 0 && (
+            <div className="sm:hidden text-center">
+              <p className={`text-xs font-black ${liderA ? 'text-blue-400' : 'text-red-400'}`}>
+                Diferença: {fmt(delta)}
+              </p>
+            </div>
+          )}
 
           {/* ── BARRA DE DOMINÂNCIA ──────────────────────────────────────────── */}
           {totalGeral > 0 && (
