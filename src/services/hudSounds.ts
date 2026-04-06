@@ -5,29 +5,21 @@
 
 let _ctx: AudioContext | null = null;
 
-// ── Controle de som por usuário ──────────────────────────────────────────────
+// ── Controle de som — fonte única de verdade é o banco ───────────────────────
+// _somDesativado é sincronizado pelo PainelVendedor via stats do banco
+let _somDesativado = false;
+
 export function isSomAtivo(): boolean {
-  try {
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    const key = `som_desativado_${user.id}`;
-    return localStorage.getItem(key) !== 'true';
-  } catch { return true; }
+  return !_somDesativado;
 }
 
 export function setSomAtivo(ativo: boolean) {
-  try {
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    const key = `som_desativado_${user.id}`;
-    if (ativo) localStorage.removeItem(key);
-    else localStorage.setItem(key, 'true');
-  } catch { /* silencioso */ }
+  _somDesativado = !ativo;
 }
 
-// Usado pelo admin para desativar o som de um usuário específico
-export function setSomAtivoParaUsuario(userId: string | number, ativo: boolean) {
-  const key = `som_desativado_${userId}`;
-  if (ativo) localStorage.removeItem(key);
-  else localStorage.setItem(key, 'true');
+// Chamado pelo PainelVendedor ao carregar stats e no polling
+export function setSomAtivoParaUsuario(_userId: string | number, ativo: boolean) {
+  _somDesativado = !ativo;
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
