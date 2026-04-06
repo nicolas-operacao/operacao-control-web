@@ -36,6 +36,7 @@ export function RecrutasAdmin() {
   const [salvando, setSalvando] = useState(false);
   const [busca, setBusca] = useState('');
   const [aba, setAba] = useState<'pendentes' | 'tropa'>('pendentes');
+  const [excluindo, setExcluindo] = useState<string | null>(null);
 
   useEffect(() => {
     fetchAll();
@@ -85,6 +86,20 @@ export function RecrutasAdmin() {
       toast.error('Erro ao atualizar usuário.');
     } finally {
       setSalvando(false);
+    }
+  }
+
+  async function excluirUsuario(id: string) {
+    if (!confirm('Tem certeza que quer remover este usuário da tropa? Essa ação não pode ser desfeita.')) return;
+    setExcluindo(id);
+    try {
+      await api.delete(`/admin/${id}`);
+      toast.success('Usuário removido da tropa.');
+      setAprovados(prev => prev.filter(u => u.id !== id));
+    } catch {
+      toast.error('Erro ao remover usuário.');
+    } finally {
+      setExcluindo(null);
     }
   }
 
@@ -263,7 +278,7 @@ export function RecrutasAdmin() {
                         <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full border ${ROLE_COLOR[u.role] ?? 'text-zinc-400 bg-zinc-800 border-zinc-700'}`}>
                           {ROLE_LABEL[u.role] ?? u.role}
                         </span>
-                        {u.equipe && u.role === 'vendedor' && (
+                        {u.equipe && (
                           <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full border ${u.equipe.toUpperCase().includes('B') ? 'text-red-400 bg-red-500/10 border-red-500/30' : 'text-blue-400 bg-blue-500/10 border-blue-500/30'}`}>
                             Eq. {u.equipe.toUpperCase().replace('EQUIPE ', '')}
                           </span>
@@ -274,6 +289,14 @@ export function RecrutasAdmin() {
                           className="text-zinc-500 hover:text-purple-400 border border-zinc-700 hover:border-purple-600/50 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all"
                         >
                           Editar
+                        </button>
+                        <button
+                          onMouseEnter={somHover}
+                          onClick={() => { somClick(); excluirUsuario(u.id); }}
+                          disabled={excluindo === u.id}
+                          className="text-zinc-600 hover:text-red-400 border border-zinc-800 hover:border-red-500/40 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-50"
+                        >
+                          {excluindo === u.id ? '...' : 'Excluir'}
                         </button>
                       </div>
                     </div>
