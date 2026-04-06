@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import confetti from 'canvas-confetti';
 import { api } from '../services/api';
-import { somClick, somHover } from '../services/hudSounds';
+import { somClick, somHover, isSomAtivo, setSomAtivo } from '../services/hudSounds';
 
 // ─── SISTEMA DE NÍVEIS (igual ao GuerraEquipes) ────────────────────────────────
 const VENDAS_POR_NIVEL   = 5;
@@ -97,6 +97,7 @@ export function PainelVendedor({ userId, userName, equipe }: Props) {
   const [ranking, setRanking] = useState<any[]>([]);
   const [missoes, setMissoes] = useState<Missao[]>([]);
   const [loading, setLoading] = useState(true);
+  const [somAtivo, setSomAtivoState] = useState(() => isSomAtivo());
   const [editandoFoto, setEditandoFoto] = useState(false);
   const [novaFoto, setNovaFoto] = useState('');
   const [salvandoFoto, setSalvandoFoto] = useState(false);
@@ -370,6 +371,21 @@ export function PainelVendedor({ userId, userName, equipe }: Props) {
                 </div>
               </div>
             )}
+            {/* Toggle de som */}
+            <button
+              onClick={() => {
+                const novo = !somAtivo;
+                setSomAtivo(novo);
+                setSomAtivoState(novo);
+              }}
+              className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-zinc-900/60 border border-zinc-800 hover:border-zinc-600 transition-all"
+              title={somAtivo ? 'Desativar sons' : 'Ativar sons'}
+            >
+              <span className="text-base">{somAtivo ? '🔊' : '🔇'}</span>
+              <span className="text-[9px] font-black uppercase tracking-wide text-zinc-500">
+                {somAtivo ? 'Som on' : 'Som off'}
+              </span>
+            </button>
           </div>
         </div>
 

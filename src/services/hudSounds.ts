@@ -5,7 +5,34 @@
 
 let _ctx: AudioContext | null = null;
 
+// ── Controle de som por usuário ──────────────────────────────────────────────
+export function isSomAtivo(): boolean {
+  try {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const key = `som_desativado_${user.id}`;
+    return localStorage.getItem(key) !== 'true';
+  } catch { return true; }
+}
+
+export function setSomAtivo(ativo: boolean) {
+  try {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const key = `som_desativado_${user.id}`;
+    if (ativo) localStorage.removeItem(key);
+    else localStorage.setItem(key, 'true');
+  } catch { /* silencioso */ }
+}
+
+// Usado pelo admin para desativar o som de um usuário específico
+export function setSomAtivoParaUsuario(userId: string | number, ativo: boolean) {
+  const key = `som_desativado_${userId}`;
+  if (ativo) localStorage.removeItem(key);
+  else localStorage.setItem(key, 'true');
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 function getCtx(): AudioContext | null {
+  if (!isSomAtivo()) return null;
   try {
     if (!_ctx || _ctx.state === 'closed') _ctx = new AudioContext();
     if (_ctx.state === 'suspended') _ctx.resume();

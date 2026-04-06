@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { toast } from '../services/toast';
-import { somClick, somHover } from '../services/hudSounds';
+import { somClick, somHover, setSomAtivoParaUsuario } from '../services/hudSounds';
 
 type User = {
   id: string;
@@ -414,6 +414,21 @@ export function RecrutasAdmin() {
                           className="text-zinc-500 hover:text-purple-400 border border-zinc-700 hover:border-purple-600/50 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all"
                         >
                           Editar
+                        </button>
+                        <button
+                          onMouseEnter={somHover}
+                          onClick={() => {
+                            somClick();
+                            const key = `som_desativado_${u.id}`;
+                            const atual = localStorage.getItem(key) === 'true';
+                            setSomAtivoParaUsuario(u.id, atual); // inverte
+                            // força re-render
+                            setAprovados(prev => [...prev]);
+                          }}
+                          title={localStorage.getItem(`som_desativado_${u.id}`) === 'true' ? 'Ativar som' : 'Desativar som'}
+                          className="text-zinc-500 hover:text-yellow-400 border border-zinc-700 hover:border-yellow-400/50 px-2 py-1 rounded-lg text-[10px] font-black transition-all"
+                        >
+                          {localStorage.getItem(`som_desativado_${u.id}`) === 'true' ? '🔇' : '🔊'}
                         </button>
                         <button
                           onMouseEnter={somHover}
