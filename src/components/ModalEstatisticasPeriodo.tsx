@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { somClick, somHover } from '../services/hudSounds';
 
 type Venda = {
@@ -56,14 +56,40 @@ const BRT_MS = 3 * 60 * 60 * 1000;
 const toBRT = (iso: string) => new Date(new Date(iso).getTime() - BRT_MS);
 
 export function ModalEstatisticasPeriodo({ titulo, periodo, vendas, onClose }: Props) {
+  // semanaOffset: 0 = semana atual, -1 = semana passada, etc.
+  const [semanaOffset, setSemanaOffset] = useState(0);
+
   const aprovadas = useMemo(() => vendas.filter(v => v.status === 'aprovada'), [vendas]);
 
+  // Calcula o range da semana selecionada (domingo a sábado do offset)
+  const semanaRange = useMemo(() => {
+    if (periodo !== 'semana') return null;
+    const now = new Date(Date.now() - BRT_MS);
+    // Início da semana atual (domingo)
+    const dow = now.getUTCDay(); // 0=dom...6=sáb
+    const inicioSemanaAtual = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - dow));
+    const inicio = new Date(inicioSemanaAtual.getTime() + semanaOffset * 7 * 86400000);
+    const fim = new Date(inicio.getTime() + 6 * 86400000);
+    return { inicio, fim };
+  }, [periodo, semanaOffset]);
+
+  // Aprovadas filtradas pela semana (quando periodo === 'semana')
+  const aprovadasPeriodo = useMemo(() => {
+    if (periodo !== 'semana' || !semanaRange) return aprovadas;
+    return aprovadas.filter(v => {
+      const d = toBRT(v.created_at);
+      const t = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+      return t >= semanaRange.inicio.getTime() && t <= semanaRange.fim.getTime();
+    });
+  }, [aprovadas, periodo, semanaRange]);
+
   const kpis = useMemo(() => {
-    const total = aprovadas.reduce((a, v) => a + Number(v.sale_value), 0);
-    const count = aprovadas.length;
+    const src = periodo === 'semana' ? aprovadasPeriodo : aprovadas;
+    const total = src.reduce((a, v) => a + Number(v.sale_value), 0);
+    const count = src.length;
     const ticket = count > 0 ? total / count : 0;
     return { total, count, ticket };
-  }, [aprovadas]);
+  }, [aprovadas, aprovadasPeriodo, periodo]);
 
   // ── Barras por período ──────────────────────────────────────────────
   const barras = useMemo(() => {
@@ -87,9 +113,9 @@ export function ModalEstatisticasPeriodo({ titulo, periodo, vendas, onClose }: P
     }
 
     if (periodo === 'semana') {
+      if (!semanaRange) return [];
       return Array.from({ length: 7 }, (_, i) => {
-        const refMs = Date.now() - BRT_MS - (6 - i) * 86400000;
-        const ref = new Date(refMs);
+        const ref = new Date(semanaRange.inicio.getTime() + i * 86400000);
         const y = ref.getUTCFullYear(), m = ref.getUTCMonth(), d = ref.getUTCDate();
         const lista = aprovadas.filter(v => {
           const b = toBRT(v.created_at);
@@ -119,30 +145,33 @@ export function ModalEstatisticasPeriodo({ titulo, periodo, vendas, onClose }: P
         count: lista.length,
       };
     });
-  }, [aprovadas, periodo]);
+  }, [aprovadas, periodo, semanaRange]);
 
   const maxBarra = Math.max(...barras.map(b => b.valor), 1);
   const CHART_H = 72;
 
   // ── Métodos de pagamento ────────────────────────────────────────────
   const metodos = useMemo(() => {
+    const src = periodo === 'semana' ? aprovadasPeriodo : aprovadas;
     const mapa: Record<string, { valor: number; count: number }> = {};
-    aprovadas.forEach(v => {
+    src.forEach(v => {
       const m = v.payment_method || 'Outros';
       if (!mapa[m]) mapa[m] = { valor: 0, count: 0 };
       mapa[m].valor += Number(v.sale_value);
       mapa[m].count++;
     });
-    const total = aprovadas.reduce((a, v) => a + Number(v.sale_value), 0) || 1;
+    const src2 = periodo === 'semana' ? aprovadasPeriodo : aprovadas;
+    const total = src2.reduce((a, v) => a + Number(v.sale_value), 0) || 1;
     return Object.entries(mapa)
       .map(([nome, d]) => ({ nome, ...d, pct: (d.valor / total) * 100 }))
       .sort((a, b) => b.valor - a.valor);
-  }, [aprovadas]);
+  }, [aprovadas, aprovadasPeriodo, periodo]);
 
   // ── Top vendedores ──────────────────────────────────────────────────
   const topVendedores = useMemo(() => {
+    const src = periodo === 'semana' ? aprovadasPeriodo : aprovadas;
     const mapa: Record<string, { valor: number; count: number }> = {};
-    aprovadas.forEach(v => {
+    src.forEach(v => {
       const nome = v.seller_name || 'Desconhecido';
       if (!mapa[nome]) mapa[nome] = { valor: 0, count: 0 };
       mapa[nome].valor += Number(v.sale_value);
@@ -152,14 +181,15 @@ export function ModalEstatisticasPeriodo({ titulo, periodo, vendas, onClose }: P
       .map(([nome, d]) => ({ nome, ...d }))
       .sort((a, b) => b.valor - a.valor)
       .slice(0, 5);
-  }, [aprovadas]);
+  }, [aprovadas, aprovadasPeriodo, periodo]);
 
   // ── Vendas recentes (últimas 5) ─────────────────────────────────────
-  const recentes = useMemo(() =>
-    [...aprovadas].sort((a, b) =>
+  const recentes = useMemo(() => {
+    const src = periodo === 'semana' ? aprovadasPeriodo : aprovadas;
+    return [...src].sort((a, b) =>
       new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    ).slice(0, 5),
-  [aprovadas]);
+    ).slice(0, 5);
+  }, [aprovadas, aprovadasPeriodo, periodo]);
 
   return (
     <div
@@ -181,11 +211,35 @@ export function ModalEstatisticasPeriodo({ titulo, periodo, vendas, onClose }: P
               </p>
             </div>
           </div>
-          <button
-            onMouseEnter={somHover}
-            onClick={() => { somClick(); onClose(); }}
-            className="text-zinc-600 hover:text-white text-xl font-black transition-colors w-8 h-8 flex items-center justify-center"
-          >✕</button>
+          <div className="flex items-center gap-2">
+            {/* Navegação de semanas */}
+            {periodo === 'semana' && semanaRange && (() => {
+              const fmtDia = (d: Date) => `${String(d.getUTCDate()).padStart(2,'0')}/${String(d.getUTCMonth()+1).padStart(2,'0')}`;
+              return (
+                <div className="flex items-center gap-1 bg-zinc-900 border border-zinc-800 rounded-xl px-2 py-1.5">
+                  <button
+                    onMouseEnter={somHover}
+                    onClick={() => { somClick(); setSemanaOffset(o => o - 1); }}
+                    className="w-7 h-7 flex items-center justify-center text-zinc-400 hover:text-yellow-400 hover:bg-zinc-800 rounded-lg transition-all font-black text-sm"
+                  >←</button>
+                  <span className="text-zinc-300 text-[10px] font-black uppercase tracking-wider px-1 whitespace-nowrap">
+                    {fmtDia(semanaRange.inicio)} – {fmtDia(semanaRange.fim)}
+                  </span>
+                  <button
+                    onMouseEnter={somHover}
+                    onClick={() => { somClick(); setSemanaOffset(o => Math.min(o + 1, 0)); }}
+                    disabled={semanaOffset >= 0}
+                    className="w-7 h-7 flex items-center justify-center text-zinc-400 hover:text-yellow-400 hover:bg-zinc-800 rounded-lg transition-all font-black text-sm disabled:opacity-30 disabled:cursor-not-allowed"
+                  >→</button>
+                </div>
+              );
+            })()}
+            <button
+              onMouseEnter={somHover}
+              onClick={() => { somClick(); onClose(); }}
+              className="text-zinc-600 hover:text-white text-xl font-black transition-colors w-8 h-8 flex items-center justify-center"
+            >✕</button>
+          </div>
         </div>
 
         {/* Body scrollável */}
