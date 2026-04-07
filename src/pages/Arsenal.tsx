@@ -536,11 +536,13 @@ function FormPaymentLink({
   onSalvar,
   onCancelar,
   salvando,
+  produtosCadastrados,
 }: {
   inicial?: Partial<PaymentLink>;
   onSalvar: (d: { produto: string; descricao: string; links: PaymentLinkItem[] }) => void;
   onCancelar: () => void;
   salvando: boolean;
+  produtosCadastrados: { id: number; nome: string }[];
 }) {
   const [produto, setProduto] = useState(inicial?.produto ?? '');
   const [descricao, setDescricao] = useState(inicial?.descricao ?? '');
@@ -560,13 +562,26 @@ function FormPaymentLink({
 
   return (
     <div className="space-y-3">
-      <input
-        type="text"
-        placeholder="Nome do curso/produto"
-        value={produto}
-        onChange={e => setProduto(e.target.value)}
-        className="w-full bg-zinc-800 border border-zinc-700 focus:border-yellow-400/60 text-white rounded-xl px-4 py-3 text-sm outline-none placeholder:text-zinc-600"
-      />
+      {produtosCadastrados.length > 0 ? (
+        <select
+          value={produto}
+          onChange={e => setProduto(e.target.value)}
+          className="w-full bg-zinc-800 border border-zinc-700 focus:border-yellow-400/60 text-white rounded-xl px-4 py-3 text-sm outline-none"
+        >
+          <option value="">Selecione o curso/produto...</option>
+          {produtosCadastrados.map(p => (
+            <option key={p.id} value={p.nome}>{p.nome}</option>
+          ))}
+        </select>
+      ) : (
+        <input
+          type="text"
+          placeholder="Nome do curso/produto"
+          value={produto}
+          onChange={e => setProduto(e.target.value)}
+          className="w-full bg-zinc-800 border border-zinc-700 focus:border-yellow-400/60 text-white rounded-xl px-4 py-3 text-sm outline-none placeholder:text-zinc-600"
+        />
+      )}
       <input
         type="text"
         placeholder="Descrição opcional (ex: Acesso vitalício)"
@@ -636,7 +651,7 @@ function FormPaymentLink({
 
 // ─── ABA LINKS DE PAGAMENTO ────────────────────────────────────────────────────
 
-function AbaLinks({ isAdmin }: { isAdmin: boolean }) {
+function AbaLinks({ isAdmin, produtosCadastrados }: { isAdmin: boolean; produtosCadastrados: { id: number; nome: string; valor: number }[] }) {
   const [links, setLinks] = useState<PaymentLink[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -718,6 +733,7 @@ function AbaLinks({ isAdmin }: { isAdmin: boolean }) {
             onSalvar={salvar}
             onCancelar={() => { setShowForm(false); setEditando(null); }}
             salvando={salvando}
+            produtosCadastrados={produtosCadastrados}
           />
         </div>
       )}
@@ -839,7 +855,7 @@ export function Arsenal() {
         {aba === 'scripts' ? (
           <AbaScripts userId={String(user.id)} userName={user.name} isAdmin={isAdmin} />
         ) : (
-          <AbaLinks isAdmin={isAdmin} />
+          <AbaLinks isAdmin={isAdmin} produtosCadastrados={produtos} />
         )}
       </div>
 
