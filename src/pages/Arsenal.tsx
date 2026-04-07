@@ -664,10 +664,13 @@ function AbaLinks({ isAdmin, produtosCadastrados }: { isAdmin: boolean; produtos
   async function fetchLinks() {
     setLoading(true);
     try {
-      const res = await api.get('/payment-links');
+      const userStr = localStorage.getItem('user');
+      const uid = userStr ? String(JSON.parse(userStr).id) : '';
+      const res = await api.get('/payment-links', { params: { user_id: uid } });
       setLinks(Array.isArray(res.data) ? res.data : []);
-    } catch {
-      toast.error('Erro ao carregar links.');
+    } catch (err: any) {
+      const msg = err?.response?.data?.error || err?.message || 'Erro desconhecido';
+      toast.error(`Erro ao carregar links: ${msg}`);
     } finally {
       setLoading(false);
     }
@@ -678,18 +681,22 @@ function AbaLinks({ isAdmin, produtosCadastrados }: { isAdmin: boolean; produtos
     if (dados.links.some(l => !l.url.trim())) { toast.warning('Preencha todas as URLs.'); return; }
     setSalvando(true);
     try {
+      const userStr = localStorage.getItem('user');
+      const uid = userStr ? String(JSON.parse(userStr).id) : '';
+      const payload = { ...dados, user_id: uid };
       if (editando) {
-        await api.put(`/payment-links/${editando.id}`, dados);
+        await api.put(`/payment-links/${editando.id}`, payload);
         toast.success('Links atualizados!');
       } else {
-        await api.post('/payment-links', dados);
+        await api.post('/payment-links', payload);
         toast.success('Links adicionados!');
       }
       setShowForm(false);
       setEditando(null);
       fetchLinks();
-    } catch {
-      toast.error('Erro ao salvar links.');
+    } catch (err: any) {
+      const msg = err?.response?.data?.error || err?.message || 'Erro desconhecido';
+      toast.error(`Erro ao salvar: ${msg}`);
     } finally {
       setSalvando(false);
     }
