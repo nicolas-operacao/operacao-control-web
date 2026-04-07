@@ -5,11 +5,13 @@ type Venda = {
   id: string;
   product_name: string;
   customer_name: string;
+  customer_phone?: string;
+  customer_email?: string;
   sale_value: number;
   status: string;
   created_at: string;
-  seller_name?: string; 
-  payment_method?: string; 
+  seller_name?: string;
+  payment_method?: string;
 };
 
 interface RelatorioBatalhaProps {
@@ -47,8 +49,9 @@ type VisaoGeralSoldado = {
 export function RelatorioBatalha({ vendas, titulo, subtitulo, onClose }: RelatorioBatalhaProps) {
   const formataBRL = (valor: number) => valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-  // 🔥 ESTADO DAS GUIAS (TABS)
   const [abaAtiva, setAbaAtiva] = useState<string>('VISÃO GERAL');
+  const [vendedorExpandido, setVendedorExpandido] = useState<string | null>(null);
+  const [clienteSearch, setClienteSearch] = useState('');
 
   // ========================================================
   // 1. MOTOR GERAL (Agrupa tudo por Soldado para a aba Geral)
@@ -119,8 +122,17 @@ export function RelatorioBatalha({ vendas, titulo, subtitulo, onClose }: Relator
 
   const valorTotalGeral = vendas.reduce((acc, curr) => acc + Number(curr.sale_value), 0);
 
-  // Lista dinâmica de abas (Visão Geral + Os métodos que tiveram vendas)
-  const guias = ['VISÃO GERAL', ...relatoriosMetodos.map(r => r.metodo)];
+  // Lista dinâmica de abas (Visão Geral + Clientes + Os métodos que tiveram vendas)
+  const guias = ['VISÃO GERAL', '👥 CLIENTES', ...relatoriosMetodos.map(r => r.metodo)];
+
+  const clientesFiltrados = vendas.filter(v => {
+    if (!clienteSearch) return true;
+    const t = clienteSearch.toLowerCase();
+    return (v.customer_name?.toLowerCase().includes(t)) ||
+           (v.customer_phone?.toLowerCase().includes(t)) ||
+           (v.customer_email?.toLowerCase().includes(t)) ||
+           (v.seller_name?.toLowerCase().includes(t));
+  }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
   return (
     <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-6 shadow-2xl animate-in fade-in slide-in-from-top-4 duration-300">
@@ -178,31 +190,122 @@ export function RelatorioBatalha({ vendas, titulo, subtitulo, onClose }: Relator
             
             {/* ABA 1: VISÃO GERAL */}
             {abaAtiva === 'VISÃO GERAL' && (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left">
-                  <thead>
-                    <tr className="border-b border-zinc-800/50 text-zinc-600 text-[10px] uppercase tracking-widest bg-zinc-950/80">
-                      <th className="p-4 font-black">Soldado</th>
-                      <th className="p-4 font-black text-center text-blue-400/70">Cartão</th>
-                      <th className="p-4 font-black text-center text-yellow-400/70">PIX</th>
-                      <th className="p-4 font-black text-center text-zinc-400/70">Boleto</th>
-                      <th className="p-4 font-black text-center bg-zinc-900/50">Total Vendas</th>
-                      <th className="p-4 font-black text-right w-40">Valor Gerado</th>
-                    </tr>
-                  </thead>
-                  <tbody className="text-sm">
-                    {listaGeralPronta.map((item, index) => (
-                      <tr key={index} className="border-b border-zinc-800/30 hover:bg-zinc-900 transition-colors">
-                        <td className="p-4 font-bold text-zinc-300 uppercase tracking-wider">{item.nome}</td>
-                        <td className="p-4 text-center font-bold text-blue-400/80">{item.qtdCartao > 0 ? `${item.qtdCartao}x` : '-'}</td>
-                        <td className="p-4 text-center font-bold text-yellow-400/80">{item.qtdPix > 0 ? `${item.qtdPix}x` : '-'}</td>
-                        <td className="p-4 text-center font-bold text-zinc-500">{item.qtdBoleto > 0 ? `${item.qtdBoleto}x` : '-'}</td>
-                        <td className="p-4 text-center font-black text-white bg-zinc-900/20">{item.totalVendas}</td>
-                        <td className="p-4 text-green-400 font-black text-right whitespace-nowrap">{formataBRL(item.valorTotal)}</td>
+              <div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="border-b border-zinc-800/50 text-zinc-600 text-[10px] uppercase tracking-widest bg-zinc-950/80">
+                        <th className="p-4 font-black">Soldado</th>
+                        <th className="p-4 font-black text-center text-blue-400/70">Cartão</th>
+                        <th className="p-4 font-black text-center text-yellow-400/70">PIX</th>
+                        <th className="p-4 font-black text-center text-zinc-400/70">Boleto</th>
+                        <th className="p-4 font-black text-center bg-zinc-900/50">Total Vendas</th>
+                        <th className="p-4 font-black text-right w-40">Valor Gerado</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="text-sm">
+                      {listaGeralPronta.map((item, index) => {
+                        const isExpanded = vendedorExpandido === item.nome;
+                        const vendasDoVendedor = vendas.filter(v => (v.seller_name || 'Desconhecido') === item.nome);
+                        return (
+                          <React.Fragment key={index}>
+                            <tr
+                              className={`border-b border-zinc-800/30 transition-colors cursor-pointer ${isExpanded ? 'bg-zinc-900' : 'hover:bg-zinc-900/60'}`}
+                              onClick={() => { somClick(); setVendedorExpandido(isExpanded ? null : item.nome); }}
+                            >
+                              <td className="p-4 font-bold uppercase tracking-wider">
+                                <span className="text-yellow-400 hover:underline flex items-center gap-2">
+                                  {item.nome}
+                                  <span className="text-zinc-600 text-[10px] font-normal">{isExpanded ? '▲' : '▼'}</span>
+                                </span>
+                              </td>
+                              <td className="p-4 text-center font-bold text-blue-400/80">{item.qtdCartao > 0 ? `${item.qtdCartao}x` : '-'}</td>
+                              <td className="p-4 text-center font-bold text-yellow-400/80">{item.qtdPix > 0 ? `${item.qtdPix}x` : '-'}</td>
+                              <td className="p-4 text-center font-bold text-zinc-500">{item.qtdBoleto > 0 ? `${item.qtdBoleto}x` : '-'}</td>
+                              <td className="p-4 text-center font-black text-white bg-zinc-900/20">{item.totalVendas}</td>
+                              <td className="p-4 text-green-400 font-black text-right whitespace-nowrap">{formataBRL(item.valorTotal)}</td>
+                            </tr>
+                            {isExpanded && (
+                              <tr className="border-b border-zinc-800/30">
+                                <td colSpan={6} className="px-4 pb-3 bg-zinc-950/60">
+                                  <div className="pt-2 space-y-1.5">
+                                    <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest mb-2">Vendas de {item.nome}</p>
+                                    {vendasDoVendedor.map(v => (
+                                      <div key={v.id} className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2">
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-white text-xs font-black truncate">{v.customer_name}</p>
+                                          <div className="flex gap-2 mt-0.5 flex-wrap">
+                                            {v.customer_phone && <span className="text-zinc-500 text-[10px]">📞 {v.customer_phone}</span>}
+                                            {v.customer_email && <span className="text-zinc-500 text-[10px]">✉️ {v.customer_email}</span>}
+                                          </div>
+                                        </div>
+                                        <div className="flex items-center gap-3 flex-shrink-0">
+                                          <span className="text-zinc-400 text-[10px] uppercase">{v.product_name}</span>
+                                          <span className="text-zinc-500 text-[10px]">{v.payment_method}</span>
+                                          <span className="text-green-400 font-black text-xs">{formataBRL(Number(v.sale_value))}</span>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* ABA CLIENTES */}
+            {abaAtiva === '👥 CLIENTES' && (
+              <div>
+                <div className="p-3 border-b border-zinc-800 bg-zinc-950/50">
+                  <input
+                    type="text"
+                    value={clienteSearch}
+                    onChange={e => setClienteSearch(e.target.value)}
+                    placeholder="Buscar cliente, telefone, e-mail ou vendedor..."
+                    className="w-full bg-zinc-900 border border-zinc-700 text-white rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-yellow-400/50 placeholder:text-zinc-600"
+                  />
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="border-b border-zinc-800/50 text-zinc-600 text-[10px] uppercase tracking-widest bg-zinc-950/80">
+                        <th className="p-4 font-black">Cliente</th>
+                        <th className="p-4 font-black">Contato</th>
+                        <th className="p-4 font-black">Produto</th>
+                        <th className="p-4 font-black">Pagamento</th>
+                        <th className="p-4 font-black">Vendedor</th>
+                        <th className="p-4 font-black text-right">Valor</th>
+                      </tr>
+                    </thead>
+                    <tbody className="text-sm">
+                      {clientesFiltrados.map((v, idx) => (
+                        <tr key={v.id || idx} className="border-b border-zinc-800/30 hover:bg-zinc-900/60 transition-colors">
+                          <td className="p-4 font-bold text-white uppercase tracking-wide">{v.customer_name || '—'}</td>
+                          <td className="p-4">
+                            <div className="flex flex-col gap-0.5">
+                              {v.customer_phone && <span className="text-zinc-400 text-[10px]">📞 {v.customer_phone}</span>}
+                              {v.customer_email && <span className="text-zinc-400 text-[10px]">✉️ {v.customer_email}</span>}
+                              {!v.customer_phone && !v.customer_email && <span className="text-zinc-700 text-[10px]">—</span>}
+                            </div>
+                          </td>
+                          <td className="p-4 text-zinc-300 text-xs font-bold">{v.product_name}</td>
+                          <td className="p-4 text-zinc-500 text-xs">{v.payment_method || '—'}</td>
+                          <td className="p-4 text-zinc-400 text-xs font-bold uppercase">{v.seller_name || '—'}</td>
+                          <td className="p-4 text-green-400 font-black text-right whitespace-nowrap">{formataBRL(Number(v.sale_value))}</td>
+                        </tr>
+                      ))}
+                      {clientesFiltrados.length === 0 && (
+                        <tr><td colSpan={6} className="p-8 text-center text-zinc-600 text-xs uppercase tracking-widest">Nenhum resultado.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
 
