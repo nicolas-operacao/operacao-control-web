@@ -664,9 +664,7 @@ function AbaLinks({ isAdmin, produtosCadastrados }: { isAdmin: boolean; produtos
   async function fetchLinks() {
     setLoading(true);
     try {
-      const userStr = localStorage.getItem('user');
-      const uid = userStr ? String(JSON.parse(userStr).id) : '';
-      const res = await api.get('/payment-links', { params: { user_id: uid } });
+      const res = await api.get('/payment-links');
       setLinks(Array.isArray(res.data) ? res.data : []);
     } catch (err: any) {
       const msg = err?.response?.data?.error || err?.message || 'Erro desconhecido';
@@ -681,14 +679,11 @@ function AbaLinks({ isAdmin, produtosCadastrados }: { isAdmin: boolean; produtos
     if (dados.links.some(l => !l.url.trim())) { toast.warning('Preencha todas as URLs.'); return; }
     setSalvando(true);
     try {
-      const userStr = localStorage.getItem('user');
-      const uid = userStr ? String(JSON.parse(userStr).id) : '';
-      const payload = { ...dados, user_id: uid };
       if (editando) {
-        await api.put(`/payment-links/${editando.id}`, payload);
+        await api.put(`/payment-links/${editando.id}`, dados);
         toast.success('Links atualizados!');
       } else {
-        await api.post('/payment-links', payload);
+        await api.post('/payment-links', dados);
         toast.success('Links adicionados!');
       }
       setShowForm(false);
