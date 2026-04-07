@@ -664,7 +664,8 @@ function AbaLinks({ isAdmin, produtosCadastrados }: { isAdmin: boolean; produtos
   async function fetchLinks() {
     setLoading(true);
     try {
-      const res = await api.get('/payment-links');
+      const uid = JSON.parse(localStorage.getItem('user') || '{}').id ?? '';
+      const res = await api.get('/payment-links', { params: { user_id: String(uid) } });
       setLinks(Array.isArray(res.data) ? res.data : []);
     } catch (err: any) {
       const msg = err?.response?.data?.error || err?.message || 'Erro desconhecido';
@@ -679,11 +680,13 @@ function AbaLinks({ isAdmin, produtosCadastrados }: { isAdmin: boolean; produtos
     if (dados.links.some(l => !l.url.trim())) { toast.warning('Preencha todas as URLs.'); return; }
     setSalvando(true);
     try {
+      const uid = String(JSON.parse(localStorage.getItem('user') || '{}').id ?? '');
+      const payload = { ...dados, user_id: uid };
       if (editando) {
-        await api.put(`/payment-links/${editando.id}`, dados);
+        await api.put(`/payment-links/${editando.id}`, payload);
         toast.success('Links atualizados!');
       } else {
-        await api.post('/payment-links', dados);
+        await api.post('/payment-links', payload);
         toast.success('Links adicionados!');
       }
       setShowForm(false);
