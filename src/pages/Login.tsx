@@ -129,10 +129,24 @@ export function Login() {
   // 🔥 FASE 2: TELA DE SUCESSO (ACESSO CONCEDIDO)
   // ==========================================
   if (showSuccess) {
+    const isVendedor = (() => {
+      try { return JSON.parse(localStorage.getItem('user') || '{}').role === 'vendedor'; } catch { return false; }
+    })();
+    const MUSIC_ID = '7IFvoaH44Is';
     return (
       <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-4 relative overflow-hidden animate-in fade-in duration-500">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-yellow-900/10 via-zinc-950 to-zinc-950 z-0"></div>
-        
+
+        {/* Música toca imediatamente após o clique de login — contexto de gesto garantido */}
+        {isVendedor && (
+          <iframe
+            src={`https://www.youtube.com/embed/${MUSIC_ID}?autoplay=1&controls=0&loop=1&playlist=${MUSIC_ID}&modestbranding=1&start=0`}
+            allow="autoplay"
+            style={{ position: 'absolute', width: 0, height: 0, opacity: 0, pointerEvents: 'none' }}
+            title="music-bg"
+          />
+        )}
+
         <div className="z-10 flex flex-col items-center">
           <div className="text-yellow-400 text-7xl mb-6 animate-bounce drop-shadow-[0_0_20px_rgba(250,204,21,0.5)]">🛡️</div>
           <h1 className="text-4xl font-black text-white uppercase tracking-widest mb-2 text-center drop-shadow-[0_0_15px_rgba(250,204,21,0.3)]">
