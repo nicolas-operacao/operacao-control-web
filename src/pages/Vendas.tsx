@@ -73,9 +73,17 @@ export function Vendas() {
   const [isLoading, setIsLoading] = useState(false);
   const [mostrarComissao, setMostrarComissao] = useState(false);
 
+  // ── Música de celebração ───────────────────────────────────────────────────
+  const MUSIC_VIDEO_ID = '7IFvoaH44Is';
+  const musicAprovadaRef = useRef<HTMLIFrameElement>(null);
+  const musicLancadaRef  = useRef<HTMLIFrameElement>(null);
+  function pararMusicaAprovada() { if (musicAprovadaRef.current) musicAprovadaRef.current.src = ''; }
+  function pararMusicaLancada()  { if (musicLancadaRef.current)  musicLancadaRef.current.src  = ''; }
+
   // ── Notificação de venda aprovada ──────────────────────────────────────────
   type VendaAprovada = { product_name: string; sale_value: number; customer_name: string };
   const [vendaAprovadaNotif, setVendaAprovadaNotif] = useState<VendaAprovada | null>(null);
+  const [vendaLancadaNotif,  setVendaLancadaNotif]  = useState<VendaAprovada | null>(null);
   // Usamos ref para guardar IDs pendentes sem criar dependência circular
   const prevPendingIdsRef = useRef<Set<string>>(new Set());
   // Ref com a função de celebração para evitar closure velha dentro do useCallback
@@ -93,7 +101,7 @@ export function Vendas() {
     somVendaAprovada();
     // Notificação nativa (funciona mesmo com tela bloqueada no mobile via PWA)
     notificarVendaAprovada(venda.customer_name, venda.product_name, venda.sale_value);
-    setTimeout(() => setVendaAprovadaNotif(null), 8000);
+    setTimeout(() => { setVendaAprovadaNotif(null); pararMusicaAprovada(); }, 8000);
   };
 
   // fetchData definido ANTES do useEffect que o usa
@@ -206,7 +214,7 @@ export function Vendas() {
         sale_value: Number(saleValue), sale_date: saleDate
       });
 
-      toast.success('Venda registrada com sucesso!');
+      setVendaLancadaNotif({ product_name: productName, sale_value: Number(saleValue), customer_name: customerName });
       resetForm();
       setIsModalOpen(false);
       fetchData(false);
@@ -719,13 +727,72 @@ export function Vendas() {
         </div>
       )}
 
+      {/* ── CARD DE VENDA LANÇADA COM SUCESSO (sem aprovação necessária) ──── */}
+      {vendaLancadaNotif && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/85 backdrop-blur-md cursor-pointer"
+            onClick={() => { setVendaLancadaNotif(null); pararMusicaLancada(); }}
+          />
+          <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+            <div className="w-96 h-96 bg-yellow-500/15 rounded-full blur-[120px] animate-pulse" />
+          </div>
+          <div className="relative z-10 w-full max-w-md mx-4 animate-in zoom-in-90 duration-300">
+            <div className="absolute -inset-4 bg-yellow-500/10 rounded-3xl blur-xl" />
+            <div className="relative bg-zinc-950 border-2 border-yellow-500 rounded-3xl overflow-hidden shadow-[0_0_80px_rgba(234,179,8,0.4)]">
+              <div className="h-1.5 bg-gradient-to-r from-yellow-600 via-white to-yellow-600 animate-pulse" />
+              <div className="p-7 text-center">
+                <div className="relative inline-block mb-4">
+                  <div className="text-8xl animate-bounce select-none leading-none">🚀</div>
+                  <div className="absolute -top-1 -right-1 text-2xl animate-spin" style={{ animationDuration: '3s' }}>✨</div>
+                  <div className="absolute -bottom-1 -left-1 text-xl animate-spin" style={{ animationDuration: '2s', animationDirection: 'reverse' }}>⭐</div>
+                </div>
+                <div className="mb-1">
+                  <span className="text-[11px] font-black text-yellow-400 uppercase tracking-[0.4em]">⚡ Missão Registrada!</span>
+                </div>
+                <h1 className="text-3xl md:text-4xl font-black text-white uppercase tracking-wide leading-tight mb-1">VENDA</h1>
+                <h1 className="text-3xl md:text-4xl font-black text-yellow-400 uppercase tracking-wide leading-tight mb-4">LANÇADA!</h1>
+                <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3 mb-3 text-left">
+                  <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest mb-0.5">Produto</p>
+                  <p className="text-yellow-400 font-black text-base uppercase">{vendaLancadaNotif.product_name}</p>
+                  <p className="text-zinc-400 text-xs mt-1">Cliente: <span className="text-white font-bold">{vendaLancadaNotif.customer_name}</span></p>
+                </div>
+                <div className="bg-yellow-950/60 border-2 border-yellow-600/60 rounded-2xl py-4 px-5 mb-5 shadow-[inset_0_0_30px_rgba(234,179,8,0.1)]">
+                  <p className="text-[10px] text-yellow-600 font-black uppercase tracking-[0.3em] mb-1">💵 Valor Lançado</p>
+                  <p className="text-yellow-400 font-black text-4xl md:text-5xl leading-none drop-shadow-[0_0_15px_rgba(234,179,8,0.6)]">
+                    {(vendaLancadaNotif.sale_value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                  </p>
+                </div>
+                <p className="text-zinc-600 text-xs mb-5 uppercase tracking-widest">Toque em qualquer lugar para fechar</p>
+                <button
+                  onMouseEnter={somHover}
+                  onClick={() => { somClick(); setVendaLancadaNotif(null); pararMusicaLancada(); }}
+                  className="w-full bg-yellow-400 hover:bg-yellow-300 active:scale-95 text-black font-black py-4 rounded-2xl uppercase tracking-[0.2em] text-base transition-all shadow-[0_0_25px_rgba(234,179,8,0.4)]"
+                >
+                  BORA! ⚡
+                </button>
+              </div>
+              <div className="h-1 bg-gradient-to-r from-transparent via-yellow-500 to-transparent" />
+            </div>
+          </div>
+          {/* Música — contexto de gesto garantido pelo clique no botão de registrar */}
+          <iframe
+            ref={musicLancadaRef}
+            src={`https://www.youtube.com/embed/${MUSIC_VIDEO_ID}?autoplay=1&controls=0&loop=1&playlist=${MUSIC_VIDEO_ID}&modestbranding=1`}
+            allow="autoplay"
+            className="w-0 h-0 absolute opacity-0 pointer-events-none"
+            title="music-lancada"
+          />
+        </div>
+      )}
+
       {/* ── NOTIFICAÇÃO DE VENDA APROVADA — TELA CHEIA ───────────────────── */}
       {vendaAprovadaNotif && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center">
           {/* Fundo com gradiente pulsante */}
           <div
             className="absolute inset-0 bg-black/85 backdrop-blur-md cursor-pointer"
-            onClick={() => setVendaAprovadaNotif(null)}
+            onClick={() => { setVendaAprovadaNotif(null); pararMusicaAprovada(); }}
           />
 
           {/* Brilho verde espalhado no fundo */}
@@ -784,7 +851,7 @@ export function Vendas() {
 
                 <button
                   onMouseEnter={somHover}
-                  onClick={() => { somClick(); setVendaAprovadaNotif(null); }}
+                  onClick={() => { somClick(); setVendaAprovadaNotif(null); pararMusicaAprovada(); }}
                   className="w-full bg-green-500 hover:bg-green-400 active:scale-95 text-black font-black py-4 rounded-2xl uppercase tracking-[0.2em] text-base transition-all shadow-[0_0_25px_rgba(34,197,94,0.4)]"
                 >
                   SHOW! ✓
@@ -795,6 +862,14 @@ export function Vendas() {
               <div className="h-1 bg-gradient-to-r from-transparent via-green-500 to-transparent" />
             </div>
           </div>
+          {/* Música de celebração */}
+          <iframe
+            ref={musicAprovadaRef}
+            src={`https://www.youtube.com/embed/${MUSIC_VIDEO_ID}?autoplay=1&controls=0&loop=1&playlist=${MUSIC_VIDEO_ID}&modestbranding=1`}
+            allow="autoplay"
+            className="w-0 h-0 absolute opacity-0 pointer-events-none"
+            title="music-aprovada"
+          />
         </div>
       )}
 
