@@ -7,6 +7,7 @@ import { Suporte } from './pages/Suporte';
 import { RecrutasAdmin } from './pages/RecrutasAdmin';
 import { Perfil } from './pages/Perfil';
 import { Arsenal } from './pages/Arsenal';
+import { Comparativo } from './pages/Comparativo';
 import { PrivateRoute } from './components/PrivateRoute';
 import { AdminRoute } from './components/AdminRoute';
 import { SuporteRoute } from './components/SuporteRoute';
@@ -30,6 +31,7 @@ export default function App() {
         <Route path="/liberacoes" element={<SuporteRoute><Suporte /></SuporteRoute>} />
         <Route path="/perfil" element={<PrivateRoute><Perfil /></PrivateRoute>} />
         <Route path="/arsenal" element={<PrivateRoute><Arsenal /></PrivateRoute>} />
+        <Route path="/comparativo" element={<AdminRoute><Comparativo /></AdminRoute>} />
       </Routes>
     </BrowserRouter>
   );
