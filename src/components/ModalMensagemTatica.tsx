@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 type Payload = {
@@ -7,8 +7,12 @@ type Payload = {
   role: string;
 };
 
+const MUSIC_VIDEO_ID = '7IFvoaH44Is';
+
 export function ModalMensagemTatica() {
   const [payload, setPayload] = useState<Payload | null>(null);
+  const [tocando, setTocando] = useState(false);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -33,7 +37,19 @@ export function ModalMensagemTatica() {
     } catch { /* ignora */ }
   }, []);
 
+  function tocarMusica() {
+    setTocando(true);
+  }
+
+  function pararMusica() {
+    if (iframeRef.current) {
+      iframeRef.current.src = '';
+    }
+    setTocando(false);
+  }
+
   function fechar() {
+    pararMusica();
     localStorage.removeItem('mensagem_tatica');
     setPayload(null);
   }
@@ -119,10 +135,26 @@ export function ModalMensagemTatica() {
             </span>
           )}
 
+          {/* Botão música */}
+          {!isAdmin && (
+            <button
+              onClick={tocando ? pararMusica : tocarMusica}
+              className={`w-full py-2.5 rounded-xl font-black uppercase tracking-widest text-sm transition-all hover:scale-[1.02] active:scale-95 border ${
+                tocando
+                  ? 'bg-white/10 border-white/30 text-white/70'
+                  : isB
+                    ? 'bg-red-900/40 border-red-500/40 text-red-300 hover:bg-red-900/60'
+                    : 'bg-blue-900/40 border-blue-500/40 text-blue-300 hover:bg-blue-900/60'
+              }`}
+            >
+              {tocando ? '🔇 Silenciar' : '🎵 Tocar Música'}
+            </button>
+          )}
+
           {/* Botão fechar */}
           <button
             onClick={fechar}
-            className={`mt-2 w-full py-3 rounded-xl font-black uppercase tracking-widest text-sm transition-all hover:scale-[1.02] active:scale-95 shadow-lg ${
+            className={`w-full py-3 rounded-xl font-black uppercase tracking-widest text-sm transition-all hover:scale-[1.02] active:scale-95 shadow-lg ${
               isAdmin
                 ? 'bg-white/10 hover:bg-white/20 text-white border border-white/20'
                 : isB
@@ -132,6 +164,17 @@ export function ModalMensagemTatica() {
           >
             Entendido — Bora Vender! ⚡
           </button>
+
+          {/* YouTube player oculto */}
+          {tocando && (
+            <iframe
+              ref={iframeRef}
+              src={`https://www.youtube.com/embed/${MUSIC_VIDEO_ID}?autoplay=1&controls=0&loop=1&playlist=${MUSIC_VIDEO_ID}&modestbranding=1`}
+              allow="autoplay"
+              className="w-0 h-0 absolute opacity-0 pointer-events-none"
+              title="music"
+            />
+          )}
         </div>
       </div>
     </div>
