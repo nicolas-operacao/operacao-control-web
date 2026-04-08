@@ -11,7 +11,7 @@ const MUSIC_VIDEO_ID = '7IFvoaH44Is';
 
 export function ModalMensagemTatica() {
   const [payload, setPayload] = useState<Payload | null>(null);
-  const [tocando, setTocando] = useState(false);
+  const [bloqueado, setBloqueado] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const navigate = useNavigate();
 
@@ -37,21 +37,21 @@ export function ModalMensagemTatica() {
     } catch { /* ignora */ }
   }, []);
 
-  function tocarMusica() {
-    setTocando(true);
-  }
-
   function pararMusica() {
-    if (iframeRef.current) {
-      iframeRef.current.src = '';
-    }
-    setTocando(false);
+    if (iframeRef.current) iframeRef.current.src = '';
   }
 
   function fechar() {
     pararMusica();
     localStorage.removeItem('mensagem_tatica');
     setPayload(null);
+  }
+
+  function ativarSom() {
+    setBloqueado(false);
+    if (iframeRef.current) {
+      iframeRef.current.src = `https://www.youtube.com/embed/${MUSIC_VIDEO_ID}?autoplay=1&controls=0&loop=1&playlist=${MUSIC_VIDEO_ID}&modestbranding=1`;
+    }
   }
 
   if (!payload) return null;
@@ -135,19 +135,17 @@ export function ModalMensagemTatica() {
             </span>
           )}
 
-          {/* Botão música */}
-          {!isAdmin && (
+          {/* Botão ativar som (fallback se autoplay foi bloqueado) */}
+          {!isAdmin && bloqueado && (
             <button
-              onClick={tocando ? pararMusica : tocarMusica}
-              className={`w-full py-2.5 rounded-xl font-black uppercase tracking-widest text-sm transition-all hover:scale-[1.02] active:scale-95 border ${
-                tocando
-                  ? 'bg-white/10 border-white/30 text-white/70'
-                  : isB
-                    ? 'bg-red-900/40 border-red-500/40 text-red-300 hover:bg-red-900/60'
-                    : 'bg-blue-900/40 border-blue-500/40 text-blue-300 hover:bg-blue-900/60'
+              onClick={ativarSom}
+              className={`w-full py-2.5 rounded-xl font-black uppercase tracking-widest text-xs transition-all active:scale-95 border animate-pulse ${
+                isB
+                  ? 'bg-red-900/40 border-red-500/40 text-red-300'
+                  : 'bg-blue-900/40 border-blue-500/40 text-blue-300'
               }`}
             >
-              {tocando ? '🔇 Silenciar' : '🎵 Tocar Música'}
+              🔊 Toque aqui para ativar o som
             </button>
           )}
 
@@ -165,14 +163,15 @@ export function ModalMensagemTatica() {
             Entendido — Bora Vender! ⚡
           </button>
 
-          {/* YouTube player oculto */}
-          {tocando && (
+          {/* YouTube player oculto — autoplay imediato */}
+          {!isAdmin && (
             <iframe
               ref={iframeRef}
               src={`https://www.youtube.com/embed/${MUSIC_VIDEO_ID}?autoplay=1&controls=0&loop=1&playlist=${MUSIC_VIDEO_ID}&modestbranding=1`}
               allow="autoplay"
               className="w-0 h-0 absolute opacity-0 pointer-events-none"
               title="music"
+              onError={() => setBloqueado(true)}
             />
           )}
         </div>
