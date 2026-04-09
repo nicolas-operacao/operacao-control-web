@@ -185,6 +185,13 @@ export function PainelVendedor({ userId, userName, equipe }: Props) {
     return () => clearInterval(interval);
   }, [userId]);
 
+  // Música de conquista: iframe sempre no DOM, src trocado via ref (evita bloqueio de autoplay)
+  useEffect(() => {
+    const MUSIC_VIDEO_ID = '7IFvoaH44Is';
+    const url = `https://www.youtube.com/embed/${MUSIC_VIDEO_ID}?autoplay=1&controls=0&loop=1&playlist=${MUSIC_VIDEO_ID}&modestbranding=1`;
+    if (musicConquistaRef.current) musicConquistaRef.current.src = conquistaNotif ? url : '';
+  }, [conquistaNotif]);
+
   useEffect(() => {
     async function load() {
       try {
@@ -1015,16 +1022,11 @@ export function PainelVendedor({ userId, userName, equipe }: Props) {
             </div>
           </div>
 
-          {/* Música — mesma da celebração de venda */}
-          <iframe
-            ref={musicConquistaRef}
-            src="https://www.youtube.com/embed/7IFvoaH44Is?autoplay=1&controls=0&loop=1&playlist=7IFvoaH44Is&modestbranding=1"
-            allow="autoplay"
-            className="w-0 h-0 absolute opacity-0 pointer-events-none"
-            title="music-conquista"
-          />
         </div>
       )}
+
+      {/* Iframe de música conquista — sempre no DOM, src controlado via useEffect */}
+      <iframe ref={musicConquistaRef} src="" allow="autoplay" className="w-0 h-0 fixed opacity-0 pointer-events-none" title="music-conquista" />
 
     </div>
   );

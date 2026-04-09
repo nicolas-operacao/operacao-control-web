@@ -162,6 +162,17 @@ export function Vendas() {
     return () => clearInterval(intervalo);
   }, [fetchData]);
 
+  // Música de venda: iframe sempre no DOM, src trocado via ref (evita bloqueio de autoplay)
+  useEffect(() => {
+    const url = `https://www.youtube.com/embed/${MUSIC_VIDEO_ID}?autoplay=1&controls=0&loop=1&playlist=${MUSIC_VIDEO_ID}&modestbranding=1`;
+    if (musicAprovadaRef.current) musicAprovadaRef.current.src = vendaAprovadaNotif ? url : '';
+  }, [vendaAprovadaNotif]);
+
+  useEffect(() => {
+    const url = `https://www.youtube.com/embed/${MUSIC_VIDEO_ID}?autoplay=1&controls=0&loop=1&playlist=${MUSIC_VIDEO_ID}&modestbranding=1`;
+    if (musicLancadaRef.current) musicLancadaRef.current.src = vendaLancadaNotif ? url : '';
+  }, [vendaLancadaNotif]);
+
   const handleLogout = useCallback(() => {
     localStorage.removeItem('user');
     localStorage.removeItem('token');
@@ -780,14 +791,6 @@ export function Vendas() {
               <div className="h-1 bg-gradient-to-r from-transparent via-yellow-500 to-transparent" />
             </div>
           </div>
-          {/* Música — contexto de gesto garantido pelo clique no botão de registrar */}
-          <iframe
-            ref={musicLancadaRef}
-            src={`https://www.youtube.com/embed/${MUSIC_VIDEO_ID}?autoplay=1&controls=0&loop=1&playlist=${MUSIC_VIDEO_ID}&modestbranding=1`}
-            allow="autoplay"
-            className="w-0 h-0 absolute opacity-0 pointer-events-none"
-            title="music-lancada"
-          />
         </div>
       )}
 
@@ -867,16 +870,12 @@ export function Vendas() {
               <div className="h-1 bg-gradient-to-r from-transparent via-green-500 to-transparent" />
             </div>
           </div>
-          {/* Música de celebração */}
-          <iframe
-            ref={musicAprovadaRef}
-            src={`https://www.youtube.com/embed/${MUSIC_VIDEO_ID}?autoplay=1&controls=0&loop=1&playlist=${MUSIC_VIDEO_ID}&modestbranding=1`}
-            allow="autoplay"
-            className="w-0 h-0 absolute opacity-0 pointer-events-none"
-            title="music-aprovada"
-          />
         </div>
       )}
+
+      {/* Iframes de música — sempre no DOM, src controlado via useEffect */}
+      <iframe ref={musicAprovadaRef} src="" allow="autoplay" className="w-0 h-0 fixed opacity-0 pointer-events-none" title="music-aprovada" />
+      <iframe ref={musicLancadaRef}  src="" allow="autoplay" className="w-0 h-0 fixed opacity-0 pointer-events-none" title="music-lancada" />
 
       {/* Bottom Navigation Mobile */}
       <BottomNav
