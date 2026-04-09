@@ -86,6 +86,8 @@ export function Vendas() {
   const [vendaLancadaNotif,  setVendaLancadaNotif]  = useState<VendaAprovada | null>(null);
   // Usamos ref para guardar IDs pendentes sem criar dependência circular
   const prevPendingIdsRef = useRef<Set<string>>(new Set());
+  // Guard para só definir o produto padrão na primeira carga (evita reset no polling)
+  const initialProductSetRef = useRef(false);
   // Ref com a função de celebração para evitar closure velha dentro do useCallback
   const celebracaoRef = useRef<((v: VendaAprovada) => void) | null>(null);
 
@@ -140,7 +142,9 @@ export function Vendas() {
       setProdutos(prodRes.data);
       setVendas(novasVendas);
 
-      if (prodRes.data.length > 0) {
+      // Só define o produto padrão na primeira carga — nunca sobrescreve o que o vendedor selecionou
+      if (prodRes.data.length > 0 && !initialProductSetRef.current) {
+        initialProductSetRef.current = true;
         setProductName(prodRes.data[0].nome);
         setSaleValue(String(prodRes.data[0].valor));
       }
