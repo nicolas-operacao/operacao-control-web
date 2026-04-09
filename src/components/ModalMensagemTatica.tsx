@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 type Payload = {
@@ -7,12 +7,8 @@ type Payload = {
   role: string;
 };
 
-const MUSIC_VIDEO_ID = '7IFvoaH44Is';
-
 export function ModalMensagemTatica() {
   const [payload, setPayload] = useState<Payload | null>(null);
-  const [bloqueado, setBloqueado] = useState(false);
-  const iframeRef = useRef<HTMLIFrameElement>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -37,21 +33,10 @@ export function ModalMensagemTatica() {
     } catch { /* ignora */ }
   }, []);
 
-  function pararMusica() {
-    if (iframeRef.current) iframeRef.current.src = '';
-  }
-
   function fechar() {
-    pararMusica();
+    window.dispatchEvent(new CustomEvent('operacao:music', { detail: { action: 'stop' } }));
     localStorage.removeItem('mensagem_tatica');
     setPayload(null);
-  }
-
-  function ativarSom() {
-    setBloqueado(false);
-    if (iframeRef.current) {
-      iframeRef.current.src = `https://www.youtube.com/embed/${MUSIC_VIDEO_ID}?autoplay=1&controls=0&loop=1&playlist=${MUSIC_VIDEO_ID}&modestbranding=1`;
-    }
   }
 
   if (!payload) return null;
@@ -135,20 +120,6 @@ export function ModalMensagemTatica() {
             </span>
           )}
 
-          {/* Botão ativar som (fallback se autoplay foi bloqueado) */}
-          {!isAdmin && bloqueado && (
-            <button
-              onClick={ativarSom}
-              className={`w-full py-2.5 rounded-xl font-black uppercase tracking-widest text-xs transition-all active:scale-95 border animate-pulse ${
-                isB
-                  ? 'bg-red-900/40 border-red-500/40 text-red-300'
-                  : 'bg-blue-900/40 border-blue-500/40 text-blue-300'
-              }`}
-            >
-              🔊 Toque aqui para ativar o som
-            </button>
-          )}
-
           {/* Botão fechar */}
           <button
             onClick={fechar}
@@ -163,17 +134,6 @@ export function ModalMensagemTatica() {
             Entendido — Bora Vender! ⚡
           </button>
 
-          {/* YouTube player oculto — autoplay imediato */}
-          {!isAdmin && (
-            <iframe
-              ref={iframeRef}
-              src={`https://www.youtube.com/embed/${MUSIC_VIDEO_ID}?autoplay=1&controls=0&loop=1&playlist=${MUSIC_VIDEO_ID}&modestbranding=1`}
-              allow="autoplay"
-              className="w-0 h-0 absolute opacity-0 pointer-events-none"
-              title="music"
-              onError={() => setBloqueado(true)}
-            />
-          )}
         </div>
       </div>
     </div>
