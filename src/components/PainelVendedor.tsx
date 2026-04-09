@@ -43,6 +43,23 @@ function fraseMotivacional(vendasHoje: number, posicao: number, totalVendedores:
 
 // ─── CONQUISTAS ────────────────────────────────────────────────────────────────
 type Conquista = { id: string; nome: string; desc: string; icone: string; desbloqueada: boolean };
+
+const FRASES_CONQUISTA: Record<string, string> = {
+  first:   'O primeiro sangue foi derramado! A jornada de um guerreiro começa com a primeira vitória! 🩸',
+  hot:     'TRÊS vendas hoje! Você está em chamas — ninguém te para nesse dia! 🔥',
+  machine: 'Dez vitórias no mês! Você não é um vendedor, é uma MÁQUINA DE GUERRA! ⚙️',
+  weekly:  'Semana Perfeita! Consistência é o segredo dos verdadeiros campeões! 📅',
+  bigshot: 'Vinte alvos abatidos! Precisão de SNIPER — continue atirando! 🎯',
+  top3:    'Você está no PÓDIO! Os melhores te enxergam chegando lá no topo! 🏆',
+  leader:  'GENERAL! O posto mais alto do ranking é seu — defenda o trono com tudo! 👑',
+  rich:    'R$ 10.000 em vendas! O cofre está cheio e a batalha continua! 💰',
+  ultra:   'R$ 50.000! Você transcendeu os limites — é LENDÁRIO no campo de batalha! 💎',
+};
+
+function getHojeBRTStr() {
+  return new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
 function calcConquistas(stats: any, rankPos: number): Conquista[] {
   const mesCount  = stats?.mes?.count   ?? 0;
   const hojeCount = stats?.hoje?.count  ?? 0;
@@ -111,6 +128,9 @@ export function PainelVendedor({ userId, userName, equipe }: Props) {
   const jaChecouPatente = useRef(false);
   const [missaoAnuncio, setMissaoAnuncio] = useState<any | null>(null);
   const [abordagemMissao, setAbordagemMissao] = useState<any | null>(null);
+  const [conquistaNotif, setConquistaNotif] = useState<Conquista | null>(null);
+  const musicConquistaRef = useRef<HTMLIFrameElement>(null);
+  function pararMusicaConquista() { if (musicConquistaRef.current) musicConquistaRef.current.src = ''; }
 
   const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const isB = (equipe || '').trim().toUpperCase() === 'B';
@@ -216,6 +236,44 @@ export function PainelVendedor({ userId, userName, equipe }: Props) {
             }
           }
           localStorage.setItem(chave, `${nivelAtual.ti}_${nivelAtual.nivel}`);
+        }
+
+        // ── Verificar novas conquistas ──────────────────────────────────────
+        const hoje = getHojeBRTStr();
+        const rankData2: any[] = Array.isArray(rankRes.data) ? rankRes.data : (rankRes.data?.data ?? []);
+        const sorted2 = [...rankData2].sort((a: any, b: any) => b.total_vendido - a.total_vendido);
+        const rankPosAtual = sorted2.findIndex((r: any) => String(r.id) === String(userId)) + 1;
+        const conquistasAtuais = calcConquistas(s, rankPosAtual);
+
+        const conquistasNovas: Conquista[] = [];
+
+        // Conquistas mensais: salvas por mês
+        const chaveMes = `conquistas_mes_${userId}_${hoje.slice(0, 7)}`;
+        const savedMes: string[] = JSON.parse(localStorage.getItem(chaveMes) || '[]');
+        const mensais = conquistasAtuais.filter(c => c.desbloqueada && !['hot'].includes(c.id));
+        const novasMensais = mensais.filter(c => !savedMes.includes(c.id));
+        conquistasNovas.push(...novasMensais);
+        localStorage.setItem(chaveMes, JSON.stringify([...new Set([...savedMes, ...mensais.map(c => c.id)])]));
+
+        // Conquista diária "Dia de Fogo": salva por dia
+        const hotDesbloqueada = conquistasAtuais.find(c => c.id === 'hot')?.desbloqueada;
+        if (hotDesbloqueada) {
+          const chaveHot = `conquista_hot_${userId}_${hoje}`;
+          if (!localStorage.getItem(chaveHot)) {
+            conquistasNovas.unshift(conquistasAtuais.find(c => c.id === 'hot')!);
+            localStorage.setItem(chaveHot, '1');
+          }
+        }
+
+        if (conquistasNovas.length > 0) {
+          const nova = conquistasNovas[0];
+          setConquistaNotif(nova);
+          const coresCelebr = ['#facc15', '#22c55e', '#a855f7', '#f97316', '#ffffff'];
+          setTimeout(() => {
+            confetti({ particleCount: 180, spread: 120, origin: { y: 0.4, x: 0.5 }, colors: coresCelebr });
+            setTimeout(() => confetti({ particleCount: 100, spread: 80, angle: 60,  origin: { x: 0, y: 0.5 }, colors: coresCelebr }), 350);
+            setTimeout(() => confetti({ particleCount: 100, spread: 80, angle: 120, origin: { x: 1, y: 0.5 }, colors: coresCelebr }), 350);
+          }, 400);
         }
       } catch { /* silencioso */ }
       finally { setLoading(false); }
@@ -907,6 +965,64 @@ export function PainelVendedor({ userId, userName, equipe }: Props) {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ── MODAL DE CONQUISTA DESBLOQUEADA ── */}
+      {conquistaNotif && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/90 backdrop-blur-md cursor-pointer"
+            onClick={() => { setConquistaNotif(null); pararMusicaConquista(); }}
+          />
+
+          {/* Brilho animado */}
+          <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+            <div className="w-96 h-96 rounded-full blur-[140px] animate-pulse bg-yellow-400/20" />
+          </div>
+
+          {/* Conteúdo */}
+          <div className="relative z-10 w-full max-w-sm mx-4 animate-in zoom-in-90 duration-300">
+            <div className="rounded-3xl overflow-hidden border-2 border-yellow-400/60 shadow-[0_0_60px_rgba(250,204,21,0.4)] bg-zinc-950">
+              {/* Barra superior animada */}
+              <div className="h-1.5 animate-pulse bg-gradient-to-r from-yellow-400 via-orange-400 to-yellow-400" />
+
+              <div className="p-8 text-center space-y-4">
+                {/* Ícone */}
+                <div className="text-8xl animate-bounce leading-none select-none">{conquistaNotif.icone}</div>
+
+                {/* Título */}
+                <div>
+                  <p className="text-yellow-400/70 text-[10px] font-black uppercase tracking-[0.4em] mb-1">🏅 Conquista Desbloqueada!</p>
+                  <p className="text-white font-black text-3xl">{conquistaNotif.nome}</p>
+                  <p className="text-zinc-500 text-sm mt-1">{conquistaNotif.desc}</p>
+                </div>
+
+                {/* Frase motivacional */}
+                <p className="text-zinc-200 font-bold text-sm leading-relaxed bg-zinc-900 rounded-xl p-4 border border-zinc-800">
+                  {FRASES_CONQUISTA[conquistaNotif.id] ?? 'Você conseguiu! Continue assim!'}
+                </p>
+
+                {/* Botão */}
+                <button
+                  onClick={() => { setConquistaNotif(null); pararMusicaConquista(); }}
+                  className="w-full bg-yellow-400 hover:bg-yellow-300 active:scale-95 text-black font-black py-4 rounded-2xl uppercase tracking-[0.2em] text-sm transition-all shadow-[0_0_25px_rgba(250,204,21,0.4)]"
+                >
+                  VAMOS QUE VAMOS! ⚡
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Música — mesma da celebração de venda */}
+          <iframe
+            ref={musicConquistaRef}
+            src="https://www.youtube.com/embed/7IFvoaH44Is?autoplay=1&controls=0&loop=1&playlist=7IFvoaH44Is&modestbranding=1"
+            allow="autoplay"
+            className="w-0 h-0 absolute opacity-0 pointer-events-none"
+            title="music-conquista"
+          />
         </div>
       )}
 
