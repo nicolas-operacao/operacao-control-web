@@ -23,11 +23,13 @@ function GlobalMusic() {
 
   useEffect(() => {
     function handler(e: Event) {
-      const { action } = (e as CustomEvent<{ action: string }>).detail;
+      const detail = (e as CustomEvent<{ action: string; videoId?: string; startAt?: number }>).detail;
       if (!ref.current) return;
-      if (action === 'start') {
-        ref.current.src = `https://www.youtube.com/embed/${MUSIC_VIDEO_ID}?autoplay=1&controls=0&loop=1&playlist=${MUSIC_VIDEO_ID}&modestbranding=1&start=50`;
-      } else if (action === 'stop') {
+      if (detail.action === 'start') {
+        const vid = detail.videoId ?? MUSIC_VIDEO_ID;
+        const start = detail.startAt ?? (vid === MUSIC_VIDEO_ID ? 50 : 0);
+        ref.current.src = `https://www.youtube.com/embed/${vid}?autoplay=1&controls=0&loop=1&playlist=${vid}&modestbranding=1${start ? `&start=${start}` : ''}`;
+      } else if (detail.action === 'stop') {
         ref.current.src = '';
       }
     }

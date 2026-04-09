@@ -73,12 +73,11 @@ export function Vendas() {
   const [isLoading, setIsLoading] = useState(false);
   const [mostrarComissao, setMostrarComissao] = useState(false);
 
-  // ── Música de celebração ───────────────────────────────────────────────────
+  // ── Música de celebração — usa GlobalMusic (App.tsx) via evento ───────────
   const MUSIC_VIDEO_ID = '7IFvoaH44Is';
-  const musicAprovadaRef = useRef<HTMLIFrameElement>(null);
-  const musicLancadaRef  = useRef<HTMLIFrameElement>(null);
-  function pararMusicaAprovada() { if (musicAprovadaRef.current) musicAprovadaRef.current.src = ''; }
-  function pararMusicaLancada()  { if (musicLancadaRef.current)  musicLancadaRef.current.src  = ''; }
+  function tocarMusicaVenda() { window.dispatchEvent(new CustomEvent('operacao:music', { detail: { action: 'start', videoId: MUSIC_VIDEO_ID } })); }
+  function pararMusicaAprovada() { window.dispatchEvent(new CustomEvent('operacao:music', { detail: { action: 'stop' } })); }
+  function pararMusicaLancada()  { window.dispatchEvent(new CustomEvent('operacao:music', { detail: { action: 'stop' } })); }
 
   // ── Notificação de venda aprovada ──────────────────────────────────────────
   type VendaAprovada = { product_name: string; sale_value: number; customer_name: string };
@@ -94,6 +93,7 @@ export function Vendas() {
   // Mantém celebracaoRef sempre atualizada sem re-criar fetchData
   celebracaoRef.current = (venda: VendaAprovada) => {
     setVendaAprovadaNotif(venda);
+    tocarMusicaVenda();
     const cores = ['#22C55E', '#FACC15', '#3B82F6', '#A855F7', '#FFFFFF', '#F97316'];
     confetti({ particleCount: 150, spread: 100, origin: { y: 0.5, x: 0.5 }, colors: cores });
     setTimeout(() => confetti({ particleCount: 100, spread: 80, angle: 60,  origin: { x: 0, y: 0.6 }, colors: cores }), 300);
@@ -162,16 +162,6 @@ export function Vendas() {
     return () => clearInterval(intervalo);
   }, [fetchData]);
 
-  // Música de venda: iframe sempre no DOM, src trocado via ref (evita bloqueio de autoplay)
-  useEffect(() => {
-    const url = `https://www.youtube.com/embed/${MUSIC_VIDEO_ID}?autoplay=1&controls=0&loop=1&playlist=${MUSIC_VIDEO_ID}&modestbranding=1`;
-    if (musicAprovadaRef.current) musicAprovadaRef.current.src = vendaAprovadaNotif ? url : '';
-  }, [vendaAprovadaNotif]);
-
-  useEffect(() => {
-    const url = `https://www.youtube.com/embed/${MUSIC_VIDEO_ID}?autoplay=1&controls=0&loop=1&playlist=${MUSIC_VIDEO_ID}&modestbranding=1`;
-    if (musicLancadaRef.current) musicLancadaRef.current.src = vendaLancadaNotif ? url : '';
-  }, [vendaLancadaNotif]);
 
   const handleLogout = useCallback(() => {
     localStorage.removeItem('user');
@@ -231,6 +221,7 @@ export function Vendas() {
       });
 
       setVendaLancadaNotif({ product_name: productName, sale_value: Number(saleValue), customer_name: customerName });
+      tocarMusicaVenda();
       resetForm();
       setIsModalOpen(false);
       fetchData(false);
@@ -872,10 +863,6 @@ export function Vendas() {
           </div>
         </div>
       )}
-
-      {/* Iframes de música — sempre no DOM, src controlado via useEffect */}
-      <iframe ref={musicAprovadaRef} src="" allow="autoplay" className="w-0 h-0 fixed opacity-0 pointer-events-none" title="music-aprovada" />
-      <iframe ref={musicLancadaRef}  src="" allow="autoplay" className="w-0 h-0 fixed opacity-0 pointer-events-none" title="music-lancada" />
 
       {/* Bottom Navigation Mobile */}
       <BottomNav

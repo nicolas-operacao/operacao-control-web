@@ -67,7 +67,7 @@ function calcConquistas(stats: any, rankPos: number): Conquista[] {
   const mesValor  = stats?.mes?.valor   ?? 0;
   return [
     { id: 'first',    nome: 'Primeiro Sangue',  desc: '1ª venda aprovada',              icone: '🩸', desbloqueada: mesCount >= 1 },
-    { id: 'hot',      nome: 'Dia de Fogo',       desc: '3+ vendas em um dia',            icone: '🔥', desbloqueada: hojeCount >= 3 },
+    { id: 'hot',      nome: 'Dia de Fogo',       desc: '3+ vendas em um dia',            icone: '🔥', desbloqueada: (stats?.ultimos7dias ?? []).some((d: any) => d.count >= 3) },
     { id: 'machine',  nome: 'Máquina de Guerra', desc: '10 vendas no mês',               icone: '⚙️', desbloqueada: mesCount >= 10 },
     { id: 'weekly',   nome: 'Semana Perfeita',   desc: '10+ vendas na semana',           icone: '📅', desbloqueada: semCount >= 10 },
     { id: 'bigshot',  nome: 'Sniper',            desc: '20 vendas no mês',               icone: '🎯', desbloqueada: mesCount >= 20 },
@@ -129,8 +129,9 @@ export function PainelVendedor({ userId, userName, equipe }: Props) {
   const [missaoAnuncio, setMissaoAnuncio] = useState<any | null>(null);
   const [abordagemMissao, setAbordagemMissao] = useState<any | null>(null);
   const [conquistaNotif, setConquistaNotif] = useState<Conquista | null>(null);
-  const musicConquistaRef = useRef<HTMLIFrameElement>(null);
-  function pararMusicaConquista() { if (musicConquistaRef.current) musicConquistaRef.current.src = ''; }
+  const CONQUISTA_VIDEO_ID = '7IFvoaH44Is';
+  function tocarMusicaConquista() { window.dispatchEvent(new CustomEvent('operacao:music', { detail: { action: 'start', videoId: CONQUISTA_VIDEO_ID } })); }
+  function pararMusicaConquista() { window.dispatchEvent(new CustomEvent('operacao:music', { detail: { action: 'stop' } })); }
 
   const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const isB = (equipe || '').trim().toUpperCase() === 'B';
@@ -185,12 +186,6 @@ export function PainelVendedor({ userId, userName, equipe }: Props) {
     return () => clearInterval(interval);
   }, [userId]);
 
-  // Música de conquista: iframe sempre no DOM, src trocado via ref (evita bloqueio de autoplay)
-  useEffect(() => {
-    const MUSIC_VIDEO_ID = '7IFvoaH44Is';
-    const url = `https://www.youtube.com/embed/${MUSIC_VIDEO_ID}?autoplay=1&controls=0&loop=1&playlist=${MUSIC_VIDEO_ID}&modestbranding=1`;
-    if (musicConquistaRef.current) musicConquistaRef.current.src = conquistaNotif ? url : '';
-  }, [conquistaNotif]);
 
   useEffect(() => {
     async function load() {
@@ -284,6 +279,7 @@ export function PainelVendedor({ userId, userName, equipe }: Props) {
         if (conquistasNovas.length > 0) {
           const nova = conquistasNovas[0];
           setConquistaNotif(nova);
+          tocarMusicaConquista();
           const coresCelebr = ['#facc15', '#22c55e', '#a855f7', '#f97316', '#ffffff'];
           setTimeout(() => {
             confetti({ particleCount: 180, spread: 120, origin: { y: 0.4, x: 0.5 }, colors: coresCelebr });
@@ -1033,9 +1029,6 @@ export function PainelVendedor({ userId, userName, equipe }: Props) {
 
         </div>
       )}
-
-      {/* Iframe de música conquista — sempre no DOM, src controlado via useEffect */}
-      <iframe ref={musicConquistaRef} src="" allow="autoplay" className="w-0 h-0 fixed opacity-0 pointer-events-none" title="music-conquista" />
 
     </div>
   );
