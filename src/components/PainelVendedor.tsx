@@ -262,13 +262,22 @@ export function PainelVendedor({ userId, userName, equipe }: Props) {
         conquistasNovas.push(...novasMensais);
         localStorage.setItem(chaveMes, JSON.stringify([...new Set([...savedMes, ...mensais.map(c => c.id)])]));
 
-        // Conquista diária "Dia de Fogo": salva por dia
-        const hotDesbloqueada = conquistasAtuais.find(c => c.id === 'hot')?.desbloqueada;
-        if (hotDesbloqueada) {
-          const chaveHot = `conquista_hot_${userId}_${hoje}`;
-          if (!localStorage.getItem(chaveHot)) {
-            conquistasNovas.unshift(conquistasAtuais.find(c => c.id === 'hot')!);
-            localStorage.setItem(chaveHot, '1');
+        // Conquista "Dia de Fogo": verifica os últimos 7 dias para não perder dias não premiados
+        // ultimos7dias[0] = 6 dias atrás ... ultimos7dias[6] = hoje
+        const hotConquista = conquistasAtuais.find(c => c.id === 'hot');
+        const ultimos7 = s?.ultimos7dias ?? [];
+        if (hotConquista) {
+          for (let daysAgo = 0; daysAgo <= 6; daysAgo++) {
+            const dayData = ultimos7[6 - daysAgo];
+            if (!dayData || dayData.count < 3) continue;
+            const dateMs = Date.now() - 3 * 3600 * 1000 - daysAgo * 86400 * 1000;
+            const dateStr = new Date(dateMs).toISOString().slice(0, 10);
+            const chaveHot = `conquista_hot_${userId}_${dateStr}`;
+            if (!localStorage.getItem(chaveHot)) {
+              conquistasNovas.unshift({ ...hotConquista, desbloqueada: true });
+              localStorage.setItem(chaveHot, '1');
+              break; // exibe uma conquista por vez
+            }
           }
         }
 
