@@ -15,7 +15,7 @@ import { SuporteRoute } from './components/SuporteRoute';
 import { ToastContainer } from './components/ToastContainer';
 import { SomPoller } from './components/SomPoller';
 
-const MUSIC_VIDEO_ID = '7IFvoaH44Is';
+const MUSIC_VIDEO_ID = 'umaWF3IRQXE';
 
 // Iframe persistente fora do Router — nunca desmonta durante navegação
 function GlobalMusic() {
@@ -26,7 +26,7 @@ function GlobalMusic() {
       const { action } = (e as CustomEvent<{ action: string }>).detail;
       if (!ref.current) return;
       if (action === 'start') {
-        ref.current.src = `https://www.youtube.com/embed/${MUSIC_VIDEO_ID}?autoplay=1&controls=0&loop=1&playlist=${MUSIC_VIDEO_ID}&modestbranding=1`;
+        ref.current.src = `https://www.youtube.com/embed/${MUSIC_VIDEO_ID}?autoplay=1&controls=0&loop=1&playlist=${MUSIC_VIDEO_ID}&modestbranding=1&start=50`;
       } else if (action === 'stop') {
         ref.current.src = '';
       }
