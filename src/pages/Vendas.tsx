@@ -65,7 +65,7 @@ export function Vendas() {
   const [customerPhone, setCustomerPhone] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('PIX');
   const [saleValue, setSaleValue] = useState('');
-  const [saleDate, setSaleDate] = useState(new Date().toISOString().split('T')[0]);
+  const [saleDate, setSaleDate] = useState(() => new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().split('T')[0]);
   
   const [editingSaleId, setEditingSaleId] = useState('');
   const [editReason, setEditReason] = useState('');
@@ -189,7 +189,8 @@ export function Vendas() {
     setEditReason('');
     
     if (venda.created_at) {
-      setSaleDate(new Date(venda.created_at).toISOString().split('T')[0]);
+      // Converte para BRT (UTC-3) para exibir/editar na data correta do vendedor
+      setSaleDate(new Date(new Date(venda.created_at).getTime() - 3 * 60 * 60 * 1000).toISOString().split('T')[0]);
     }
 
     setIsEditModalOpen(true);
@@ -200,7 +201,7 @@ export function Vendas() {
     setCustomerEmail('');
     setCustomerPhone('');
     setEditReason('');
-    setSaleDate(new Date().toISOString().split('T')[0]);
+    setSaleDate(new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().split('T')[0]);
     if (produtos.length > 0) {
       setProductName(produtos[0].nome);
       setSaleValue(String(produtos[0].valor));
@@ -467,7 +468,7 @@ export function Vendas() {
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <span className="text-zinc-600 text-xs">
-                        {venda.created_at ? new Date(venda.created_at).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '--'}
+                        {venda.created_at ? new Date(venda.created_at).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '--'}
                       </span>
                       <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wide
                         ${isAprovada ? 'bg-green-500/10 text-green-500 border border-green-500/20' :
@@ -491,7 +492,7 @@ export function Vendas() {
                       onClick={() => {
                         somClick();
                         const data = venda.created_at
-                          ? new Date(venda.created_at).toLocaleDateString('pt-BR', { timeZone: 'UTC' })
+                          ? new Date(venda.created_at).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })
                           : '--';
                         const valor = (Number(venda.sale_value) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
                         const msg = [
@@ -539,7 +540,7 @@ export function Vendas() {
                   return (
                     <tr key={venda.id} className={`border-b border-zinc-800/50 transition-colors ${isCancelada ? 'bg-red-950/10 opacity-80' : 'hover:bg-zinc-800/30'}`}>
                       <td className="py-4 text-zinc-400 whitespace-nowrap">
-                        {venda.created_at ? new Date(venda.created_at).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '--/--/----'}
+                        {venda.created_at ? new Date(venda.created_at).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '--/--/----'}
                       </td>
                       <td className="py-4 font-bold">{venda.customer_name}</td>
                       <td className="py-4 text-zinc-300 text-xs uppercase tracking-wider">{venda.product_name}</td>

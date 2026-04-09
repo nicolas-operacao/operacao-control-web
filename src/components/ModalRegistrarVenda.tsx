@@ -18,8 +18,13 @@ interface ModalRegistrarVendaProps {
   onVendaRegistrada: () => void;
 }
 
+// Retorna a data de hoje no horário de Brasília (UTC-3) no formato YYYY-MM-DD
+function getHojeBRT(): string {
+  return new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().split('T')[0];
+}
+
 export function ModalRegistrarVenda({ isOpen, onClose, produtos, user, onVendaRegistrada }: ModalRegistrarVendaProps) {
-  const hoje = new Date().toISOString().split('T')[0];
+  const hoje = getHojeBRT();
   
   // 🔥 Trouxemos todos os estados do formulário para cá!
   const [saleDate, setSaleDate] = useState(hoje);
