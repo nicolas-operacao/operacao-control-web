@@ -70,16 +70,19 @@ export function Dashboard() {
   const [todasVendas, setTodasVendas] = useState<Venda[]>([]);
 
   // Vendas do mês selecionado (BRT-aware, aprovadas)
-  const { vendasMes, qtdMes, vendasDoMesSel } = useMemo(() => {
+  const { vendasMes, qtdMes, vendasDoMesSel, vendasMesSemCheckout } = useMemo(() => {
     const aprovadas = todasVendas.filter(v => v.status === 'aprovada' && v.created_at);
     const doMes = aprovadas.filter(v => {
       const d = new Date(new Date(v.created_at).getTime() - BRT_MS);
       return d.getUTCFullYear() === mesSelecionado.ano && d.getUTCMonth() === mesSelecionado.mes;
     });
+    // Exclui checkouts (seller_id nulo) do cálculo de comissão
+    const doMesSemCheckout = doMes.filter(v => v.seller_id != null && String(v.seller_id) !== '');
     return {
       vendasMes: doMes.reduce((acc, v) => acc + Number(v.sale_value), 0),
       qtdMes: doMes.length,
       vendasDoMesSel: doMes,
+      vendasMesSemCheckout: doMesSemCheckout.reduce((acc, v) => acc + Number(v.sale_value), 0),
     };
   }, [todasVendas, mesSelecionado]);
 
@@ -633,7 +636,7 @@ export function Dashboard() {
               <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest">💰 Comissão 1%</p>
               <button onMouseEnter={somHover} onClick={() => { somClick(); setMostrarComissao(!mostrarComissao); }} className="text-zinc-600 hover:text-zinc-400 text-xs transition-colors">{mostrarComissao ? '🙈' : '👁️'}</button>
             </div>
-            <p className="text-2xl font-black text-green-400">{mostrarComissao ? formataBRL(vendasMes * 0.01) : '••••••'}</p>
+            <p className="text-2xl font-black text-green-400">{mostrarComissao ? formataBRL(vendasMesSemCheckout * 0.01) : '••••••'}</p>
             <div className="flex items-center justify-between mt-1">
               <p className="text-zinc-600 text-[10px]">{MESES[mesSelecionado.mes]} {mesSelecionado.ano}</p>
               <div className="flex items-center gap-1">
