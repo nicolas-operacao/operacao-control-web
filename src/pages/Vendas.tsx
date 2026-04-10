@@ -9,7 +9,6 @@ import { notificarVendaAprovada, pedirPermissaoNotificacao } from '../services/n
 import { BannerPWA } from '../components/BannerPWA';
 import { PainelVendedor } from '../components/PainelVendedor';
 import { BottomNav } from '../components/BottomNav';
-import confetti from 'canvas-confetti';
 
 type Produto = {
   id: number;
@@ -81,7 +80,6 @@ export function Vendas() {
 
   // ── Notificação de venda aprovada ──────────────────────────────────────────
   type VendaAprovada = { product_name: string; sale_value: number; customer_name: string };
-  const [vendaAprovadaNotif, setVendaAprovadaNotif] = useState<VendaAprovada | null>(null);
   const [vendaLancadaNotif,  setVendaLancadaNotif]  = useState<VendaAprovada | null>(null);
   // Usamos ref para guardar IDs pendentes sem criar dependência circular
   const prevPendingIdsRef = useRef<Set<string>>(new Set());
@@ -94,18 +92,10 @@ export function Vendas() {
 
   // Mantém celebracaoRef sempre atualizada sem re-criar fetchData
   celebracaoRef.current = (venda: VendaAprovada) => {
-    setVendaAprovadaNotif(venda);
+    setVendaLancadaNotif(venda);
     tocarMusicaVenda();
-    const cores = ['#22C55E', '#FACC15', '#3B82F6', '#A855F7', '#FFFFFF', '#F97316'];
-    confetti({ particleCount: 150, spread: 100, origin: { y: 0.5, x: 0.5 }, colors: cores });
-    setTimeout(() => confetti({ particleCount: 100, spread: 80, angle: 60,  origin: { x: 0, y: 0.6 }, colors: cores }), 300);
-    setTimeout(() => confetti({ particleCount: 100, spread: 80, angle: 120, origin: { x: 1, y: 0.6 }, colors: cores }), 300);
-    setTimeout(() => confetti({ particleCount: 80,  spread: 60, origin: { y: 0.3, x: 0.5 }, colors: cores }), 700);
-    // Som moderno de aprovação
     somVendaAprovada();
-    // Notificação nativa (funciona mesmo com tela bloqueada no mobile via PWA)
     notificarVendaAprovada(venda.customer_name, venda.product_name, venda.sale_value);
-    setTimeout(() => { setVendaAprovadaNotif(null); pararMusicaAprovada(); }, 8000);
   };
 
   // fetchData definido ANTES do useEffect que o usa
@@ -811,84 +801,6 @@ export function Vendas() {
         </div>
       )}
 
-      {/* ── NOTIFICAÇÃO DE VENDA APROVADA — TELA CHEIA ───────────────────── */}
-      {vendaAprovadaNotif && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center">
-          {/* Fundo com gradiente pulsante */}
-          <div
-            className="absolute inset-0 bg-black/85 backdrop-blur-md cursor-pointer"
-            onClick={() => { setVendaAprovadaNotif(null); pararMusicaAprovada(); }}
-          />
-
-          {/* Brilho verde espalhado no fundo */}
-          <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-            <div className="w-96 h-96 bg-green-500/20 rounded-full blur-[120px] animate-pulse" />
-          </div>
-
-          {/* Card central */}
-          <div className="relative z-10 w-full max-w-md mx-4 animate-in zoom-in-90 duration-300">
-
-            {/* Halo externo */}
-            <div className="absolute -inset-4 bg-green-500/10 rounded-3xl blur-xl" />
-
-            <div className="relative bg-zinc-950 border-2 border-green-500 rounded-3xl overflow-hidden shadow-[0_0_80px_rgba(34,197,94,0.5)]">
-
-              {/* Barra superior animada */}
-              <div className="h-1.5 bg-gradient-to-r from-green-600 via-yellow-400 to-green-600 animate-pulse" />
-
-              <div className="p-7 text-center">
-                {/* Ícone principal com animação */}
-                <div className="relative inline-block mb-4">
-                  <div className="text-8xl animate-bounce select-none leading-none">💰</div>
-                  <div className="absolute -top-1 -right-1 text-2xl animate-spin" style={{ animationDuration: '3s' }}>✨</div>
-                  <div className="absolute -bottom-1 -left-1 text-xl animate-spin" style={{ animationDuration: '2s', animationDirection: 'reverse' }}>⭐</div>
-                </div>
-
-                {/* Título principal */}
-                <div className="mb-1">
-                  <span className="text-[11px] font-black text-green-400 uppercase tracking-[0.4em]">🎖️ Comando Liberou!</span>
-                </div>
-                <h1 className="text-3xl md:text-4xl font-black text-white uppercase tracking-wide leading-tight mb-1">
-                  VENDA
-                </h1>
-                <h1 className="text-3xl md:text-4xl font-black text-green-400 uppercase tracking-wide leading-tight mb-4">
-                  LIBERADA!
-                </h1>
-
-                {/* Info do produto */}
-                <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3 mb-3 text-left">
-                  <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest mb-0.5">Produto</p>
-                  <p className="text-yellow-400 font-black text-base uppercase">{vendaAprovadaNotif.product_name}</p>
-                  <p className="text-zinc-400 text-xs mt-1">Cliente: <span className="text-white font-bold">{vendaAprovadaNotif.customer_name}</span></p>
-                </div>
-
-                {/* Valor em destaque */}
-                <div className="bg-green-950/60 border-2 border-green-600/60 rounded-2xl py-4 px-5 mb-5 shadow-[inset_0_0_30px_rgba(34,197,94,0.1)]">
-                  <p className="text-[10px] text-green-600 font-black uppercase tracking-[0.3em] mb-1">💵 Valor Creditado</p>
-                  <p className="text-green-400 font-black text-4xl md:text-5xl leading-none drop-shadow-[0_0_15px_rgba(34,197,94,0.7)]">
-                    {(vendaAprovadaNotif.sale_value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                  </p>
-                </div>
-
-                <p className="text-zinc-600 text-xs mb-5 uppercase tracking-widest">
-                  Toque em qualquer lugar para fechar
-                </p>
-
-                <button
-                  onMouseEnter={somHover}
-                  onClick={() => { somClick(); setVendaAprovadaNotif(null); pararMusicaAprovada(); }}
-                  className="w-full bg-green-500 hover:bg-green-400 active:scale-95 text-black font-black py-4 rounded-2xl uppercase tracking-[0.2em] text-base transition-all shadow-[0_0_25px_rgba(34,197,94,0.4)]"
-                >
-                  SHOW! ✓
-                </button>
-              </div>
-
-              {/* Barra inferior */}
-              <div className="h-1 bg-gradient-to-r from-transparent via-green-500 to-transparent" />
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Bottom Navigation Mobile */}
       <BottomNav
