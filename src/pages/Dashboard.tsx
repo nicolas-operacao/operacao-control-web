@@ -722,6 +722,7 @@ export function Dashboard() {
             periodo={modalPeriodo}
             vendas={vendasFiltradas}
             onClose={() => setModalPeriodo(null)}
+            onEditVenda={(v) => { setSelectedSaleToAction(v as any); setIsAdminEditModalOpen(true); }}
           />
         );
       })()}

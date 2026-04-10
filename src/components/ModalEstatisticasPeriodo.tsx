@@ -18,6 +18,7 @@ interface Props {
   periodo: 'hoje' | 'semana' | 'mes';
   vendas: Venda[];
   onClose: () => void;
+  onEditVenda?: (venda: Venda) => void;
 }
 
 const METODO_COR: Record<string, string> = {
@@ -55,7 +56,7 @@ const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', curren
 const BRT_MS = 3 * 60 * 60 * 1000;
 const toBRT = (iso: string) => new Date(new Date(iso).getTime() - BRT_MS);
 
-export function ModalEstatisticasPeriodo({ titulo, periodo, vendas, onClose }: Props) {
+export function ModalEstatisticasPeriodo({ titulo, periodo, vendas, onClose, onEditVenda }: Props) {
   // semanaOffset: 0 = semana atual, -1 = semana passada, etc.
   const [semanaOffset, setSemanaOffset] = useState(0);
 
@@ -363,18 +364,32 @@ export function ModalEstatisticasPeriodo({ titulo, periodo, vendas, onClose }: P
             <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
               <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest mb-3">🕒 Últimas Vendas</p>
               <div className="space-y-2">
-                {recentes.map(v => (
-                  <div key={v.id} className="flex items-center gap-3 py-1.5 border-b border-zinc-800 last:border-0">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-zinc-200 text-xs font-bold truncate">{v.customer_name}</p>
-                      <p className="text-zinc-600 text-[10px] truncate">{v.product_name} · {v.seller_name}</p>
+                {recentes.map(v => {
+                  const isCheckout = !v.seller_id || String(v.seller_id) === '' || String(v.seller_id) === 'null';
+                  const canEdit = !!onEditVenda;
+                  return (
+                    <div
+                      key={v.id}
+                      onClick={() => canEdit && (somClick(), onEditVenda(v))}
+                      className={`flex items-center gap-3 py-1.5 border-b border-zinc-800 last:border-0 rounded-lg px-1 transition-all ${canEdit ? 'cursor-pointer hover:bg-zinc-800/60 active:scale-[0.99]' : ''}`}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-zinc-200 text-xs font-bold truncate">{v.customer_name}</p>
+                          {isCheckout && <span className="text-[9px] font-black text-yellow-400 bg-yellow-400/10 border border-yellow-400/30 px-1 py-0.5 rounded uppercase">sem vendedor</span>}
+                        </div>
+                        <p className="text-zinc-600 text-[10px] truncate">{v.product_name} · {isCheckout ? 'CHECKOUT' : v.seller_name}</p>
+                      </div>
+                      <div className="text-right flex-shrink-0 flex items-center gap-2">
+                        <div>
+                          <p className="text-green-400 font-black text-xs">{fmt(Number(v.sale_value))}</p>
+                          <p className="text-zinc-700 text-[10px]">{v.payment_method}</p>
+                        </div>
+                        {canEdit && <span className="text-zinc-600 hover:text-zinc-300 text-sm">✏️</span>}
+                      </div>
                     </div>
-                    <div className="text-right flex-shrink-0">
-                      <p className="text-green-400 font-black text-xs">{fmt(Number(v.sale_value))}</p>
-                      <p className="text-zinc-700 text-[10px]">{v.payment_method}</p>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
