@@ -23,6 +23,14 @@ function getHojeBRT(): string {
   return new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().split('T')[0];
 }
 
+// Aceita formato brasileiro (48.872,15) e internacional (48872.15)
+function parseValorBR(v: string): number {
+  const s = v.trim();
+  // Se tem vírgula como decimal: remove pontos de milhar, troca vírgula por ponto
+  if (s.includes(',')) return parseFloat(s.replace(/\./g, '').replace(',', '.')) || 0;
+  return parseFloat(s.replace(/,/g, '')) || 0;
+}
+
 export function ModalRegistrarVenda({ isOpen, onClose, produtos, user, onVendaRegistrada }: ModalRegistrarVendaProps) {
   const hoje = getHojeBRT();
   
@@ -67,7 +75,7 @@ export function ModalRegistrarVenda({ isOpen, onClose, produtos, user, onVendaRe
       await api.post('/sales', {
         seller_id: isCheckoutExterno ? null : user.id, product_name: productName, customer_name: customerName,
         customer_email: customerEmail, customer_phone: customerPhone, payment_method: paymentMethod,
-        sale_value: Number(saleValue), sale_date: saleDate
+        sale_value: parseValorBR(saleValue), sale_date: saleDate
       });
       const isPendente = paymentMethod.toLowerCase().includes('boleto parcelado') ||
         productName.toLowerCase().includes('combo') ||
@@ -112,7 +120,7 @@ export function ModalRegistrarVenda({ isOpen, onClose, produtos, user, onVendaRe
             </div>
             <div>
               <label className="block text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">Valor da Venda (R$)</label>
-              <input type="number" step="0.01" required value={saleValue} onChange={(e) => setSaleValue(e.target.value)} className="w-full bg-zinc-950 border border-zinc-700 text-yellow-400 font-bold rounded p-3 focus:outline-none focus:border-yellow-400"/>
+              <input type="text" inputMode="decimal" required placeholder="Ex: 48.872,15" value={saleValue} onChange={(e) => setSaleValue(e.target.value)} className="w-full bg-zinc-950 border border-zinc-700 text-yellow-400 font-bold rounded p-3 focus:outline-none focus:border-yellow-400 placeholder:text-zinc-700"/>
             </div>
           </div>
 
