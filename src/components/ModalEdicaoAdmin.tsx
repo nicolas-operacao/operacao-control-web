@@ -14,9 +14,8 @@ export function ModalEdicaoAdmin({ isOpen, onClose, venda, produtos, onSuccess }
   });
 
   useEffect(() => {
-    api.get('/users').then(r => {
-      const lista = (Array.isArray(r.data) ? r.data : r.data?.users || [])
-        .filter((u: any) => u.role === 'vendedor' || u.role === 'admin');
+    api.get('/admin/vendedores').then(r => {
+      const lista = Array.isArray(r.data) ? r.data : [];
       setVendedores(lista.map((u: any) => ({ id: String(u.id), name: u.name })));
     }).catch(() => {});
   }, []);
