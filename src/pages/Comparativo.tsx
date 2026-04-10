@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { somClick, somHover } from '../services/hudSounds';
@@ -36,6 +36,176 @@ function DeltaBadge({ pct }: { pct: number | null }) {
     <span className={`inline-flex items-center gap-0.5 text-[10px] font-black px-2 py-0.5 rounded-full ${pos ? 'bg-green-500/15 text-green-400' : 'bg-red-500/15 text-red-400'}`}>
       {pos ? '▲' : '▼'} {Math.abs(pct).toFixed(1)}%
     </span>
+  );
+}
+
+type TooltipData = {
+  dia: number;
+  vA: number; qA: number;
+  vB: number; qB: number;
+  x: number; y: number;
+};
+
+function GraficoPorDia({
+  diaAtual, diaAnterior, maxDias, maxDiaValor, maxDiaQtd,
+  aba, mesAtualLabel, mesAntLabel, mesCurto, mesAntCurto,
+}: {
+  diaAtual: Record<number, { valor: number; qtd: number }>;
+  diaAnterior: Record<number, { valor: number; qtd: number }>;
+  maxDias: number; maxDiaValor: number; maxDiaQtd: number;
+  aba: 'valor' | 'qtd';
+  mesAtualLabel: string; mesAntLabel: string;
+  mesCurto: string; mesAntCurto: string;
+}) {
+  const [tooltip, setTooltip] = useState<TooltipData | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  function handleEnter(e: React.MouseEvent, dia: number) {
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const container = containerRef.current?.getBoundingClientRect();
+    if (!container) return;
+    setTooltip({
+      dia,
+      vA: diaAtual[dia]?.valor ?? 0,
+      qA: diaAtual[dia]?.qtd ?? 0,
+      vB: diaAnterior[dia]?.valor ?? 0,
+      qB: diaAnterior[dia]?.qtd ?? 0,
+      x: rect.left - container.left + rect.width / 2,
+      y: rect.top - container.top,
+    });
+  }
+
+  const t = tooltip;
+  const dV = t && t.vB > 0 ? ((t.vA - t.vB) / t.vB) * 100 : null;
+  const dQ = t && t.qB > 0 ? ((t.qA - t.qB) / t.qB) * 100 : null;
+
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-zinc-400 text-xs font-black uppercase tracking-widest">📊 Por Dia</p>
+        <div className="flex items-center gap-4 text-[10px] text-zinc-500 font-bold">
+          <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-yellow-400 inline-block" /> atual &gt; anterior</span>
+          <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-orange-400 inline-block" /> atual &lt; anterior</span>
+          <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-zinc-600 inline-block" /> {mesAntCurto}</span>
+        </div>
+      </div>
+
+      <div ref={containerRef} className="relative overflow-x-auto">
+        <div className="flex gap-1 items-end pb-6" style={{ minWidth: `${maxDias * 28}px` }}>
+          {Array.from({ length: maxDias }, (_, i) => {
+            const dia = i + 1;
+            const vA = aba === 'valor' ? (diaAtual[dia]?.valor ?? 0) : (diaAtual[dia]?.qtd ?? 0);
+            const vB = aba === 'valor' ? (diaAnterior[dia]?.valor ?? 0) : (diaAnterior[dia]?.qtd ?? 0);
+            const maxV = aba === 'valor' ? maxDiaValor : maxDiaQtd;
+            const hA = maxV > 0 ? Math.max((vA / maxV) * 100, vA > 0 ? 4 : 0) : 0;
+            const hB = maxV > 0 ? Math.max((vB / maxV) * 100, vB > 0 ? 4 : 0) : 0;
+            const isActive = tooltip?.dia === dia;
+            return (
+              <div
+                key={dia}
+                className="flex flex-col items-center gap-0.5 cursor-pointer group"
+                style={{ width: '24px' }}
+                onMouseEnter={e => handleEnter(e, dia)}
+                onMouseLeave={() => setTooltip(null)}
+              >
+                <div className={`flex items-end gap-px w-full transition-opacity ${tooltip && !isActive ? 'opacity-40' : 'opacity-100'}`} style={{ height: '100px' }}>
+                  <div className="flex-1 bg-zinc-600 rounded-t transition-all duration-300 group-hover:bg-zinc-400" style={{ height: `${hB}%` }} />
+                  <div
+                    className={`flex-1 rounded-t transition-all duration-300 ${vA > vB ? 'bg-yellow-400 group-hover:bg-yellow-300' : vA > 0 ? 'bg-orange-400 group-hover:bg-orange-300' : 'bg-zinc-800'}`}
+                    style={{ height: `${hA}%` }}
+                  />
+                </div>
+                <span className={`text-[8px] leading-none transition-colors ${isActive ? 'text-yellow-400 font-black' : 'text-zinc-700'}`}>{dia}</span>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Tooltip */}
+        {t && (
+          <div
+            className="absolute z-20 pointer-events-none"
+            style={{
+              left: Math.min(t.x, (maxDias * 28) - 160),
+              top: Math.max(t.y - 180, 0),
+              transform: 'translateX(-50%)',
+            }}
+          >
+            <div className="bg-zinc-950 border border-zinc-700 rounded-xl shadow-2xl p-3 w-52 text-xs">
+              <div className="flex items-center justify-between mb-2 border-b border-zinc-800 pb-2">
+                <span className="font-black text-white text-sm">Dia {t.dia}</span>
+                {dV !== null && (
+                  <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${dV >= 0 ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                    {dV >= 0 ? '▲' : '▼'} {Math.abs(dV).toFixed(1)}%
+                  </span>
+                )}
+              </div>
+
+              {/* Mês atual */}
+              <div className="mb-2">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <span className="w-2 h-2 rounded-sm bg-yellow-400 inline-block flex-shrink-0" />
+                  <span className="text-yellow-400 font-black text-[10px] uppercase tracking-wide truncate">{mesAtualLabel}</span>
+                </div>
+                <div className="pl-3.5 space-y-0.5">
+                  <div className="flex justify-between">
+                    <span className="text-zinc-500">Valor</span>
+                    <span className="text-white font-black">{t.vA > 0 ? fmt(t.vA) : '—'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-zinc-500">Vendas</span>
+                    <span className="text-zinc-300 font-bold">{t.qA > 0 ? `${t.qA} venda${t.qA > 1 ? 's' : ''}` : '—'}</span>
+                  </div>
+                  {t.qA > 0 && t.vA > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-zinc-500">Ticket médio</span>
+                      <span className="text-zinc-400">{fmt(t.vA / t.qA)}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Divisor */}
+              <div className="border-t border-zinc-800 my-2" />
+
+              {/* Mês anterior */}
+              <div className="mb-2">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <span className="w-2 h-2 rounded-sm bg-zinc-600 inline-block flex-shrink-0" />
+                  <span className="text-zinc-400 font-black text-[10px] uppercase tracking-wide truncate">{mesAntLabel}</span>
+                </div>
+                <div className="pl-3.5 space-y-0.5">
+                  <div className="flex justify-between">
+                    <span className="text-zinc-500">Valor</span>
+                    <span className="text-zinc-300 font-bold">{t.vB > 0 ? fmt(t.vB) : '—'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-zinc-500">Vendas</span>
+                    <span className="text-zinc-400">{t.qB > 0 ? `${t.qB} venda${t.qB > 1 ? 's' : ''}` : '—'}</span>
+                  </div>
+                  {t.qB > 0 && t.vB > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-zinc-500">Ticket médio</span>
+                      <span className="text-zinc-500">{fmt(t.vB / t.qB)}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Diferença de quantidade */}
+              {dQ !== null && (
+                <div className="border-t border-zinc-800 pt-2 flex justify-between">
+                  <span className="text-zinc-500">Δ Qtd vendas</span>
+                  <span className={`font-black text-[10px] ${dQ >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                    {dQ >= 0 ? '▲' : '▼'} {Math.abs(dQ).toFixed(1)}%
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -344,39 +514,18 @@ export function Comparativo() {
             </div>
 
             {/* ── COMPARATIVO POR DIA — BARRAS ── */}
-            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
-              <div className="flex items-center justify-between mb-4">
-                <p className="text-zinc-400 text-xs font-black uppercase tracking-widest">📊 Por Dia</p>
-                <div className="flex items-center gap-3 text-[10px] text-zinc-500">
-                  <span>🟡 atual &gt; anterior</span>
-                  <span>🟠 atual &lt; anterior</span>
-                </div>
-              </div>
-              <div className="overflow-x-auto">
-                <div className="flex gap-1 items-end pb-2" style={{ minWidth: `${maxDias * 28}px` }}>
-                  {Array.from({ length: maxDias }, (_, i) => {
-                    const dia = i + 1;
-                    const vA = aba === 'valor' ? (diaAtual[dia]?.valor ?? 0) : (diaAtual[dia]?.qtd ?? 0);
-                    const vB = aba === 'valor' ? (diaAnterior[dia]?.valor ?? 0) : (diaAnterior[dia]?.qtd ?? 0);
-                    const maxV = aba === 'valor' ? maxDiaValor : maxDiaQtd;
-                    const hA = maxV > 0 ? Math.max((vA / maxV) * 100, vA > 0 ? 4 : 0) : 0;
-                    const hB = maxV > 0 ? Math.max((vB / maxV) * 100, vB > 0 ? 4 : 0) : 0;
-                    return (
-                      <div key={dia} className="flex flex-col items-center gap-0.5" style={{ width: '24px' }}>
-                        <div className="flex items-end gap-px w-full" style={{ height: '80px' }}>
-                          <div className="flex-1 bg-zinc-600 rounded-t transition-all duration-500" style={{ height: `${hB}%` }}
-                            title={`${MESES[mesAnt.mes]} dia ${dia}: ${aba === 'valor' ? fmt(vB) : `${vB} vendas`}`} />
-                          <div className={`flex-1 rounded-t transition-all duration-500 ${vA > vB ? 'bg-yellow-400' : vA > 0 ? 'bg-orange-400' : 'bg-zinc-800'}`}
-                            style={{ height: `${hA}%` }}
-                            title={`${MESES[refMes.mes]} dia ${dia}: ${aba === 'valor' ? fmt(vA) : `${vA} vendas`}`} />
-                        </div>
-                        <span className="text-zinc-700 text-[8px]">{dia}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
+            <GraficoPorDia
+              diaAtual={diaAtual}
+              diaAnterior={diaAnterior}
+              maxDias={maxDias}
+              maxDiaValor={maxDiaValor}
+              maxDiaQtd={maxDiaQtd}
+              aba={aba}
+              mesAtualLabel={`${MESES_FULL[refMes.mes]} ${refMes.ano}`}
+              mesAntLabel={`${MESES_FULL[mesAnt.mes]} ${mesAnt.ano}`}
+              mesCurto={MESES[refMes.mes]}
+              mesAntCurto={MESES[mesAnt.mes]}
+            />
 
             {/* ── TABELA DIA A DIA ── */}
             <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
