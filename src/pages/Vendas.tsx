@@ -78,24 +78,33 @@ export function Vendas() {
   function pararMusicaAprovada() { window.dispatchEvent(new CustomEvent('operacao:music', { detail: { action: 'stop' } })); }
   function pararMusicaLancada()  { window.dispatchEvent(new CustomEvent('operacao:music', { detail: { action: 'stop' } })); }
 
-  // ── Notificação de venda aprovada ──────────────────────────────────────────
+  // ── Notificações ──────────────────────────────────────────────────────────
   type VendaAprovada = { product_name: string; sale_value: number; customer_name: string };
-  const [vendaLancadaNotif,  setVendaLancadaNotif]  = useState<VendaAprovada | null>(null);
-  // Usamos ref para guardar IDs pendentes sem criar dependência circular
-  const prevPendingIdsRef = useRef<Set<string>>(new Set());
-  // Ref para detectar vendas novas que já chegam aprovadas (ex: Hubla webhook)
-  const prevAllIdsRef = useRef<Set<string> | null>(null);
-  // Guard para só definir o produto padrão na primeira carga (evita reset no polling)
-  const initialProductSetRef = useRef(false);
-  // Ref com a função de celebração para evitar closure velha dentro do useCallback
-  const celebracaoRef = useRef<((v: VendaAprovada) => void) | null>(null);
+  const [vendaLancadaNotif, setVendaLancadaNotif] = useState<VendaAprovada | null>(null);
+  const [reembolsoNotif,    setReembolsoNotif]    = useState<VendaAprovada | null>(null);
 
-  // Mantém celebracaoRef sempre atualizada sem re-criar fetchData
+  // Refs para comparação entre polls
+  const prevPendingIdsRef  = useRef<Set<string>>(new Set());
+  const prevAllIdsRef      = useRef<Set<string> | null>(null);
+  const prevApprovedIdsRef = useRef<Set<string>>(new Set());
+
+  // Guard para só definir o produto padrão na primeira carga
+  const initialProductSetRef = useRef(false);
+
+  // Refs com funções de notificação (evitam closure velha no useCallback)
+  const celebracaoRef = useRef<((v: VendaAprovada) => void) | null>(null);
+  const reembolsoRef  = useRef<((v: VendaAprovada) => void) | null>(null);
+
   celebracaoRef.current = (venda: VendaAprovada) => {
     setVendaLancadaNotif(venda);
     tocarMusicaVenda();
     somVendaAprovada();
     notificarVendaAprovada(venda.customer_name, venda.product_name, venda.sale_value);
+  };
+
+  reembolsoRef.current = (venda: VendaAprovada) => {
+    setReembolsoNotif(venda);
+    window.dispatchEvent(new CustomEvent('operacao:music', { detail: { action: 'stop' } }));
   };
 
   // fetchData definido ANTES do useEffect que o usa
@@ -141,6 +150,22 @@ export function Vendas() {
             });
           }
         }
+
+        // Caso 3: venda aprovada que foi cancelada/reembolsada
+        if (prevApprovedIdsRef.current.size > 0) {
+          const reembolsadas = novasVendas.filter(v =>
+            String(v.seller_id) === userId &&
+            checkCancelada(v.status) &&
+            prevApprovedIdsRef.current.has(v.id)
+          );
+          if (reembolsadas.length > 0) {
+            reembolsoRef.current?.({
+              product_name:  reembolsadas[0].product_name,
+              sale_value:    reembolsadas[0].sale_value,
+              customer_name: reembolsadas[0].customer_name,
+            });
+          }
+        }
       }
 
       // Atualiza IDs de todas as vendas do vendedor para próxima comparação
@@ -152,6 +177,13 @@ export function Vendas() {
       prevPendingIdsRef.current = new Set(
         novasVendas
           .filter(v => String(v.seller_id) === userId && !checkAprovada(v.status) && !checkCancelada(v.status))
+          .map(v => v.id)
+      );
+
+      // Atualiza IDs aprovados para próxima comparação (detecção de reembolso)
+      prevApprovedIdsRef.current = new Set(
+        novasVendas
+          .filter(v => String(v.seller_id) === userId && checkAprovada(v.status))
           .map(v => v.id)
       );
 
@@ -801,6 +833,53 @@ export function Vendas() {
         </div>
       )}
 
+
+      {/* ── CARD DE REEMBOLSO ─────────────────────────────────────────────── */}
+      {reembolsoNotif && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/90 backdrop-blur-md cursor-pointer"
+            onClick={() => setReembolsoNotif(null)}
+          />
+          <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+            <div className="w-96 h-96 bg-red-500/10 rounded-full blur-[120px] animate-pulse" />
+          </div>
+          <div className="relative z-10 w-full max-w-md mx-4 animate-in zoom-in-90 duration-300">
+            <div className="absolute -inset-4 bg-red-500/10 rounded-3xl blur-xl" />
+            <div className="relative bg-zinc-950 border-2 border-red-500 rounded-3xl overflow-hidden shadow-[0_0_60px_rgba(239,68,68,0.3)]">
+              <div className="h-1.5 bg-gradient-to-r from-red-800 via-red-400 to-red-800 animate-pulse" />
+              <div className="p-7 text-center">
+                <div className="text-7xl mb-4 select-none leading-none">⚠️</div>
+                <div className="mb-1">
+                  <span className="text-[11px] font-black text-red-400 uppercase tracking-[0.4em]">Aviso do Comando</span>
+                </div>
+                <h1 className="text-3xl font-black text-white uppercase tracking-wide leading-tight mb-1">VENDA</h1>
+                <h1 className="text-3xl font-black text-red-400 uppercase tracking-wide leading-tight mb-4">REEMBOLSADA</h1>
+                <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3 mb-3 text-left">
+                  <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest mb-0.5">Produto</p>
+                  <p className="text-red-400 font-black text-base uppercase">{reembolsoNotif.product_name}</p>
+                  <p className="text-zinc-400 text-xs mt-1">Cliente: <span className="text-white font-bold">{reembolsoNotif.customer_name}</span></p>
+                </div>
+                <div className="bg-red-950/40 border-2 border-red-600/40 rounded-2xl py-4 px-5 mb-5">
+                  <p className="text-[10px] text-red-500 font-black uppercase tracking-[0.3em] mb-1">💸 Valor Estornado</p>
+                  <p className="text-red-400 font-black text-4xl leading-none line-through opacity-70">
+                    {(reembolsoNotif.sale_value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                  </p>
+                </div>
+                <p className="text-zinc-600 text-xs mb-5 uppercase tracking-widest">Esta venda foi removida do seu placar</p>
+                <button
+                  onMouseEnter={somHover}
+                  onClick={() => { somClick(); setReembolsoNotif(null); }}
+                  className="w-full bg-red-600 hover:bg-red-500 active:scale-95 text-white font-black py-4 rounded-2xl uppercase tracking-[0.2em] text-base transition-all"
+                >
+                  Entendido
+                </button>
+              </div>
+              <div className="h-1 bg-gradient-to-r from-transparent via-red-500 to-transparent" />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Bottom Navigation Mobile */}
       <BottomNav
