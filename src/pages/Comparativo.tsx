@@ -43,7 +43,7 @@ type TooltipData = {
   dia: number;
   vA: number; qA: number;
   vB: number; qB: number;
-  x: number; y: number;
+  screenX: number; screenY: number;
 };
 
 function GraficoPorDia({
@@ -58,26 +58,29 @@ function GraficoPorDia({
   mesCurto: string; mesAntCurto: string;
 }) {
   const [tooltip, setTooltip] = useState<TooltipData | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
 
   function handleEnter(e: React.MouseEvent, dia: number) {
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    const container = containerRef.current?.getBoundingClientRect();
-    if (!container) return;
     setTooltip({
       dia,
       vA: diaAtual[dia]?.valor ?? 0,
       qA: diaAtual[dia]?.qtd ?? 0,
       vB: diaAnterior[dia]?.valor ?? 0,
       qB: diaAnterior[dia]?.qtd ?? 0,
-      x: rect.left - container.left + rect.width / 2,
-      y: rect.top - container.top,
+      screenX: rect.left + rect.width / 2,
+      screenY: rect.top,
     });
   }
 
   const t = tooltip;
   const dV = t && t.vB > 0 ? ((t.vA - t.vB) / t.vB) * 100 : null;
   const dQ = t && t.qB > 0 ? ((t.qA - t.qB) / t.qB) * 100 : null;
+
+  // Calcula posição segura: evita sair da viewport
+  const TOOLTIP_W = 208; // w-52 = 13rem = 208px
+  const TOOLTIP_H = 220;
+  const tooltipLeft  = t ? Math.min(Math.max(t.screenX - TOOLTIP_W / 2, 8), window.innerWidth - TOOLTIP_W - 8) : 0;
+  const tooltipTop   = t ? (t.screenY - TOOLTIP_H - 12 < 8 ? t.screenY + 28 : t.screenY - TOOLTIP_H - 12) : 0;
 
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
@@ -90,8 +93,8 @@ function GraficoPorDia({
         </div>
       </div>
 
-      <div ref={containerRef} className="relative overflow-x-auto">
-        <div className="flex gap-1 items-end pb-6" style={{ minWidth: `${maxDias * 28}px` }}>
+      <div className="overflow-x-auto">
+        <div className="flex gap-1 items-end pb-2" style={{ minWidth: `${maxDias * 28}px` }}>
           {Array.from({ length: maxDias }, (_, i) => {
             const dia = i + 1;
             const vA = aba === 'valor' ? (diaAtual[dia]?.valor ?? 0) : (diaAtual[dia]?.qtd ?? 0);
@@ -110,101 +113,68 @@ function GraficoPorDia({
               >
                 <div className={`flex items-end gap-px w-full transition-opacity ${tooltip && !isActive ? 'opacity-40' : 'opacity-100'}`} style={{ height: '100px' }}>
                   <div className="flex-1 bg-zinc-600 rounded-t transition-all duration-300 group-hover:bg-zinc-400" style={{ height: `${hB}%` }} />
-                  <div
-                    className={`flex-1 rounded-t transition-all duration-300 ${vA > vB ? 'bg-yellow-400 group-hover:bg-yellow-300' : vA > 0 ? 'bg-orange-400 group-hover:bg-orange-300' : 'bg-zinc-800'}`}
-                    style={{ height: `${hA}%` }}
-                  />
+                  <div className={`flex-1 rounded-t transition-all duration-300 ${vA > vB ? 'bg-yellow-400 group-hover:bg-yellow-300' : vA > 0 ? 'bg-orange-400 group-hover:bg-orange-300' : 'bg-zinc-800'}`} style={{ height: `${hA}%` }} />
                 </div>
                 <span className={`text-[8px] leading-none transition-colors ${isActive ? 'text-yellow-400 font-black' : 'text-zinc-700'}`}>{dia}</span>
               </div>
             );
           })}
         </div>
+      </div>
 
-        {/* Tooltip */}
-        {t && (
-          <div
-            className="absolute z-20 pointer-events-none"
-            style={{
-              left: Math.min(t.x, (maxDias * 28) - 160),
-              top: Math.max(t.y - 180, 0),
-              transform: 'translateX(-50%)',
-            }}
-          >
-            <div className="bg-zinc-950 border border-zinc-700 rounded-xl shadow-2xl p-3 w-52 text-xs">
-              <div className="flex items-center justify-between mb-2 border-b border-zinc-800 pb-2">
-                <span className="font-black text-white text-sm">Dia {t.dia}</span>
-                {dV !== null && (
-                  <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${dV >= 0 ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
-                    {dV >= 0 ? '▲' : '▼'} {Math.abs(dV).toFixed(1)}%
-                  </span>
-                )}
-              </div>
-
-              {/* Mês atual */}
-              <div className="mb-2">
-                <div className="flex items-center gap-1.5 mb-1">
-                  <span className="w-2 h-2 rounded-sm bg-yellow-400 inline-block flex-shrink-0" />
-                  <span className="text-yellow-400 font-black text-[10px] uppercase tracking-wide truncate">{mesAtualLabel}</span>
-                </div>
-                <div className="pl-3.5 space-y-0.5">
-                  <div className="flex justify-between">
-                    <span className="text-zinc-500">Valor</span>
-                    <span className="text-white font-black">{t.vA > 0 ? fmt(t.vA) : '—'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-zinc-500">Vendas</span>
-                    <span className="text-zinc-300 font-bold">{t.qA > 0 ? `${t.qA} venda${t.qA > 1 ? 's' : ''}` : '—'}</span>
-                  </div>
-                  {t.qA > 0 && t.vA > 0 && (
-                    <div className="flex justify-between">
-                      <span className="text-zinc-500">Ticket médio</span>
-                      <span className="text-zinc-400">{fmt(t.vA / t.qA)}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Divisor */}
-              <div className="border-t border-zinc-800 my-2" />
-
-              {/* Mês anterior */}
-              <div className="mb-2">
-                <div className="flex items-center gap-1.5 mb-1">
-                  <span className="w-2 h-2 rounded-sm bg-zinc-600 inline-block flex-shrink-0" />
-                  <span className="text-zinc-400 font-black text-[10px] uppercase tracking-wide truncate">{mesAntLabel}</span>
-                </div>
-                <div className="pl-3.5 space-y-0.5">
-                  <div className="flex justify-between">
-                    <span className="text-zinc-500">Valor</span>
-                    <span className="text-zinc-300 font-bold">{t.vB > 0 ? fmt(t.vB) : '—'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-zinc-500">Vendas</span>
-                    <span className="text-zinc-400">{t.qB > 0 ? `${t.qB} venda${t.qB > 1 ? 's' : ''}` : '—'}</span>
-                  </div>
-                  {t.qB > 0 && t.vB > 0 && (
-                    <div className="flex justify-between">
-                      <span className="text-zinc-500">Ticket médio</span>
-                      <span className="text-zinc-500">{fmt(t.vB / t.qB)}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Diferença de quantidade */}
-              {dQ !== null && (
-                <div className="border-t border-zinc-800 pt-2 flex justify-between">
-                  <span className="text-zinc-500">Δ Qtd vendas</span>
-                  <span className={`font-black text-[10px] ${dQ >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                    {dQ >= 0 ? '▲' : '▼'} {Math.abs(dQ).toFixed(1)}%
-                  </span>
-                </div>
+      {/* Tooltip — fixed na viewport, nunca cortado */}
+      {t && (
+        <div
+          className="fixed z-50 pointer-events-none"
+          style={{ left: tooltipLeft, top: tooltipTop, width: TOOLTIP_W }}
+        >
+          <div className="bg-zinc-950 border border-zinc-700 rounded-xl shadow-2xl p-3 text-xs">
+            <div className="flex items-center justify-between mb-2 border-b border-zinc-800 pb-2">
+              <span className="font-black text-white text-sm">Dia {t.dia}</span>
+              {dV !== null && (
+                <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${dV >= 0 ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                  {dV >= 0 ? '▲' : '▼'} {Math.abs(dV).toFixed(1)}%
+                </span>
               )}
             </div>
+
+            {/* Mês atual */}
+            <div className="mb-2">
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className="w-2 h-2 rounded-sm bg-yellow-400 inline-block flex-shrink-0" />
+                <span className="text-yellow-400 font-black text-[10px] uppercase tracking-wide truncate">{mesAtualLabel}</span>
+              </div>
+              <div className="pl-3.5 space-y-0.5">
+                <div className="flex justify-between"><span className="text-zinc-500">Valor</span><span className="text-white font-black">{t.vA > 0 ? fmt(t.vA) : '—'}</span></div>
+                <div className="flex justify-between"><span className="text-zinc-500">Vendas</span><span className="text-zinc-300 font-bold">{t.qA > 0 ? `${t.qA} venda${t.qA > 1 ? 's' : ''}` : '—'}</span></div>
+                {t.qA > 0 && t.vA > 0 && <div className="flex justify-between"><span className="text-zinc-500">Ticket médio</span><span className="text-zinc-400">{fmt(t.vA / t.qA)}</span></div>}
+              </div>
+            </div>
+
+            <div className="border-t border-zinc-800 my-2" />
+
+            {/* Mês anterior */}
+            <div className="mb-2">
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className="w-2 h-2 rounded-sm bg-zinc-600 inline-block flex-shrink-0" />
+                <span className="text-zinc-400 font-black text-[10px] uppercase tracking-wide truncate">{mesAntLabel}</span>
+              </div>
+              <div className="pl-3.5 space-y-0.5">
+                <div className="flex justify-between"><span className="text-zinc-500">Valor</span><span className="text-zinc-300 font-bold">{t.vB > 0 ? fmt(t.vB) : '—'}</span></div>
+                <div className="flex justify-between"><span className="text-zinc-500">Vendas</span><span className="text-zinc-400">{t.qB > 0 ? `${t.qB} venda${t.qB > 1 ? 's' : ''}` : '—'}</span></div>
+                {t.qB > 0 && t.vB > 0 && <div className="flex justify-between"><span className="text-zinc-500">Ticket médio</span><span className="text-zinc-500">{fmt(t.vB / t.qB)}</span></div>}
+              </div>
+            </div>
+
+            {dQ !== null && (
+              <div className="border-t border-zinc-800 pt-2 flex justify-between">
+                <span className="text-zinc-500">Δ Qtd vendas</span>
+                <span className={`font-black text-[10px] ${dQ >= 0 ? 'text-green-400' : 'text-red-400'}`}>{dQ >= 0 ? '▲' : '▼'} {Math.abs(dQ).toFixed(1)}%</span>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
