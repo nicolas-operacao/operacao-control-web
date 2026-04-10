@@ -5,8 +5,7 @@ export function SuporteRoute({ children }: { children: React.ReactNode }) {
   if (!userStr) return <Navigate to="/" replace />;
 
   const user = JSON.parse(userStr);
-  if (user.role === 'admin') return <Navigate to="/dashboard" replace />;
-  if (user.role !== 'suporte') return <Navigate to="/vendas" replace />;
+  if (user.role !== 'suporte' && user.role !== 'admin') return <Navigate to="/vendas" replace />;
 
   return children;
 }
