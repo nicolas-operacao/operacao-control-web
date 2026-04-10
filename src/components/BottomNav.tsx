@@ -108,7 +108,7 @@ export function BottomNav({ activeTab, onNovaVenda }: BottomNavProps) {
   const itens = (isAdmin || isSuport) ? itensAdmin : itensVendedor;
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-zinc-950/95 backdrop-blur-md border-t border-zinc-800/80">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-zinc-950/98 backdrop-blur-md border-t border-zinc-800/80">
       <div className="flex items-stretch">
         {itens.map((item) => {
           const isActive = activeTab === item.id;
@@ -116,17 +116,17 @@ export function BottomNav({ activeTab, onNovaVenda }: BottomNavProps) {
             <button
               key={item.id}
               onClick={() => { somClick(); item.onClick(); }}
-              className={`flex-1 flex flex-col items-center justify-center gap-1 transition-all active:scale-95 select-none
+              className={`flex-1 flex flex-col items-center justify-center gap-0.5 transition-all active:scale-95 select-none
                 ${item.destaque
-                  ? 'bg-yellow-400 text-black shadow-[0_-6px_24px_rgba(250,204,21,0.35)]'
+                  ? 'bg-yellow-400 text-black shadow-[0_-4px_16px_rgba(250,204,21,0.3)]'
                   : isActive
                   ? 'text-yellow-400'
                   : 'text-zinc-500'
                 }`}
-              style={{ minHeight: '56px', paddingBottom: 'max(8px, env(safe-area-inset-bottom))' }}
+              style={{ minHeight: '48px', paddingBottom: 'max(6px, env(safe-area-inset-bottom))' }}
             >
-              <span className="text-2xl leading-none">{item.icon}</span>
-              <span className={`text-[10px] font-black uppercase tracking-wider leading-none mt-0.5 ${item.destaque ? 'text-black' : ''}`}>
+              <span className="text-lg leading-none">{item.icon}</span>
+              <span className={`text-[9px] font-black uppercase tracking-wide leading-none ${item.destaque ? 'text-black' : ''}`}>
                 {item.label}
               </span>
             </button>
