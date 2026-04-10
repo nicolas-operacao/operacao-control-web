@@ -85,6 +85,8 @@ export function Vendas() {
   const [vendaLancadaNotif,  setVendaLancadaNotif]  = useState<VendaAprovada | null>(null);
   // Usamos ref para guardar IDs pendentes sem criar dependência circular
   const prevPendingIdsRef = useRef<Set<string>>(new Set());
+  // Ref para detectar vendas novas que já chegam aprovadas (ex: Hubla webhook)
+  const prevAllIdsRef = useRef<Set<string> | null>(null);
   // Guard para só definir o produto padrão na primeira carga (evita reset no polling)
   const initialProductSetRef = useRef(false);
   // Ref com a função de celebração para evitar closure velha dentro do useCallback
@@ -117,20 +119,44 @@ export function Vendas() {
       const novasVendas: Venda[] = salesRes.data;
       const userId = String(JSON.parse(localStorage.getItem('user') || '{}').id || '');
 
-      if (detectarAprovadas && prevPendingIdsRef.current.size > 0) {
-        const recemAprovadas = novasVendas.filter(v =>
-          String(v.seller_id) === userId &&
-          checkAprovada(v.status) &&
-          prevPendingIdsRef.current.has(v.id)
-        );
-        if (recemAprovadas.length > 0) {
-          celebracaoRef.current?.({
-            product_name: recemAprovadas[0].product_name,
-            sale_value:   recemAprovadas[0].sale_value,
-            customer_name: recemAprovadas[0].customer_name,
-          });
+      if (detectarAprovadas) {
+        // Caso 1: venda que era pendente e foi aprovada pelo admin
+        if (prevPendingIdsRef.current.size > 0) {
+          const recemAprovadas = novasVendas.filter(v =>
+            String(v.seller_id) === userId &&
+            checkAprovada(v.status) &&
+            prevPendingIdsRef.current.has(v.id)
+          );
+          if (recemAprovadas.length > 0) {
+            celebracaoRef.current?.({
+              product_name: recemAprovadas[0].product_name,
+              sale_value:   recemAprovadas[0].sale_value,
+              customer_name: recemAprovadas[0].customer_name,
+            });
+          }
+        }
+
+        // Caso 2: venda nova que chegou já aprovada (ex: Hubla webhook)
+        if (prevAllIdsRef.current !== null) {
+          const novasJaAprovadas = novasVendas.filter(v =>
+            String(v.seller_id) === userId &&
+            checkAprovada(v.status) &&
+            !prevAllIdsRef.current!.has(v.id)
+          );
+          if (novasJaAprovadas.length > 0) {
+            celebracaoRef.current?.({
+              product_name: novasJaAprovadas[0].product_name,
+              sale_value:   novasJaAprovadas[0].sale_value,
+              customer_name: novasJaAprovadas[0].customer_name,
+            });
+          }
         }
       }
+
+      // Atualiza IDs de todas as vendas do vendedor para próxima comparação
+      prevAllIdsRef.current = new Set(
+        novasVendas.filter(v => String(v.seller_id) === userId).map(v => v.id)
+      );
 
       // Atualiza IDs pendentes para próxima comparação
       prevPendingIdsRef.current = new Set(
