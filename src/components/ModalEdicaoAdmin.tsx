@@ -116,6 +116,9 @@ export function ModalEdicaoAdmin({ isOpen, onClose, venda, produtos, onSuccess }
                 <option value="Boleto Parcelado">Boleto Parcelado</option>
                 <option value="Checkout Hubla (credit_card)">Checkout Hubla (Cartão)</option>
                 <option value="Checkout Hubla">Checkout Hubla</option>
+                <option disabled>──────────────</option>
+                <option value="Checkout CrsaEduca">Checkout CrsaEduca</option>
+                <option value="Checkout TMB">Checkout TMB</option>
               </select>
             </div>
           </div>

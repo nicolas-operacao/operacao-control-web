@@ -63,8 +63,9 @@ export function ModalRegistrarVenda({ isOpen, onClose, produtos, user, onVendaRe
     e.preventDefault();
     setIsLoading(true);
     try {
+      const isCheckoutExterno = paymentMethod.startsWith('Checkout CrsaEduca') || paymentMethod.startsWith('Checkout TMB');
       await api.post('/sales', {
-        seller_id: user.id, product_name: productName, customer_name: customerName,
+        seller_id: isCheckoutExterno ? null : user.id, product_name: productName, customer_name: customerName,
         customer_email: customerEmail, customer_phone: customerPhone, payment_method: paymentMethod,
         sale_value: Number(saleValue), sale_date: saleDate
       });
@@ -145,6 +146,9 @@ export function ModalRegistrarVenda({ isOpen, onClose, produtos, user, onVendaRe
               <option value="Crédito à vista">Crédito à vista</option>
               <option value="Débito à vista">Débito à vista</option>
               <option value="Boleto Parcelado">Boleto Parcelado</option>
+              <option disabled>──────────────</option>
+              <option value="Checkout CrsaEduca">Checkout CrsaEduca</option>
+              <option value="Checkout TMB">Checkout TMB</option>
             </select>
           </div>
 
