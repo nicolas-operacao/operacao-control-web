@@ -184,13 +184,24 @@ export function Suporte() {
               <span>{frase.emoji}</span> {frase.texto}
             </p>
           </div>
-          <button
-            onMouseEnter={somHover}
-            onClick={() => { somClick(); handleLogout(); }}
-            className="border-2 border-red-900 text-red-500 hover:bg-red-900 hover:text-white px-6 py-2 rounded font-bold transition-all text-sm uppercase tracking-wider flex-shrink-0"
-          >
-            Sair
-          </button>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {(user.role === 'admin') && (
+              <button
+                onMouseEnter={somHover}
+                onClick={() => { somClick(); navigate('/dashboard'); }}
+                className="border border-zinc-700 text-zinc-400 hover:bg-zinc-800 hover:text-white px-4 py-2 rounded font-bold transition-all text-sm uppercase tracking-wider"
+              >
+                ← Dashboard
+              </button>
+            )}
+            <button
+              onMouseEnter={somHover}
+              onClick={() => { somClick(); handleLogout(); }}
+              className="border-2 border-red-900 text-red-500 hover:bg-red-900 hover:text-white px-6 py-2 rounded font-bold transition-all text-sm uppercase tracking-wider"
+            >
+              Sair
+            </button>
+          </div>
         </div>
 
         <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 shadow-2xl">

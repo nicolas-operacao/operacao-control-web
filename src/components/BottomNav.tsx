@@ -92,13 +92,10 @@ export function BottomNav({ activeTab, onNovaVenda }: BottomNavProps) {
       },
     },
     {
-      id: 'gestao',
-      label: 'Gestão',
-      icon: '⚙️',
-      onClick: () => {
-        const el = document.querySelector('[data-section="gestao"]');
-        if (el) el.scrollIntoView({ behavior: 'smooth' });
-      },
+      id: 'suporte',
+      label: 'Suporte',
+      icon: '🛡️',
+      onClick: () => navigate('/liberacoes'),
     },
     {
       id: 'arsenal',
