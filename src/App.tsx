@@ -9,6 +9,7 @@ import { RecrutasAdmin } from './pages/RecrutasAdmin';
 import { Perfil } from './pages/Perfil';
 import { Arsenal } from './pages/Arsenal';
 import { Comparativo } from './pages/Comparativo';
+import { LojaAdmin } from './pages/LojaAdmin';
 import { PrivateRoute } from './components/PrivateRoute';
 import { AdminRoute } from './components/AdminRoute';
 import { SuporteRoute } from './components/SuporteRoute';
@@ -67,6 +68,7 @@ export default function App() {
         <Route path="/perfil" element={<PrivateRoute><Perfil /></PrivateRoute>} />
         <Route path="/arsenal" element={<PrivateRoute><Arsenal /></PrivateRoute>} />
         <Route path="/comparativo" element={<AdminRoute><Comparativo /></AdminRoute>} />
+        <Route path="/loja-admin" element={<AdminRoute><LojaAdmin /></AdminRoute>} />
       </Routes>
     </BrowserRouter>
   );

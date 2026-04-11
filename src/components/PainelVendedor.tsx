@@ -5,6 +5,8 @@ import { somClick, somHover, somLevelUp, isSomAtivo, setSomAtivo, setSomAtivoPar
 import { NivelUpCelebration } from './NivelUpCelebration';
 import { MissaoAnuncio } from './MissaoAnuncio';
 import { ModalRegistrarAbordagem } from './ModalRegistrarAbordagem';
+import { ModalAvatar } from './ModalAvatar';
+import { AvatarRenderer, type AvatarEquipped } from './AvatarRenderer';
 
 // ─── SISTEMA DE NÍVEIS (igual ao GuerraEquipes) ────────────────────────────────
 const VENDAS_POR_NIVEL   = 5;
@@ -106,6 +108,7 @@ interface Props {
   userId: string;
   userName: string;
   equipe: string;
+  userRole?: string;
 }
 
 // ─── SKELETON ──────────────────────────────────────────────────────────────────
@@ -113,7 +116,7 @@ function Sk({ className }: { className?: string }) {
   return <div className={`animate-pulse bg-zinc-800/60 rounded-lg ${className}`} />;
 }
 
-export function PainelVendedor({ userId, userName, equipe }: Props) {
+export function PainelVendedor({ userId, userName, equipe, userRole = 'vendedor' }: Props) {
   const [stats, setStats]     = useState<Stats | null>(null);
   const [ranking, setRanking] = useState<any[]>([]);
   const [missoes, setMissoes] = useState<Missao[]>([]);
@@ -129,6 +132,9 @@ export function PainelVendedor({ userId, userName, equipe }: Props) {
   const [missaoAnuncio, setMissaoAnuncio] = useState<any | null>(null);
   const [abordagemMissao, setAbordagemMissao] = useState<any | null>(null);
   const [conquistaNotif, setConquistaNotif] = useState<Conquista | null>(null);
+  const [avatarOpen, setAvatarOpen] = useState(false);
+  const [avatarEquipped, setAvatarEquipped] = useState<AvatarEquipped>({});
+  const [coinBalance, setCoinBalance] = useState<number | null>(null);
   const CONQUISTA_VIDEO_ID = '7IFvoaH44Is';
   function tocarMusicaConquista() { window.dispatchEvent(new CustomEvent('operacao:music', { detail: { action: 'start', videoId: CONQUISTA_VIDEO_ID } })); }
   function pararMusicaConquista() { window.dispatchEvent(new CustomEvent('operacao:music', { detail: { action: 'stop' } })); }
@@ -190,14 +196,17 @@ export function PainelVendedor({ userId, userName, equipe }: Props) {
   useEffect(() => {
     async function load() {
       try {
-        const [statsRes, rankRes, missoesRes] = await Promise.all([
+        const [statsRes, rankRes, missoesRes, walletRes] = await Promise.all([
           api.get(`/sellers/${userId}/stats`),
           api.get('/ranking'),
           api.get('/missions'),
+          api.get('/avatar/wallet').catch(() => ({ data: { balance: 0, equipped: {} } })),
         ]);
         const s = statsRes.data;
         setStats(s);
         setRanking(Array.isArray(rankRes.data) ? rankRes.data : (rankRes.data?.data ?? []));
+        setAvatarEquipped(walletRes.data.equipped ?? {});
+        setCoinBalance(userRole === 'admin' ? 999999 : (walletRes.data.balance ?? 0));
         setMissoes(Array.isArray(missoesRes.data) ? missoesRes.data : []);
 
         // Aplica preferência de som vinda do banco
@@ -489,6 +498,15 @@ export function PainelVendedor({ userId, userName, equipe }: Props) {
               >
                 ✏️
               </button>
+              {/* Botão avatar */}
+              <button
+                onMouseEnter={somHover}
+                onClick={() => { somClick(); setAvatarOpen(true); }}
+                className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-zinc-800 border border-zinc-600 hover:border-purple-400/60 flex items-center justify-center text-[11px] transition-all hover:bg-zinc-700"
+                title="Meu Avatar"
+              >
+                🧙
+              </button>
             </div>
 
             {/* Patente + XP */}
@@ -519,7 +537,7 @@ export function PainelVendedor({ userId, userName, equipe }: Props) {
               </div>
             </div>
 
-            {/* Ranking + Equipe + Som — coluna direita, sempre inline */}
+            {/* Ranking + Equipe + Som + Moedas — coluna direita, sempre inline */}
             <div className="flex-shrink-0 flex flex-col items-end gap-1.5">
               <div className={`px-2 py-0.5 rounded-lg border ${corBorderClass} ${corBgClass}`}>
                 <p className={`text-[8px] sm:text-[9px] font-black uppercase tracking-wider ${corEquipeClass}`}>{nomeEquipe}</p>
@@ -543,6 +561,20 @@ export function PainelVendedor({ userId, userName, equipe }: Props) {
                   {somAtivo ? 'On' : 'Off'}
                 </span>
               </button>
+              {/* Saldo de moedas + botão avatar */}
+              {coinBalance !== null && (
+                <button
+                  onMouseEnter={somHover}
+                  onClick={() => { somClick(); setAvatarOpen(true); }}
+                  className="flex items-center gap-1 px-2 py-1 rounded-lg bg-yellow-950/30 border border-yellow-700/40 hover:border-yellow-400/60 transition-all"
+                  title="Meu Avatar e Loja"
+                >
+                  <span className="text-sm">🪙</span>
+                  <span className="text-[8px] sm:text-[9px] font-black text-yellow-400">
+                    {userRole === 'admin' ? '∞' : coinBalance.toLocaleString('pt-BR')}
+                  </span>
+                </button>
+              )}
             </div>
           </div>
 
@@ -1021,6 +1053,13 @@ export function PainelVendedor({ userId, userName, equipe }: Props) {
 
         </div>
       )}
+
+      {/* ── MODAL DE AVATAR ── */}
+      <ModalAvatar
+        isOpen={avatarOpen}
+        onClose={() => setAvatarOpen(false)}
+        userRole={userRole}
+      />
 
     </div>
   );

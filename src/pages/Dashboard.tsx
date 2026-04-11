@@ -407,6 +407,9 @@ export function Dashboard() {
                     <button onClick={() => { somClick(); setDropdownAberto(false); navigate('/comparativo'); }} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-zinc-300 hover:bg-zinc-800 text-xs font-bold transition-all">
                       📊 Comparativo Mensal
                     </button>
+                    <button onClick={() => { somClick(); setDropdownAberto(false); navigate('/loja-admin'); }} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-zinc-300 hover:bg-zinc-800 text-xs font-bold transition-all">
+                      🏪 Loja de Avatar
+                    </button>
                   </div>
                   <div className="border-t border-zinc-800 p-1">
                     <p className="text-zinc-600 text-[9px] font-black uppercase tracking-widest px-3 py-1.5">Pendentes</p>

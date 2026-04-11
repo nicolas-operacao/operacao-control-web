@@ -465,7 +465,7 @@ export function Vendas() {
         )}
 
         {/* Painel completo do vendedor */}
-        <PainelVendedor userId={String(user.id)} userName={user.name} equipe={user.equipe || 'A'} />
+        <PainelVendedor userId={String(user.id)} userName={user.name} equipe={user.equipe || 'A'} userRole={user.role ?? 'vendedor'} />
 
         {/* Comissão estimada — mantida como card discreto */}
         <div className="bg-zinc-900 border border-green-500/20 rounded-xl px-4 sm:px-5 py-3 sm:py-4 mb-6 flex items-center justify-between gap-3">
