@@ -70,19 +70,23 @@ export function Dashboard() {
   const [todasVendas, setTodasVendas] = useState<Venda[]>([]);
 
   // Vendas do mês selecionado (BRT-aware, aprovadas)
-  const { vendasMes, qtdMes, vendasDoMesSel, vendasMesSemCheckout } = useMemo(() => {
+  const { vendasMes, qtdMes, vendasDoMesSel, vendasMesSemCheckout, vendasMesEquipe, vendasMesCheckout } = useMemo(() => {
     const aprovadas = todasVendas.filter(v => v.status === 'aprovada' && v.created_at);
     const doMes = aprovadas.filter(v => {
       const d = new Date(new Date(v.created_at).getTime() - BRT_MS);
       return d.getUTCFullYear() === mesSelecionado.ano && d.getUTCMonth() === mesSelecionado.mes;
     });
-    // Exclui checkouts (seller_id nulo) do cálculo de comissão
-    const doMesSemCheckout = doMes.filter(v => v.seller_id != null && String(v.seller_id) !== '');
+    // Vendas com vendedor identificado (equipe de vendas)
+    const doMesEquipe = doMes.filter(v => v.seller_id != null && String(v.seller_id) !== '' && v.seller_name !== 'CHECKOUT');
+    // Vendas de checkout direto (sem vendedor)
+    const doMesCheckout = doMes.filter(v => !v.seller_id || String(v.seller_id) === '' || v.seller_name === 'CHECKOUT');
     return {
       vendasMes: doMes.reduce((acc, v) => acc + Number(v.sale_value), 0),
       qtdMes: doMes.length,
       vendasDoMesSel: doMes,
-      vendasMesSemCheckout: doMesSemCheckout.reduce((acc, v) => acc + Number(v.sale_value), 0),
+      vendasMesSemCheckout: doMesEquipe.reduce((acc, v) => acc + Number(v.sale_value), 0),
+      vendasMesEquipe: doMesEquipe.reduce((acc, v) => acc + Number(v.sale_value), 0),
+      vendasMesCheckout: doMesCheckout.reduce((acc, v) => acc + Number(v.sale_value), 0),
     };
   }, [todasVendas, mesSelecionado]);
 
@@ -622,15 +626,26 @@ export function Dashboard() {
           </button>
 
           <button onMouseEnter={somHover} onClick={() => { somClick(); setModalPeriodo('mes'); }} className="bg-zinc-900 border border-zinc-800 hover:border-green-400/40 p-3 sm:p-4 rounded-xl text-left transition-all hover:scale-[1.02] active:scale-95">
-            <p className="text-zinc-500 text-[9px] sm:text-[10px] font-black uppercase tracking-widest mb-1.5 sm:mb-2">
+            <p className="text-zinc-500 text-[9px] sm:text-[10px] font-black uppercase tracking-widest mb-1">
               🗓️ {MESES[mesSelecionado.mes]}
               <span className="ml-1 text-zinc-600">{mesSelecionado.ano}</span>
             </p>
             <p className="text-base sm:text-2xl font-black text-white leading-tight truncate">{formataBRL(vendasMes)}</p>
-            <div className="w-full bg-zinc-800 rounded-full h-1 mt-2 overflow-hidden">
+            <div className="w-full bg-zinc-800 rounded-full h-1 mt-1.5 overflow-hidden">
               <div className="bg-yellow-400 h-1 rounded-full transition-all duration-700" style={{ width: `${progressoMeta}%` }} />
             </div>
             <p className="text-zinc-600 text-[9px] sm:text-[10px] mt-1">{qtdMes} vendas · {progressoMeta.toFixed(0)}% meta</p>
+            {/* Subtotais equipe vs checkout */}
+            <div className="mt-1.5 flex flex-col gap-0.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[9px] text-blue-400 font-black">⚡ Equipe</span>
+                <span className="text-[9px] text-blue-300 font-black">{formataBRL(vendasMesEquipe)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[9px] text-zinc-500 font-black">🛒 Checkout</span>
+                <span className="text-[9px] text-zinc-400 font-black">{formataBRL(vendasMesCheckout)}</span>
+              </div>
+            </div>
           </button>
 
           <div className="bg-zinc-900 border border-zinc-800 p-3 sm:p-4 rounded-xl">
