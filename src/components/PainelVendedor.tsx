@@ -550,6 +550,7 @@ export function PainelVendedor({ userId, userName, equipe }: Props) {
         <p className={`text-[10px] sm:text-xs font-bold italic ${frase.cor} flex items-center gap-1.5 leading-snug`}>
           <span>{frase.emoji}</span> {frase.texto}
         </p>
+        </div>
       </div>
 
       {/* ── KPI Cards: Hoje / Semana / Mês ── */}
