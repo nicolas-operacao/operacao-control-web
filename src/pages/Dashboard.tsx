@@ -407,9 +407,7 @@ export function Dashboard() {
                     <button onClick={() => { somClick(); setDropdownAberto(false); navigate('/comparativo'); }} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-zinc-300 hover:bg-zinc-800 text-xs font-bold transition-all">
                       📊 Comparativo Mensal
                     </button>
-                    <button onClick={() => { somClick(); setDropdownAberto(false); navigate('/loja-admin'); }} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-zinc-300 hover:bg-zinc-800 text-xs font-bold transition-all">
-                      🏪 Loja de Avatar
-                    </button>
+
                   </div>
                   <div className="border-t border-zinc-800 p-1">
                     <p className="text-zinc-600 text-[9px] font-black uppercase tracking-widest px-3 py-1.5">Pendentes</p>
@@ -425,9 +423,10 @@ export function Dashboard() {
                   <div className="border-t border-zinc-800 p-1">
                     <p className="text-zinc-600 text-[9px] font-black uppercase tracking-widest px-3 py-1.5">Navegar</p>
                     {[
-                      { label: 'Arsenal',  icon: '⚡', path: '/arsenal' },
-                      { label: 'Suporte',  icon: '🛡️', path: '/liberacoes' },
-                      { label: 'Recrutas', icon: '🪖', path: '/admin/recrutas' },
+                      { label: 'Arsenal',        icon: '⚡',  path: '/arsenal' },
+                      { label: 'Suporte',        icon: '🛡️',  path: '/liberacoes' },
+                      { label: 'Recrutas',       icon: '🪖',  path: '/admin/recrutas' },
+                      { label: 'Loja de Avatar', icon: '🏪',  path: '/loja-admin' },
                     ].map(({ label, icon, path }) => (
                       <button key={label} onClick={() => { somClick(); setDropdownAberto(false); navigate(path); }} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-zinc-300 hover:bg-zinc-800 text-xs font-bold transition-all">
                         <span>{icon}</span>{label}
