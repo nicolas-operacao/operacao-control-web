@@ -132,7 +132,7 @@ export function Dashboard() {
       } catch { /* silencioso */ }
     }
     checkNovasVendas();
-    const t = setInterval(checkNovasVendas, 15000);
+    const t = setInterval(checkNovasVendas, 6000);
     return () => clearInterval(t);
   }, []);
 
@@ -247,12 +247,14 @@ export function Dashboard() {
   }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
   const searchResults = useMemo(() => {
-    if (globalSearchTerm.length < 3) return [];
+    if (globalSearchTerm.length < 2) return [];
     const termo = globalSearchTerm.toLowerCase();
-    return todasVendas.filter(v => 
+    return todasVendas.filter(v =>
       (v.customer_name && v.customer_name.toLowerCase().includes(termo)) ||
       (v.customer_email && v.customer_email.toLowerCase().includes(termo)) ||
-      (v.customer_phone && v.customer_phone.toLowerCase().includes(termo))
+      (v.customer_phone && v.customer_phone.toLowerCase().includes(termo)) ||
+      (v.product_name && v.product_name.toLowerCase().includes(termo)) ||
+      (v.seller_name && v.seller_name.toLowerCase().includes(termo))
     ).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   }, [globalSearchTerm, todasVendas]);
 
@@ -448,7 +450,7 @@ export function Dashboard() {
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 text-sm">🔍</span>
               <input autoFocus type="text" value={globalSearchTerm} onChange={e => setGlobalSearchTerm(e.target.value)} placeholder="Nome, e-mail ou telefone..." className="w-full bg-zinc-950 border border-zinc-700 text-white rounded-lg pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:border-yellow-400/50 placeholder:text-zinc-600" />
             </div>
-            {globalSearchTerm.length > 2 && (
+            {globalSearchTerm.length > 1 && (
               <div className="bg-zinc-950 border border-zinc-800 rounded-xl overflow-hidden">
                 <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-800">
                   <p className="text-yellow-400 font-black text-xs uppercase tracking-widest">{searchResults.length} resultado{searchResults.length !== 1 ? 's' : ''}</p>
@@ -530,21 +532,21 @@ export function Dashboard() {
                 let newData: any = {}; try { newData = typeof venda.edit_data === 'string' ? JSON.parse(venda.edit_data) : (venda.edit_data || {}); } catch(e) {}
                 const isChecked = selectedEdits.includes(venda.id);
                 return (
-                  <div key={venda.id} className={`flex flex-col md:flex-row gap-3 p-4 transition-colors ${isChecked ? 'bg-blue-950/20' : 'hover:bg-zinc-900/40'}`}>
-                    <div className="flex items-start gap-3 flex-1 min-w-0">
+                  <div key={venda.id} className={`flex flex-col gap-2 p-3 sm:p-4 transition-colors ${isChecked ? 'bg-blue-950/20' : 'hover:bg-zinc-900/40'}`}>
+                    <div className="flex items-start gap-3">
                       <input type="checkbox" checked={isChecked} onChange={() => toggleEditSelection(venda.id)} className="accent-blue-600 mt-1 flex-shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <p className="text-white text-sm font-black">{venda.seller_name} <span className="text-zinc-500 font-normal">→</span> {venda.customer_name}</p>
-                        <p className="text-red-400 text-[10px] mt-0.5 italic">"{venda.edit_reason}"</p>
-                        <div className="flex gap-4 mt-1 text-[10px]">
+                        <p className="text-white text-sm font-black truncate">{venda.seller_name} <span className="text-zinc-500 font-normal">→</span> {venda.customer_name}</p>
+                        <p className="text-red-400 text-[10px] mt-0.5 italic truncate">"{venda.edit_reason}"</p>
+                        <div className="flex flex-wrap gap-3 mt-1 text-[10px]">
                           <span className="text-zinc-500">Atual: <span className="text-white">{formataBRL(Number(venda.sale_value))}</span></span>
                           {newData.sale_value && <span className="text-zinc-500">Novo: <span className="text-green-400 font-black">{formataBRL(Number(newData.sale_value))}</span></span>}
                         </div>
                       </div>
                     </div>
-                    <div className="flex gap-2 flex-shrink-0">
-                      <button onClick={() => handleRejeitarEdicao(venda.id)} className="border border-red-500/40 text-red-400 hover:bg-red-500 hover:text-white px-3 py-1.5 rounded text-[10px] font-black uppercase transition-all">Rejeitar</button>
-                      <button onClick={() => handleAprovarEdicao(venda.id)} className="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded text-[10px] font-black uppercase transition-all">Aprovar</button>
+                    <div className="flex gap-2 pl-6">
+                      <button onClick={() => handleRejeitarEdicao(venda.id)} className="flex-1 sm:flex-none border border-red-500/40 text-red-400 hover:bg-red-500 hover:text-white px-3 py-1.5 rounded text-[10px] font-black uppercase transition-all">Rejeitar</button>
+                      <button onClick={() => handleAprovarEdicao(venda.id)} className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded text-[10px] font-black uppercase transition-all">Aprovar</button>
                     </div>
                   </div>
                 );
@@ -607,41 +609,41 @@ export function Dashboard() {
 
         {/* ── KPI CARDS ── */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <button onMouseEnter={somHover} onClick={() => { somClick(); setModalPeriodo('hoje'); }} className="bg-zinc-900 border border-zinc-800 hover:border-yellow-400/40 p-4 rounded-xl text-left transition-all hover:scale-[1.02] active:scale-95">
-            <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest mb-2">⚡ Hoje</p>
-            <p className="text-2xl font-black text-white leading-tight">{formataBRL(vendasHoje)}</p>
-            <p className="text-zinc-600 text-[10px] mt-1">{qtdHoje} venda{qtdHoje !== 1 ? 's' : ''}</p>
+          <button onMouseEnter={somHover} onClick={() => { somClick(); setModalPeriodo('hoje'); }} className="bg-zinc-900 border border-zinc-800 hover:border-yellow-400/40 p-3 sm:p-4 rounded-xl text-left transition-all hover:scale-[1.02] active:scale-95">
+            <p className="text-zinc-500 text-[9px] sm:text-[10px] font-black uppercase tracking-widest mb-1.5 sm:mb-2">⚡ Hoje</p>
+            <p className="text-base sm:text-2xl font-black text-white leading-tight truncate">{formataBRL(vendasHoje)}</p>
+            <p className="text-zinc-600 text-[9px] sm:text-[10px] mt-1">{qtdHoje} venda{qtdHoje !== 1 ? 's' : ''}</p>
           </button>
 
-          <button onMouseEnter={somHover} onClick={() => { somClick(); setModalPeriodo('semana'); }} className="bg-zinc-900 border border-zinc-800 hover:border-blue-400/40 p-4 rounded-xl text-left transition-all hover:scale-[1.02] active:scale-95">
-            <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest mb-2">📅 Semana</p>
-            <p className="text-2xl font-black text-white leading-tight">{formataBRL(vendasSemana)}</p>
-            <p className="text-zinc-600 text-[10px] mt-1">{qtdSemana} venda{qtdSemana !== 1 ? 's' : ''}</p>
+          <button onMouseEnter={somHover} onClick={() => { somClick(); setModalPeriodo('semana'); }} className="bg-zinc-900 border border-zinc-800 hover:border-blue-400/40 p-3 sm:p-4 rounded-xl text-left transition-all hover:scale-[1.02] active:scale-95">
+            <p className="text-zinc-500 text-[9px] sm:text-[10px] font-black uppercase tracking-widest mb-1.5 sm:mb-2">📅 Semana</p>
+            <p className="text-base sm:text-2xl font-black text-white leading-tight truncate">{formataBRL(vendasSemana)}</p>
+            <p className="text-zinc-600 text-[9px] sm:text-[10px] mt-1">{qtdSemana} venda{qtdSemana !== 1 ? 's' : ''}</p>
           </button>
 
-          <button onMouseEnter={somHover} onClick={() => { somClick(); setModalPeriodo('mes'); }} className="bg-zinc-900 border border-zinc-800 hover:border-green-400/40 p-4 rounded-xl text-left transition-all hover:scale-[1.02] active:scale-95">
-            <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest mb-2">
+          <button onMouseEnter={somHover} onClick={() => { somClick(); setModalPeriodo('mes'); }} className="bg-zinc-900 border border-zinc-800 hover:border-green-400/40 p-3 sm:p-4 rounded-xl text-left transition-all hover:scale-[1.02] active:scale-95">
+            <p className="text-zinc-500 text-[9px] sm:text-[10px] font-black uppercase tracking-widest mb-1.5 sm:mb-2">
               🗓️ {MESES[mesSelecionado.mes]}
               <span className="ml-1 text-zinc-600">{mesSelecionado.ano}</span>
             </p>
-            <p className="text-2xl font-black text-white leading-tight">{formataBRL(vendasMes)}</p>
+            <p className="text-base sm:text-2xl font-black text-white leading-tight truncate">{formataBRL(vendasMes)}</p>
             <div className="w-full bg-zinc-800 rounded-full h-1 mt-2 overflow-hidden">
               <div className="bg-yellow-400 h-1 rounded-full transition-all duration-700" style={{ width: `${progressoMeta}%` }} />
             </div>
-            <p className="text-zinc-600 text-[10px] mt-1">{qtdMes} vendas · {progressoMeta.toFixed(0)}% meta</p>
+            <p className="text-zinc-600 text-[9px] sm:text-[10px] mt-1">{qtdMes} vendas · {progressoMeta.toFixed(0)}% meta</p>
           </button>
 
-          <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-xl">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest">💰 Comissão 1%</p>
+          <div className="bg-zinc-900 border border-zinc-800 p-3 sm:p-4 rounded-xl">
+            <div className="flex items-center justify-between mb-1.5 sm:mb-2">
+              <p className="text-zinc-500 text-[9px] sm:text-[10px] font-black uppercase tracking-widest">💰 Comissão 1%</p>
               <button onMouseEnter={somHover} onClick={() => { somClick(); setMostrarComissao(!mostrarComissao); }} className="text-zinc-600 hover:text-zinc-400 text-xs transition-colors">{mostrarComissao ? '🙈' : '👁️'}</button>
             </div>
-            <p className="text-2xl font-black text-green-400">{mostrarComissao ? formataBRL(vendasMesSemCheckout * 0.01) : '••••••'}</p>
+            <p className="text-base sm:text-2xl font-black text-green-400 truncate">{mostrarComissao ? formataBRL(vendasMesSemCheckout * 0.01) : '••••••'}</p>
             <div className="flex items-center justify-between mt-1">
-              <p className="text-zinc-600 text-[10px]">{MESES[mesSelecionado.mes]} {mesSelecionado.ano}</p>
+              <p className="text-zinc-600 text-[9px] sm:text-[10px]">{MESES[mesSelecionado.mes]} {mesSelecionado.ano}</p>
               <div className="flex items-center gap-1">
-                <button onMouseEnter={somHover} onClick={() => { somClick(); navMes(-1); }} className="w-5 h-5 flex items-center justify-center rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-[10px] font-black transition-all">←</button>
-                <button onMouseEnter={somHover} onClick={() => { somClick(); navMes(1); }} disabled={isCurrentMonth} className="w-5 h-5 flex items-center justify-center rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-[10px] font-black transition-all disabled:opacity-30">→</button>
+                <button onMouseEnter={somHover} onClick={() => { somClick(); navMes(-1); }} className="w-6 h-6 sm:w-5 sm:h-5 flex items-center justify-center rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-[10px] font-black transition-all">←</button>
+                <button onMouseEnter={somHover} onClick={() => { somClick(); navMes(1); }} disabled={isCurrentMonth} className="w-6 h-6 sm:w-5 sm:h-5 flex items-center justify-center rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-[10px] font-black transition-all disabled:opacity-30">→</button>
               </div>
             </div>
           </div>
@@ -654,7 +656,7 @@ export function Dashboard() {
               <p className="text-zinc-400 text-xs font-black uppercase tracking-widest">⚔️ Quadro de Batalha — {MESES[mesSelecionado.mes]} {mesSelecionado.ano}</p>
               <p className="text-zinc-600 text-[10px]">clique para detalhes</p>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-2">
+            <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-2">
               {vendedoresLista.map((v, idx) => {
                 const iniciais = v.nome.split(' ').map((p: string) => p[0]).slice(0, 2).join('').toUpperCase();
                 const POSICOES = ['🥇','🥈','🥉'];

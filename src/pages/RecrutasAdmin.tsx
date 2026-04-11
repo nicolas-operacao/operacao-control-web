@@ -12,6 +12,7 @@ type User = {
   role: string;
   equipe?: string;
   som_desativado?: boolean;
+  meta_mensal?: number;
 };
 
 type ResetRequest = {
@@ -44,6 +45,7 @@ export function RecrutasAdmin() {
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [editRole, setEditRole] = useState('');
   const [editEquipe, setEditEquipe] = useState('');
+  const [editMeta, setEditMeta] = useState('');
   const [salvando, setSalvando] = useState(false);
   const [busca, setBusca] = useState('');
   const [aba, setAba] = useState<'pendentes' | 'tropa' | 'senhas'>('pendentes');
@@ -117,12 +119,20 @@ export function RecrutasAdmin() {
     setEditandoId(u.id);
     setEditRole(u.role);
     setEditEquipe(u.equipe || 'A');
+    setEditMeta(u.meta_mensal ? String(u.meta_mensal) : '');
   }
 
   async function salvarEdicao(id: string) {
     setSalvando(true);
     try {
-      await api.patch(`/admin/${id}/role`, { role: editRole, equipe: editEquipe });
+      const promises: Promise<any>[] = [
+        api.patch(`/admin/${id}/role`, { role: editRole, equipe: editEquipe }),
+      ];
+      const metaNum = parseFloat(editMeta.replace(',', '.'));
+      if (!isNaN(metaNum) && metaNum > 0) {
+        promises.push(api.patch(`/users/${id}/meta`, { meta: metaNum }));
+      }
+      await Promise.all(promises);
       toast.success('Usuário atualizado!');
       setEditandoId(null);
       fetchAll();
@@ -411,6 +421,19 @@ export function RecrutasAdmin() {
                         </div>
                         )}
                       </div>
+                      {editRole !== 'suporte' && (
+                      <div>
+                        <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">Meta Mensal (R$)</label>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={editMeta}
+                          onChange={e => setEditMeta(e.target.value)}
+                          placeholder="Ex: 50000"
+                          className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-500/60 placeholder:text-zinc-600"
+                        />
+                      </div>
+                      )}
                       <div className="flex gap-2 pt-1">
                         <button
                           onMouseEnter={somHover}

@@ -63,7 +63,7 @@ export function Suporte() {
   useEffect(() => {
     fetchVendas();
     // Polling a cada 30s para detectar novas vendas pendentes
-    const interval = setInterval(fetchVendas, 30000);
+    const interval = setInterval(fetchVendas, 10000);
     return () => clearInterval(interval);
   }, []);
 

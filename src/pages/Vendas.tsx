@@ -84,9 +84,10 @@ export function Vendas() {
   const [reembolsoNotif,    setReembolsoNotif]    = useState<VendaAprovada | null>(null);
 
   // Refs para comparação entre polls
-  const prevPendingIdsRef  = useRef<Set<string>>(new Set());
-  const prevAllIdsRef      = useRef<Set<string> | null>(null);
-  const prevApprovedIdsRef = useRef<Set<string>>(new Set());
+  const prevPendingIdsRef   = useRef<Set<string>>(new Set());
+  const prevAllIdsRef       = useRef<Set<string> | null>(null);
+  const prevApprovedIdsRef  = useRef<Set<string>>(new Set());
+  const prevExistingIdsRef  = useRef<Set<string> | null>(null); // todos os IDs de venda do sistema
 
   // Guard para só definir o produto padrão na primeira carga
   const initialProductSetRef = useRef(false);
@@ -151,7 +152,24 @@ export function Vendas() {
           }
         }
 
-        // Caso 3: venda aprovada que foi cancelada/reembolsada
+        // Caso 3: CHECKOUT atribuído ao vendedor — venda existia antes sem seller_id meu, agora tem
+        if (prevExistingIdsRef.current !== null) {
+          const atribuidas = novasVendas.filter(v =>
+            String(v.seller_id) === userId &&
+            checkAprovada(v.status) &&
+            !prevAllIdsRef.current?.has(v.id) &&       // não era minha antes
+            prevExistingIdsRef.current!.has(v.id)      // mas já existia no sistema
+          );
+          if (atribuidas.length > 0) {
+            celebracaoRef.current?.({
+              product_name:  atribuidas[0].product_name,
+              sale_value:    atribuidas[0].sale_value,
+              customer_name: atribuidas[0].customer_name,
+            });
+          }
+        }
+
+        // Caso 4: venda aprovada que foi cancelada/reembolsada
         if (prevApprovedIdsRef.current.size > 0) {
           const reembolsadas = novasVendas.filter(v =>
             String(v.seller_id) === userId &&
@@ -187,6 +205,9 @@ export function Vendas() {
           .map(v => v.id)
       );
 
+      // Atualiza todos os IDs do sistema para detectar atribuição de checkout
+      prevExistingIdsRef.current = new Set(novasVendas.map(v => v.id));
+
       setProdutos(prodRes.data);
       setVendas(novasVendas);
 
@@ -206,7 +227,7 @@ export function Vendas() {
     // Pede permissão de notificação ao carregar a página
     pedirPermissaoNotificacao();
     fetchData(false); // carga inicial sem celebração
-    const intervalo = setInterval(() => fetchData(true), 15000);
+    const intervalo = setInterval(() => fetchData(true), 6000);
     return () => clearInterval(intervalo);
   }, [fetchData]);
 
@@ -339,6 +360,13 @@ export function Vendas() {
       return true; 
     });
   }, [vendas, filtro, user.id]);
+
+  const ITENS_POR_PAGINA = 10;
+  const [paginaAtual, setPaginaAtual] = useState(1);
+  // Reset page when filter changes
+  useEffect(() => { setPaginaAtual(1); }, [filtro]);
+  const totalPaginas = Math.max(1, Math.ceil(vendasFiltradas.length / ITENS_POR_PAGINA));
+  const vendasPaginadas = vendasFiltradas.slice((paginaAtual - 1) * ITENS_POR_PAGINA, paginaAtual * ITENS_POR_PAGINA);
 
   const { qtdVendasMes, percentualComissao, valorComissao } = useMemo(() => {
     const aprovadasMes = vendas.filter(v => {
@@ -496,7 +524,7 @@ export function Vendas() {
 
           {/* Cards (mobile) */}
           <div className="md:hidden space-y-3">
-            {vendasFiltradas.length > 0 ? vendasFiltradas.map(venda => {
+            {vendasFiltradas.length > 0 ? vendasPaginadas.map(venda => {
               const isCancelada = checkCancelada(venda.status);
               const isAprovada = checkAprovada(venda.status);
               return (
@@ -583,7 +611,7 @@ export function Vendas() {
                 </tr>
               </thead>
               <tbody className="text-sm">
-                {vendasFiltradas.length > 0 ? vendasFiltradas.map(venda => {
+                {vendasFiltradas.length > 0 ? vendasPaginadas.map(venda => {
                   const isCancelada = checkCancelada(venda.status);
                   const isAprovada = checkAprovada(venda.status);
                   return (
@@ -632,6 +660,25 @@ export function Vendas() {
               </tbody>
             </table>
           </div>
+
+          {/* PAGINAÇÃO */}
+          {totalPaginas > 1 && (
+            <div className="flex items-center justify-center gap-2 mt-4">
+              <button
+                onClick={() => setPaginaAtual(p => Math.max(1, p - 1))}
+                disabled={paginaAtual === 1}
+                className="px-3 py-1.5 rounded-lg bg-zinc-800 text-zinc-400 text-xs font-black uppercase disabled:opacity-30 hover:bg-zinc-700 transition-all"
+              >← Ant</button>
+              <span className="text-zinc-500 text-xs font-black uppercase tracking-widest">
+                {paginaAtual} / {totalPaginas}
+              </span>
+              <button
+                onClick={() => setPaginaAtual(p => Math.min(totalPaginas, p + 1))}
+                disabled={paginaAtual === totalPaginas}
+                className="px-3 py-1.5 rounded-lg bg-zinc-800 text-zinc-400 text-xs font-black uppercase disabled:opacity-30 hover:bg-zinc-700 transition-all"
+              >Próx →</button>
+            </div>
+          )}
         </div>
       </div>
 

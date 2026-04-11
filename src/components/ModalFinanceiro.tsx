@@ -61,6 +61,31 @@ export function ModalFinanceiro({ isOpen, onClose, vendas }: Props) {
     return { totalGeral, totalComissoes, listaSellers };
   }, [vendas, mesSelecionado]);
 
+  function exportarCSV() {
+    const linhas = [
+      ['Soldado', 'Vendas', 'Faturamento (R$)', 'Taxa (%)', 'Comissão (R$)'],
+      ...stats.listaSellers.map(s => [
+        s.nome,
+        String(s.qtd),
+        s.total.toFixed(2).replace('.', ','),
+        s.isCheckout ? '--' : String(s.taxa),
+        s.isCheckout ? 'DIRETO AO CAIXA' : s.comissao.toFixed(2).replace('.', ','),
+      ]),
+      [],
+      ['', '', 'Faturamento Bruto', '', stats.totalGeral.toFixed(2).replace('.', ',')],
+      ['', '', 'Total Comissões', '', stats.totalComissoes.toFixed(2).replace('.', ',')],
+      ['', '', 'Sua Comissão (1%)', '', (stats.totalGeral * 0.01).toFixed(2).replace('.', ',')],
+    ];
+    const csv = linhas.map(l => l.join(';')).join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `financeiro-${mesSelecionado}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   if (!isOpen) return null;
 
   return (
@@ -189,8 +214,11 @@ export function ModalFinanceiro({ isOpen, onClose, vendas }: Props) {
         </div>
 
         {/* RODAPÉ */}
-        <div className="px-4 py-3 sm:p-6 border-t border-zinc-800 bg-zinc-950 flex-shrink-0">
-          <button onMouseEnter={somHover} onClick={() => { somClick(); onClose(); }} className="w-full sm:w-auto sm:ml-auto sm:flex bg-zinc-800 hover:bg-zinc-700 text-white font-bold py-3 px-8 rounded-xl uppercase tracking-widest transition-colors text-xs">
+        <div className="px-4 py-3 sm:p-6 border-t border-zinc-800 bg-zinc-950 flex-shrink-0 flex gap-2 justify-end">
+          <button onMouseEnter={somHover} onClick={() => { somClick(); exportarCSV(); }} className="bg-green-700 hover:bg-green-600 text-white font-bold py-3 px-5 rounded-xl uppercase tracking-widest transition-colors text-xs flex items-center gap-2">
+            📥 Exportar CSV
+          </button>
+          <button onMouseEnter={somHover} onClick={() => { somClick(); onClose(); }} className="bg-zinc-800 hover:bg-zinc-700 text-white font-bold py-3 px-8 rounded-xl uppercase tracking-widest transition-colors text-xs">
             Fechar
           </button>
         </div>

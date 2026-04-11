@@ -5,9 +5,23 @@ import { toast } from '../services/toast';
 
 interface Props { isOpen: boolean; onClose: () => void; venda: any; produtos: any[]; onSuccess: () => void; }
 
+function parseValorBR(v: string): number {
+  const s = String(v).trim();
+  if (s.includes(',')) return parseFloat(s.replace(/\./g, '').replace(',', '.')) || 0;
+  return parseFloat(s.replace(/,/g, '')) || 0;
+}
+
+interface HistoryEntry {
+  id: number;
+  editor_name: string;
+  changes: Record<string, any>;
+  changed_at: string;
+}
+
 export function ModalEdicaoAdmin({ isOpen, onClose, venda, produtos, onSuccess }: Props) {
   const [isLoading, setIsLoading] = useState(false);
   const [vendedores, setVendedores] = useState<{ id: string; name: string }[]>([]);
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [formData, setFormData] = useState({
     product_name: '', sale_value: '', customer_name: '', customer_email: '',
     customer_phone: '', payment_method: 'PIX', sale_date: '', seller_id: ''
@@ -32,6 +46,10 @@ export function ModalEdicaoAdmin({ isOpen, onClose, venda, produtos, onSuccess }
         sale_date: venda.created_at ? new Date(venda.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
         seller_id: venda.seller_id ? String(venda.seller_id) : '',
       });
+      setHistory([]);
+      api.get(`/sales/${venda.id}/history`).then(r => {
+        setHistory(Array.isArray(r.data) ? r.data : []);
+      }).catch(() => {});
     }
   }, [venda?.id]);
 
@@ -43,7 +61,7 @@ export function ModalEdicaoAdmin({ isOpen, onClose, venda, produtos, onSuccess }
     try {
       await api.put(`/sales/${venda.id}`, {
         ...formData,
-        sale_value: Number(formData.sale_value),
+        sale_value: parseValorBR(formData.sale_value),
         seller_id: formData.seller_id || null,
       });
       somSucesso();
@@ -96,7 +114,7 @@ export function ModalEdicaoAdmin({ isOpen, onClose, venda, produtos, onSuccess }
             </div>
             <div>
               <label className="block text-zinc-500 text-[10px] font-black uppercase mb-1">Valor R$</label>
-              <input type="number" step="0.01" value={formData.sale_value} onChange={e => setFormData({ ...formData, sale_value: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2.5 text-sm text-yellow-400 font-bold" />
+              <input type="text" inputMode="decimal" placeholder="Ex: 48.872,15" value={formData.sale_value} onChange={e => setFormData({ ...formData, sale_value: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2.5 text-sm text-yellow-400 font-bold placeholder:text-zinc-700" />
             </div>
           </div>
 
@@ -138,6 +156,20 @@ export function ModalEdicaoAdmin({ isOpen, onClose, venda, produtos, onSuccess }
               <input type="email" value={formData.customer_email} onChange={e => setFormData({ ...formData, customer_email: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2.5 text-sm text-white" />
             </div>
           </div>
+
+          {history.length > 0 && (
+            <div className="border border-zinc-800 rounded-xl p-3 bg-zinc-950/50">
+              <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest mb-2">🕒 Histórico de Edições</p>
+              <div className="space-y-1.5 max-h-32 overflow-y-auto">
+                {history.map(h => (
+                  <div key={h.id} className="flex items-start justify-between gap-2 text-[10px]">
+                    <span className="text-zinc-400 font-bold truncate">{h.editor_name}</span>
+                    <span className="text-zinc-600 flex-shrink-0">{new Date(h.changed_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="flex gap-3 pt-4">
             <button type="button" onMouseEnter={somHover} onClick={() => { somClick(); onClose(); }} className="w-1/3 border border-zinc-700 hover:bg-zinc-800 text-white font-bold py-4 rounded-xl uppercase tracking-widest transition-colors text-xs">Cancelar</button>
