@@ -201,47 +201,47 @@ export function ModalEstatisticasPeriodo({ titulo, periodo, vendas, onClose, onE
       <div className="bg-zinc-950 border border-zinc-800 rounded-2xl w-full max-w-3xl max-h-[92vh] flex flex-col shadow-[0_0_60px_rgba(250,204,21,0.06)]">
 
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800 flex-shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-yellow-400/10 border border-yellow-400/20 flex items-center justify-center text-lg flex-shrink-0">
-              {periodo === 'hoje' ? '⚡' : periodo === 'semana' ? '📅' : '🗓️'}
+        <div className="px-4 sm:px-5 py-3 sm:py-4 border-b border-zinc-800 flex-shrink-0">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-yellow-400/10 border border-yellow-400/20 flex items-center justify-center text-base sm:text-lg flex-shrink-0">
+                {periodo === 'hoje' ? '⚡' : periodo === 'semana' ? '📅' : '🗓️'}
+              </div>
+              <div className="min-w-0">
+                <h2 className="text-white font-black text-sm sm:text-base uppercase tracking-wider leading-tight truncate">{titulo}</h2>
+                <p className="text-zinc-600 text-[9px] sm:text-[10px] font-bold uppercase">
+                  {kpis.count} venda{kpis.count !== 1 ? 's' : ''} aprovada{kpis.count !== 1 ? 's' : ''}
+                </p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-white font-black text-base uppercase tracking-wider leading-tight">{titulo}</h2>
-              <p className="text-zinc-600 text-[10px] font-bold uppercase">
-                {kpis.count} venda{kpis.count !== 1 ? 's' : ''} aprovada{kpis.count !== 1 ? 's' : ''}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {/* Navegação de semanas */}
-            {periodo === 'semana' && semanaRange && (() => {
-              const fmtDia = (d: Date) => `${String(d.getUTCDate()).padStart(2,'0')}/${String(d.getUTCMonth()+1).padStart(2,'0')}`;
-              return (
-                <div className="flex items-center gap-1 bg-zinc-900 border border-zinc-800 rounded-xl px-2 py-1.5">
-                  <button
-                    onMouseEnter={somHover}
-                    onClick={() => { somClick(); setSemanaOffset(o => o - 1); }}
-                    className="w-7 h-7 flex items-center justify-center text-zinc-400 hover:text-yellow-400 hover:bg-zinc-800 rounded-lg transition-all font-black text-sm"
-                  >←</button>
-                  <span className="text-zinc-300 text-[10px] font-black uppercase tracking-wider px-1 whitespace-nowrap">
-                    {fmtDia(semanaRange.inicio)} – {fmtDia(semanaRange.fim)}
-                  </span>
-                  <button
-                    onMouseEnter={somHover}
-                    onClick={() => { somClick(); setSemanaOffset(o => Math.min(o + 1, 0)); }}
-                    disabled={semanaOffset >= 0}
-                    className="w-7 h-7 flex items-center justify-center text-zinc-400 hover:text-yellow-400 hover:bg-zinc-800 rounded-lg transition-all font-black text-sm disabled:opacity-30 disabled:cursor-not-allowed"
-                  >→</button>
-                </div>
-              );
-            })()}
             <button
               onMouseEnter={somHover}
               onClick={() => { somClick(); onClose(); }}
-              className="text-zinc-600 hover:text-white text-xl font-black transition-colors w-8 h-8 flex items-center justify-center"
+              className="text-zinc-600 hover:text-white text-xl font-black transition-colors w-8 h-8 flex items-center justify-center flex-shrink-0"
             >✕</button>
           </div>
+          {/* Navegação de semanas — abaixo do título no mobile */}
+          {periodo === 'semana' && semanaRange && (() => {
+            const fmtDia = (d: Date) => `${String(d.getUTCDate()).padStart(2,'0')}/${String(d.getUTCMonth()+1).padStart(2,'0')}`;
+            return (
+              <div className="flex items-center gap-1 bg-zinc-900 border border-zinc-800 rounded-xl px-2 py-1.5 mt-2.5 w-fit">
+                <button
+                  onMouseEnter={somHover}
+                  onClick={() => { somClick(); setSemanaOffset(o => o - 1); }}
+                  className="w-7 h-7 flex items-center justify-center text-zinc-400 hover:text-yellow-400 hover:bg-zinc-800 rounded-lg transition-all font-black text-sm"
+                >←</button>
+                <span className="text-zinc-300 text-[10px] font-black uppercase tracking-wider px-1 whitespace-nowrap">
+                  {fmtDia(semanaRange.inicio)} – {fmtDia(semanaRange.fim)}
+                </span>
+                <button
+                  onMouseEnter={somHover}
+                  onClick={() => { somClick(); setSemanaOffset(o => Math.min(o + 1, 0)); }}
+                  disabled={semanaOffset >= 0}
+                  className="w-7 h-7 flex items-center justify-center text-zinc-400 hover:text-yellow-400 hover:bg-zinc-800 rounded-lg transition-all font-black text-sm disabled:opacity-30 disabled:cursor-not-allowed"
+                >→</button>
+              </div>
+            );
+          })()}
         </div>
 
         {/* Body scrollável */}
@@ -254,9 +254,9 @@ export function ModalEstatisticasPeriodo({ titulo, periodo, vendas, onClose, onE
               { label: 'Qtd. Vendas',    valor: String(kpis.count), destaque: false },
               { label: 'Ticket Médio',   valor: fmt(kpis.ticket), destaque: false },
             ].map(k => (
-              <div key={k.label} className={`rounded-xl border p-3 md:p-4 ${k.destaque ? 'bg-yellow-950/20 border-yellow-400/30' : 'bg-zinc-900 border-zinc-800'}`}>
-                <p className="text-zinc-500 text-[9px] font-black uppercase tracking-widest mb-1">{k.label}</p>
-                <p className={`font-black text-base md:text-xl leading-tight ${k.destaque ? 'text-yellow-400' : 'text-white'}`}>{k.valor}</p>
+              <div key={k.label} className={`rounded-xl border p-2.5 sm:p-3 md:p-4 ${k.destaque ? 'bg-yellow-950/20 border-yellow-400/30' : 'bg-zinc-900 border-zinc-800'}`}>
+                <p className="text-zinc-500 text-[8px] sm:text-[9px] font-black uppercase tracking-widest mb-1 leading-tight">{k.label}</p>
+                <p className={`font-black text-xs sm:text-base md:text-xl leading-tight truncate ${k.destaque ? 'text-yellow-400' : 'text-white'}`}>{k.valor}</p>
               </div>
             ))}
           </div>

@@ -325,15 +325,15 @@ export function GuerraEquipes({ refreshTrigger, isAdmin = false }: GuerraEquipes
         <div className="relative z-10 p-4 md:p-6 flex flex-col gap-5">
 
           {/* ── HEADER ───────────────────────────────────────────────────────── */}
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <h2 className="text-xl md:text-3xl font-black text-white uppercase tracking-widest flex items-center gap-2 drop-shadow-[0_0_15px_rgba(255,255,255,0.1)]">
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <h2 className="text-base sm:text-xl md:text-3xl font-black text-white uppercase tracking-widest flex items-center gap-1.5 sm:gap-2 drop-shadow-[0_0_15px_rgba(255,255,255,0.1)]">
                 ⚔️ <span className="text-blue-400">GUERRA</span>
-                <span className="text-zinc-600 text-lg">×</span>
-                <span className="text-red-400">DAS EQUIPES</span>
+                <span className="text-zinc-600 text-sm sm:text-lg">×</span>
+                <span className="text-red-400">EQUIPES</span>
               </h2>
-              <p className="text-zinc-600 text-[10px] font-black uppercase tracking-widest mt-0.5">
-                {desafioAtivo ? desafioAtivo.name : 'Operação Geral'} · Clique em um soldado para ver o perfil
+              <p className="text-zinc-600 text-[9px] sm:text-[10px] font-black uppercase tracking-widest mt-0.5 truncate">
+                {desafioAtivo ? desafioAtivo.name : 'Operação Geral'}
               </p>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
@@ -488,20 +488,20 @@ export function GuerraEquipes({ refreshTrigger, isAdmin = false }: GuerraEquipes
           )}
 
           {/* ── PROGRESSO DA OPERAÇÃO ────────────────────────────────────────── */}
-          <div className="bg-zinc-950/60 rounded-2xl border border-yellow-900/20 p-4">
-            <div className="flex justify-between items-end mb-3">
-              <div>
-                <p className="text-[10px] text-zinc-500 font-black uppercase tracking-widest">🎯 Progresso da Operação</p>
-                <div className="flex items-baseline gap-2 mt-0.5">
-                  <span className="text-white font-black text-lg md:text-xl">{fmt(totalGeral)}</span>
-                  <span className="text-zinc-600 text-xs font-bold">/ {fmt(META_OPERACAO)}</span>
+          <div className="bg-zinc-950/60 rounded-2xl border border-yellow-900/20 p-3 sm:p-4">
+            <div className="flex justify-between items-center mb-3 gap-2">
+              <div className="min-w-0">
+                <p className="text-[9px] sm:text-[10px] text-zinc-500 font-black uppercase tracking-widest">🎯 Progresso da Operação</p>
+                <div className="flex items-baseline gap-1.5 mt-0.5 flex-wrap">
+                  <span className="text-white font-black text-base sm:text-lg md:text-xl truncate">{fmt(totalGeral)}</span>
+                  <span className="text-zinc-600 text-[10px] sm:text-xs font-bold truncate">/ {fmt(META_OPERACAO)}</span>
                 </div>
               </div>
               <span
-                className="text-3xl md:text-4xl font-black drop-shadow-[0_0_15px_rgba(250,204,21,0.6)]"
+                className="text-2xl sm:text-3xl md:text-4xl font-black flex-shrink-0 drop-shadow-[0_0_15px_rgba(250,204,21,0.6)]"
                 style={{ color: progressoXP >= 100 ? '#22c55e' : '#facc15' }}
               >
-                {progressoXP.toFixed(1)}<span className="text-xl">%</span>
+                {progressoXP.toFixed(1)}<span className="text-base sm:text-xl">%</span>
               </span>
             </div>
 

@@ -445,19 +445,21 @@ export function Vendas() {
 
         {/* 🔥 ALERTA DE BAIXAS */}
         {minhasVendasCanceladas.length > 0 && (
-          <div className="bg-red-950/40 border border-red-500/50 rounded-xl p-4 md:p-6 mb-8 shadow-[0_0_20px_rgba(239,68,68,0.2)] animate-in fade-in flex flex-col md:flex-row justify-between items-center gap-4">
-            <div className="flex items-start gap-4">
-              <span className="text-4xl">🚨</span>
-              <div>
-                <h3 className="text-red-400 font-black uppercase tracking-widest text-lg">Aviso de Baixa em Combate</h3>
-                <p className="text-zinc-300 text-sm mt-1">
-                  Você possui <span className="font-black text-white bg-red-600/30 px-2 py-0.5 rounded">{minhasVendasCanceladas.length} reembolsos</span> registrados. Estes valores foram removidos do seu placar.
-                </p>
+          <div className="bg-red-950/40 border border-red-500/50 rounded-xl p-3 sm:p-4 md:p-6 mb-6 shadow-[0_0_20px_rgba(239,68,68,0.2)] animate-in fade-in">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <span className="text-2xl sm:text-4xl flex-shrink-0">🚨</span>
+                <div className="min-w-0">
+                  <h3 className="text-red-400 font-black uppercase tracking-widest text-sm sm:text-base leading-tight">Baixas em Combate</h3>
+                  <p className="text-zinc-400 text-xs mt-0.5">
+                    <span className="font-black text-white">{minhasVendasCanceladas.length} reembolso{minhasVendasCanceladas.length !== 1 ? 's' : ''}</span> removidos do placar
+                  </p>
+                </div>
               </div>
-            </div>
-            <div className="text-center md:text-right bg-red-950/80 p-3 rounded-lg border border-red-500/30 w-full md:w-auto">
-              <p className="text-red-500/70 text-[10px] font-black uppercase mb-1 tracking-widest">Valor Estornado</p>
-              <p className="text-red-400 font-black text-xl">{formataBRL(totalArrecadacaoPerdida)}</p>
+              <div className="text-right flex-shrink-0 bg-red-950/80 px-3 py-2 rounded-lg border border-red-500/30">
+                <p className="text-red-500/70 text-[9px] font-black uppercase tracking-widest">Estornado</p>
+                <p className="text-red-400 font-black text-base sm:text-xl">{formataBRL(totalArrecadacaoPerdida)}</p>
+              </div>
             </div>
           </div>
         )}
@@ -466,13 +468,13 @@ export function Vendas() {
         <PainelVendedor userId={String(user.id)} userName={user.name} equipe={user.equipe || 'A'} />
 
         {/* Comissão estimada — mantida como card discreto */}
-        <div className="bg-zinc-900 border border-green-500/20 rounded-xl px-5 py-4 mb-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="bg-zinc-900 border border-green-500/20 rounded-xl px-4 sm:px-5 py-3 sm:py-4 mb-6 flex items-center justify-between gap-3">
           <div>
-            <p className="text-green-400 text-[10px] font-black uppercase tracking-widest">💰 Comissão Estimada do Mês</p>
-            <p className="text-zinc-500 text-xs mt-0.5">{qtdVendasMes} vendas · taxa {percentualComissao}%</p>
+            <p className="text-green-400 text-[9px] sm:text-[10px] font-black uppercase tracking-widest">💰 Comissão Estimada</p>
+            <p className="text-zinc-500 text-[10px] sm:text-xs mt-0.5">{qtdVendasMes} vendas · {percentualComissao}%</p>
           </div>
-          <div className="flex items-center gap-3">
-            <p className="text-2xl font-black text-green-400">{mostrarComissao ? formataBRL(valorComissao) : 'R$ •••••••'}</p>
+          <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+            <p className="text-lg sm:text-2xl font-black text-green-400 truncate max-w-[160px]">{mostrarComissao ? formataBRL(valorComissao) : 'R$ •••••'}</p>
             <button onMouseEnter={somHover} onClick={() => { somClick(); setMostrarComissao(!mostrarComissao); }} className="text-green-500/50 hover:text-green-400 transition-colors">
               {mostrarComissao
                 ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>

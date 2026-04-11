@@ -460,10 +460,10 @@ export function PainelVendedor({ userId, userName, equipe }: Props) {
         {/* Fundo sutil */}
         <div className="absolute inset-0 opacity-5" style={{ background: `radial-gradient(ellipse at top left, ${nivelInfo.pat.cor}, transparent 60%)` }} />
 
-        <div className="relative z-10 flex flex-col gap-4">
+        <div className="relative z-10 flex flex-col gap-3">
 
-          {/* Top row: avatar + patente + ranking */}
-          <div className="flex items-start gap-4 flex-1 min-w-0">
+          {/* Top row: avatar + patente + ranking (all inline) */}
+          <div className="flex items-start gap-3 sm:gap-4 min-w-0">
             <div className="relative flex-shrink-0">
               {stats?.foto_url ? (
                 <img
@@ -491,24 +491,24 @@ export function PainelVendedor({ userId, userName, equipe }: Props) {
               </button>
             </div>
 
-            <div className="min-w-0">
-              <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest">Sua Patente</p>
-              <h2 className="text-2xl sm:text-3xl font-black leading-tight" style={{ color: nivelInfo.pat.cor }}>
+            {/* Patente + XP */}
+            <div className="min-w-0 flex-1">
+              <p className="text-zinc-500 text-[9px] sm:text-[10px] font-black uppercase tracking-widest">Sua Patente</p>
+              <h2 className="text-lg sm:text-2xl md:text-3xl font-black leading-tight" style={{ color: nivelInfo.pat.cor }}>
                 {nivelInfo.pat.nome}
               </h2>
-              <p className="text-zinc-400 text-xs font-bold mt-0.5">
-                Nível {nivelInfo.nivel} · {stats?.mes?.count ?? 0} vendas este mês
+              <p className="text-zinc-400 text-[10px] sm:text-xs font-bold mt-0.5">
+                Nv.{nivelInfo.nivel} · {stats?.mes?.count ?? 0} vendas
               </p>
-
               {/* Barra de XP */}
-              <div className="mt-2 w-full max-w-[16rem]">
-                <div className="flex justify-between text-[10px] font-black uppercase text-zinc-600 mb-1">
-                  <span>{nivelInfo.xp}/{nivelInfo.xpMax} para nível {nivelInfo.nivel + 1}</span>
+              <div className="mt-2 w-full">
+                <div className="flex justify-between text-[9px] sm:text-[10px] font-black uppercase text-zinc-600 mb-1">
+                  <span>{nivelInfo.xp}/{nivelInfo.xpMax} XP</span>
                   {nivelInfo.prox && <span style={{ color: nivelInfo.prox.cor }}>{nivelInfo.prox.icone} {nivelInfo.prox.nome}</span>}
                 </div>
-                <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
+                <div className="h-1.5 sm:h-2 bg-zinc-800 rounded-full overflow-hidden">
                   <div
-                    className="h-2 rounded-full transition-all duration-1000"
+                    className="h-full rounded-full transition-all duration-1000"
                     style={{
                       width: `${(nivelInfo.xp / nivelInfo.xpMax) * 100}%`,
                       background: `linear-gradient(90deg, ${nivelInfo.pat.cor}80, ${nivelInfo.pat.cor})`,
@@ -516,47 +516,38 @@ export function PainelVendedor({ userId, userName, equipe }: Props) {
                     }}
                   />
                 </div>
-                <p className="text-[10px] text-zinc-700 mt-1">
-                  {nivelInfo.xpMax - nivelInfo.xp} venda{nivelInfo.xpMax - nivelInfo.xp !== 1 ? 's' : ''} para o próximo nível
-                </p>
               </div>
             </div>
-          </div>
 
-          {/* Ranking (alinhado à direita no top row) */}
-          <div className="ml-auto flex-shrink-0 flex flex-col items-end gap-1.5">
-            <div className={`px-2.5 py-1 rounded-lg border ${corBorderClass} ${corBgClass}`}>
-              <p className={`text-[9px] font-black uppercase tracking-wider ${corEquipeClass}`}>{nomeEquipe}</p>
-            </div>
-            {rankPos > 0 && (
-              <div className="flex items-center gap-1.5">
-                <span className="text-xl">{rankPos === 1 ? '👑' : rankPos <= 3 ? '🏆' : '🎖️'}</span>
-                <div className="text-right">
-                  <p className="text-zinc-500 text-[9px] font-black uppercase">Ranking</p>
-                  <p className="text-white font-black text-base leading-tight">{rankPos}º</p>
+            {/* Ranking + Equipe + Som — coluna direita, sempre inline */}
+            <div className="flex-shrink-0 flex flex-col items-end gap-1.5">
+              <div className={`px-2 py-0.5 rounded-lg border ${corBorderClass} ${corBgClass}`}>
+                <p className={`text-[8px] sm:text-[9px] font-black uppercase tracking-wider ${corEquipeClass}`}>{nomeEquipe}</p>
+              </div>
+              {rankPos > 0 && (
+                <div className="flex items-center gap-1">
+                  <span className="text-base sm:text-xl">{rankPos === 1 ? '👑' : rankPos <= 3 ? '🏆' : '🎖️'}</span>
+                  <div className="text-right">
+                    <p className="text-zinc-500 text-[8px] sm:text-[9px] font-black uppercase">Ranking</p>
+                    <p className="text-white font-black text-sm sm:text-base leading-tight">{rankPos}º</p>
+                  </div>
                 </div>
-              </div>
-            )}
-            {/* Toggle de som */}
-            <button
-              onClick={() => {
-                const novo = !somAtivo;
-                setSomAtivo(novo);
-                setSomAtivoState(novo);
-              }}
-              className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-zinc-900/60 border border-zinc-800 hover:border-zinc-600 transition-all"
-              title={somAtivo ? 'Desativar sons' : 'Ativar sons'}
-            >
-              <span className="text-base">{somAtivo ? '🔊' : '🔇'}</span>
-              <span className="text-[9px] font-black uppercase tracking-wide text-zinc-500">
-                {somAtivo ? 'Som on' : 'Som off'}
-              </span>
-            </button>
+              )}
+              <button
+                onClick={() => { const novo = !somAtivo; setSomAtivo(novo); setSomAtivoState(novo); }}
+                className="flex items-center gap-1 px-2 py-1 rounded-lg bg-zinc-900/60 border border-zinc-800 hover:border-zinc-600 transition-all"
+                title={somAtivo ? 'Desativar sons' : 'Ativar sons'}
+              >
+                <span className="text-sm sm:text-base">{somAtivo ? '🔊' : '🔇'}</span>
+                <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-wide text-zinc-500 hidden sm:inline">
+                  {somAtivo ? 'On' : 'Off'}
+                </span>
+              </button>
+            </div>
           </div>
-        </div>
 
-        {/* Frase motivacional — abaixo, largura total */}
-        <p className={`text-xs font-bold italic ${frase.cor} flex items-center gap-1.5`}>
+        {/* Frase motivacional */}
+        <p className={`text-[10px] sm:text-xs font-bold italic ${frase.cor} flex items-center gap-1.5 leading-snug`}>
           <span>{frase.emoji}</span> {frase.texto}
         </p>
       </div>
@@ -568,17 +559,17 @@ export function PainelVendedor({ userId, userName, equipe }: Props) {
           { label: 'Semana', valor: stats?.semana?.valor ?? 0, count: stats?.semana?.count ?? 0, cor: 'blue', emoji: '📅' },
           { label: 'Mês', valor: stats?.mes?.valor ?? 0, count: stats?.mes?.count ?? 0, cor: 'green', emoji: '🗓️' },
         ].map(({ label, valor, count, cor, emoji }) => (
-          <div key={label} className={`rounded-xl border p-3 md:p-4 relative overflow-hidden ${
+          <div key={label} className={`rounded-xl border p-2.5 sm:p-3 md:p-4 relative overflow-hidden ${
             cor === 'yellow' ? 'bg-yellow-950/20 border-yellow-800/40' :
             cor === 'blue'   ? 'bg-blue-950/20 border-blue-800/40' :
                                'bg-green-950/20 border-green-800/40'
           }`}>
             <div className="absolute top-2 right-2 text-2xl opacity-10">{emoji}</div>
-            <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest mb-1">{label}</p>
-            <p className={`text-base md:text-xl font-black leading-tight ${
+            <p className="text-zinc-500 text-[9px] sm:text-[10px] font-black uppercase tracking-widest mb-1">{label}</p>
+            <p className={`text-xs sm:text-sm md:text-xl font-black leading-tight truncate ${
               cor === 'yellow' ? 'text-yellow-400' : cor === 'blue' ? 'text-blue-400' : 'text-green-400'
             }`}>{fmt(valor)}</p>
-            <p className="text-zinc-600 text-[10px] font-bold mt-1">{count} venda{count !== 1 ? 's' : ''}</p>
+            <p className="text-zinc-600 text-[9px] sm:text-[10px] font-bold mt-1">{count}v</p>
           </div>
         ))}
       </div>
@@ -680,11 +671,11 @@ export function PainelVendedor({ userId, userName, equipe }: Props) {
                 {diasRestantes}d restantes
               </span>
             </div>
-            <p className={`text-2xl md:text-3xl font-black leading-none mb-2 ${bateAMeta ? 'text-green-400' : 'text-yellow-400'}`}>
+            <p className={`text-xl sm:text-2xl md:text-3xl font-black leading-none mb-2 ${bateAMeta ? 'text-green-400' : 'text-yellow-400'}`}>
               {fmt(projecao)}
             </p>
-            <p className="text-zinc-500 text-[11px] mb-3">
-              Baseado na sua média de {fmt(mediaDiaria)}/dia · {diasRestantes} dias restantes
+            <p className="text-zinc-500 text-[10px] sm:text-[11px] mb-3 leading-relaxed">
+              Média: {fmt(mediaDiaria)}/dia · {diasRestantes}d restantes
             </p>
             {bateAMeta ? (
               <div className="bg-green-950/40 border border-green-500/30 rounded-lg px-3 py-2 text-green-400 text-xs font-black uppercase tracking-widest flex items-center gap-2">
