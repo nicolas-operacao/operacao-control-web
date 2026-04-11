@@ -70,29 +70,29 @@ export function ModalRankingHistorico({ isOpen, onClose }: Props) {
   const POSICAO_ICONE = ['🥇', '🥈', '🥉'];
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-zinc-950 border border-zinc-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+      <div className="bg-zinc-950 border border-zinc-800 rounded-t-2xl sm:rounded-xl shadow-2xl w-full sm:max-w-2xl max-h-[95vh] sm:max-h-[90vh] flex flex-col">
 
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-zinc-800">
+        <div className="flex items-center justify-between px-4 py-3 sm:p-5 border-b border-zinc-800">
           <div>
-            <h2 className="text-xl font-black text-white uppercase tracking-widest">📜 Ranking Histórico</h2>
-            <p className="text-zinc-500 text-xs mt-0.5">Desempenho por período</p>
+            <h2 className="text-base sm:text-xl font-black text-white uppercase tracking-widest">📜 Ranking Histórico</h2>
+            <p className="text-zinc-500 text-[10px] sm:text-xs mt-0.5">Desempenho por período</p>
           </div>
           <button onMouseEnter={somHover} onClick={() => { somClick(); onClose(); }} className="text-zinc-500 hover:text-white text-2xl font-bold transition-colors">✕</button>
         </div>
 
         {/* Navegador de mês */}
-        <div className="p-4 border-b border-zinc-800 flex items-center justify-between gap-4">
+        <div className="px-4 py-2.5 sm:p-4 border-b border-zinc-800 flex items-center justify-between gap-2">
           <button
             onMouseEnter={somHover}
             onClick={() => navMes(-1)}
-            className="w-9 h-9 flex items-center justify-center rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white transition-all text-lg font-bold"
+            className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white transition-all text-lg font-bold flex-shrink-0"
           >
             ‹
           </button>
           <div className="text-center">
-            <p className="text-white font-black text-lg uppercase tracking-wider">
+            <p className="text-white font-black text-base sm:text-lg uppercase tracking-wider">
               {MESES[mes]} {ano}
             </p>
             {isMesAtual && (
@@ -105,14 +105,14 @@ export function ModalRankingHistorico({ isOpen, onClose }: Props) {
             onMouseEnter={somHover}
             onClick={() => navMes(1)}
             disabled={isMesAtual}
-            className="w-9 h-9 flex items-center justify-center rounded-lg bg-zinc-800 hover:bg-zinc-700 disabled:opacity-30 disabled:cursor-not-allowed text-zinc-400 hover:text-white transition-all text-lg font-bold"
+            className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-lg bg-zinc-800 hover:bg-zinc-700 disabled:opacity-30 disabled:cursor-not-allowed text-zinc-400 hover:text-white transition-all text-lg font-bold flex-shrink-0"
           >
             ›
           </button>
         </div>
 
         {/* Body */}
-        <div className="overflow-y-auto flex-1 p-5 space-y-4">
+        <div className="overflow-y-auto flex-1 p-3 sm:p-5 space-y-3 sm:space-y-4">
           {erro && (
             <div className="bg-red-950/50 border border-red-800 text-red-400 rounded-lg p-3 text-sm">{erro}</div>
           )}
@@ -131,26 +131,29 @@ export function ModalRankingHistorico({ isOpen, onClose }: Props) {
           ) : (
             <>
               {/* Placar geral das equipes */}
-              <div className="grid grid-cols-3 gap-3 mb-2">
-                <div className={`rounded-xl border p-3 text-center ${vencedora === 'A' ? 'bg-blue-950/30 border-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.2)]' : 'bg-zinc-900 border-zinc-800'}`}>
-                  <p className="text-zinc-500 text-[10px] font-black uppercase">Equipe A ⚡</p>
-                  <p className={`text-xl font-black mt-1 ${vencedora === 'A' ? 'text-blue-400' : 'text-zinc-300'}`}>{fmt(totalA)}</p>
-                  {vencedora === 'A' && <p className="text-[10px] text-blue-400 font-black mt-0.5">🏆 Vencedora</p>}
+              <div className="flex items-center gap-2 mb-1">
+                {/* Equipe A */}
+                <div className={`flex-1 rounded-xl border p-2.5 sm:p-3 text-center min-w-0 ${vencedora === 'A' ? 'bg-blue-950/30 border-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.2)]' : 'bg-zinc-900 border-zinc-800'}`}>
+                  <p className="text-zinc-500 text-[9px] sm:text-[10px] font-black uppercase">Equipe A ⚡</p>
+                  <p className={`text-sm sm:text-lg font-black mt-1 truncate ${vencedora === 'A' ? 'text-blue-400' : 'text-zinc-300'}`}>{fmt(totalA)}</p>
+                  {vencedora === 'A' && <p className="text-[9px] sm:text-[10px] text-blue-400 font-black mt-0.5">🏆 Vencedora</p>}
                 </div>
-                <div className="flex items-center justify-center">
-                  <div className={`text-2xl font-black rounded-full w-10 h-10 flex items-center justify-center border ${
+                {/* VS */}
+                <div className="flex-shrink-0 flex items-center justify-center">
+                  <div className={`text-xs sm:text-sm font-black rounded-full w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center border ${
                     vencedora === 'A' ? 'border-blue-500/50 text-blue-400' : vencedora === 'B' ? 'border-red-500/50 text-red-400' : 'border-zinc-700 text-zinc-500'
                   }`}>VS</div>
                 </div>
-                <div className={`rounded-xl border p-3 text-center ${vencedora === 'B' ? 'bg-red-950/30 border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.2)]' : 'bg-zinc-900 border-zinc-800'}`}>
-                  <p className="text-zinc-500 text-[10px] font-black uppercase">Equipe B 🔴</p>
-                  <p className={`text-xl font-black mt-1 ${vencedora === 'B' ? 'text-red-400' : 'text-zinc-300'}`}>{fmt(totalB)}</p>
-                  {vencedora === 'B' && <p className="text-[10px] text-red-400 font-black mt-0.5">🏆 Vencedora</p>}
+                {/* Equipe B */}
+                <div className={`flex-1 rounded-xl border p-2.5 sm:p-3 text-center min-w-0 ${vencedora === 'B' ? 'bg-red-950/30 border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.2)]' : 'bg-zinc-900 border-zinc-800'}`}>
+                  <p className="text-zinc-500 text-[9px] sm:text-[10px] font-black uppercase">Equipe B 🔴</p>
+                  <p className={`text-sm sm:text-lg font-black mt-1 truncate ${vencedora === 'B' ? 'text-red-400' : 'text-zinc-300'}`}>{fmt(totalB)}</p>
+                  {vencedora === 'B' && <p className="text-[9px] sm:text-[10px] text-red-400 font-black mt-0.5">🏆 Vencedora</p>}
                 </div>
               </div>
 
               {/* Ranking individual */}
-              <div className="space-y-2">
+              <div className="space-y-1.5 sm:space-y-2">
                 {ranking.map((seller, idx) => {
                   const isB = (seller.equipe || '').toUpperCase() === 'B';
                   const iniciais = seller.nome.split(' ').map((p: string) => p[0]).slice(0, 2).join('').toUpperCase();
@@ -160,42 +163,42 @@ export function ModalRankingHistorico({ isOpen, onClose }: Props) {
                   return (
                     <div
                       key={seller.id}
-                      className={`flex items-center gap-3 rounded-xl border p-3 transition-all ${
+                      className={`flex items-center gap-2 sm:gap-3 rounded-xl border p-2.5 sm:p-3 transition-all ${
                         idx === 0
                           ? 'bg-yellow-950/20 border-yellow-400/30 shadow-[0_0_12px_rgba(250,204,21,0.1)]'
                           : 'bg-zinc-900 border-zinc-800'
                       }`}
                     >
                       {/* Posição */}
-                      <div className="w-8 flex-shrink-0 text-center">
+                      <div className="w-6 sm:w-8 flex-shrink-0 text-center">
                         {idx < 3 ? (
-                          <span className="text-xl">{POSICAO_ICONE[idx]}</span>
+                          <span className="text-base sm:text-xl">{POSICAO_ICONE[idx]}</span>
                         ) : (
-                          <span className="text-zinc-600 font-black text-sm">#{idx + 1}</span>
+                          <span className="text-zinc-600 font-black text-xs sm:text-sm">#{idx + 1}</span>
                         )}
                       </div>
 
                       {/* Avatar */}
                       {seller.foto_url ? (
-                        <img src={seller.foto_url} alt={seller.nome} className={`w-9 h-9 rounded-full object-cover border-2 flex-shrink-0 ${isB ? 'border-red-600' : 'border-blue-600'}`} />
+                        <img src={seller.foto_url} alt={seller.nome} className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full object-cover border-2 flex-shrink-0 ${isB ? 'border-red-600' : 'border-blue-600'}`} />
                       ) : (
-                        <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 border-2 text-xs font-black ${isB ? 'bg-red-950 border-red-700 text-red-300' : 'bg-blue-950 border-blue-700 text-blue-300'}`}>
+                        <div className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center flex-shrink-0 border-2 text-[10px] sm:text-xs font-black ${isB ? 'bg-red-950 border-red-700 text-red-300' : 'bg-blue-950 border-blue-700 text-blue-300'}`}>
                           {iniciais}
                         </div>
                       )}
 
                       {/* Info */}
                       <div className="flex-1 min-w-0">
-                        <p className="text-white font-black text-sm truncate">{seller.nome}</p>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className={`text-[10px] font-black ${isB ? 'text-red-400' : 'text-blue-400'}`}>
+                        <p className="text-white font-black text-xs sm:text-sm truncate">{seller.nome}</p>
+                        <div className="flex items-center gap-1.5 sm:gap-2 mt-0.5 flex-wrap">
+                          <span className={`text-[9px] sm:text-[10px] font-black ${isB ? 'text-red-400' : 'text-blue-400'}`}>
                             {isB ? '🔴 B' : '⚡ A'}
                           </span>
-                          <span className="text-zinc-600 text-[10px]">{seller.total_vendas_count} venda{seller.total_vendas_count !== 1 ? 's' : ''}</span>
-                          {metaAtingida && <span className="text-[10px] text-green-400">✅ Meta</span>}
+                          <span className="text-zinc-600 text-[9px] sm:text-[10px]">{seller.total_vendas_count}v</span>
+                          {metaAtingida && <span className="text-[9px] sm:text-[10px] text-green-400">✅ Meta</span>}
                         </div>
                         {pctMeta !== null && (
-                          <div className="mt-1.5 h-1 bg-zinc-800 rounded-full overflow-hidden w-24">
+                          <div className="mt-1 h-1 bg-zinc-800 rounded-full overflow-hidden w-16 sm:w-24">
                             <div
                               className="h-1 rounded-full transition-all"
                               style={{ width: `${pctMeta}%`, background: metaAtingida ? '#22c55e' : isB ? '#ef4444' : '#3b82f6' }}
@@ -206,7 +209,7 @@ export function ModalRankingHistorico({ isOpen, onClose }: Props) {
 
                       {/* Valor */}
                       <div className="text-right flex-shrink-0">
-                        <p className={`font-black text-sm ${idx === 0 ? 'text-yellow-400' : 'text-zinc-200'}`}>
+                        <p className={`font-black text-xs sm:text-sm ${idx === 0 ? 'text-yellow-400' : 'text-zinc-200'}`}>
                           {fmt(seller.total_vendido)}
                         </p>
                       </div>
@@ -219,11 +222,11 @@ export function ModalRankingHistorico({ isOpen, onClose }: Props) {
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-zinc-800 text-right">
+        <div className="px-4 py-3 border-t border-zinc-800 text-right">
           <button
             onMouseEnter={somHover}
             onClick={() => { somClick(); onClose(); }}
-            className="px-5 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg text-sm font-semibold transition-colors"
+            className="w-full sm:w-auto px-5 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg text-sm font-semibold transition-colors"
           >
             Fechar
           </button>
