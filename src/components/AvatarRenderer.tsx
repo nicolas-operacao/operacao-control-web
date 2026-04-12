@@ -1,5 +1,6 @@
-// AvatarRenderer — baseado no estilo flat design do Gemini SVG
-// ViewBox 200×220, personagem com cabeça arredondada, orelhas, cabelo variável
+// AvatarRenderer v5 — flat cartoon portrait (busto)
+// Estilo igual ao da referência: oval head, mechas separadas, ombros largos
+// ViewBox 200×200
 
 interface AvatarItem {
   id: number;
@@ -26,10 +27,10 @@ interface Props {
 
 const DEFAULT: Record<string, Record<string, any>> = {
   background: { type: 'office' },
-  skin:       { faceColor: '#FFC898', shadeColor: '#D4895A', lightColor: '#FFE8D6' },
-  eyes:       { shape: 'round', color: '#333333', browColor: '#3D2314' },
-  mouth:      { shape: 'smile', color: '#b03030', lipTop: '#e06060' },
-  hair:       { style: 'short', color: '#3D2314' },
+  skin:       { faceColor: '#FDDBB4', shadeColor: '#E8B48A', lightColor: '#FFF0E0' },
+  eyes:       { shape: 'round', color: '#3D2B1F', browColor: '#3D2B1F' },
+  mouth:      { shape: 'smile', color: '#C47A6A', lipTop: '#E8927F' },
+  hair:       { style: 'short', color: '#6B3D1A' },
   clothes:    { style: 'polo', color: '#2C3E50', color2: '#1a2533', badge: '#C8A030', collar: '#ffffff', pantColor: '#1e293b', pantColor2: '#0f172a', shoeColor: '#1a1a2e' },
   hat:        { style: 'none', color: '#1B3A6B', color2: '#112750' },
   accessory:  { style: 'none', color: '#4B5563' },
@@ -39,12 +40,11 @@ function sd(eq: AvatarEquipped, key: keyof AvatarEquipped) {
   return { ...DEFAULT[key], ...(eq[key]?.style_data ?? {}) };
 }
 
-// darken/lighten a hex color
-function adjustHex(hex: string, amount: number): string {
+function adj(hex: string, amt: number): string {
   const n = parseInt(hex.replace('#', ''), 16);
-  const r = Math.max(0, Math.min(255, (n >> 16) + amount));
-  const g = Math.max(0, Math.min(255, ((n >> 8) & 0xff) + amount));
-  const b = Math.max(0, Math.min(255, (n & 0xff) + amount));
+  const r = Math.max(0, Math.min(255, (n >> 16) + amt));
+  const g = Math.max(0, Math.min(255, ((n >> 8) & 0xff) + amt));
+  const b = Math.max(0, Math.min(255, (n & 0xff) + amt));
   return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
 }
 
@@ -61,22 +61,21 @@ export function AvatarRenderer({ equipped, size = 80, className = '' }: Props) {
   const ht = sd(equipped, 'hat');
   const ac = sd(equipped, 'accessory');
 
-  // ViewBox 200x220 (proporção do Gemini SVG)
-  const W = 200, H = 220;
+  const W = 200, H = 200;
   const displayH = Math.round(size * (H / W));
 
-  const skin     = sk.faceColor  ?? '#FFC898';
-  const skinS    = sk.shadeColor ?? '#D4895A';
-  const hairC    = ha.color ?? '#3D2314';
-  const shirtC   = cl.color  ?? '#2C3E50';
-  const shirtC2  = cl.color2 ?? '#1a2533';
-  const pantC    = cl.pantColor  ?? '#1e293b';
-  const shoeC    = cl.shoeColor  ?? '#1a1a2e';
+  const skin  = sk.faceColor  ?? '#FDDBB4';
+  const skinS = sk.shadeColor ?? '#E8B48A';
+  const skinL = sk.lightColor ?? '#FFF0E0';
+  const hairC = ha.color ?? '#6B3D1A';
+
+  // Head center
+  const HX = 100, HY = 92;
+  const HRX = 50, HRY = 56;
 
   return (
     <svg
-      width={size}
-      height={displayH}
+      width={size} height={displayH}
       viewBox={`0 0 ${W} ${H}`}
       xmlns="http://www.w3.org/2000/svg"
       className={className}
@@ -84,62 +83,70 @@ export function AvatarRenderer({ equipped, size = 80, className = '' }: Props) {
     >
       <defs>
         <clipPath id={`cp${uid}`}><rect width={W} height={H} rx="12" ry="12"/></clipPath>
+        {/* Gradient para o fundo da cabeça na hairline */}
+        <radialGradient id={`sg${uid}`} cx="50%" cy="30%" r="60%">
+          <stop offset="0%" stopColor={skinL} stopOpacity="0.4"/>
+          <stop offset="100%" stopColor={skinS} stopOpacity="0"/>
+        </radialGradient>
       </defs>
       <g clipPath={`url(#cp${uid})`}>
 
         {/* ── FUNDO ── */}
-        <Background bg={bg} W={W} H={H} uid={uid} />
+        <BG bg={bg} uid={uid} />
 
-        {/* ── SOMBRA NO CHÃO ── */}
-        <ellipse cx="100" cy="212" rx="40" ry="6" fill="rgba(0,0,0,0.25)" />
-
-        {/* ── ROUPA / CORPO ── */}
-        <Body cl={cl} skin={skin} skinS={skinS} shirtC={shirtC} shirtC2={shirtC2} pantC={pantC} shoeC={shoeC} uid={uid} />
+        {/* ── TORSO / OMBROS (desenhado primeiro, atrás de tudo) ── */}
+        <Torso cl={cl} skin={skin} uid={uid} />
 
         {/* ── PESCOÇO ── */}
-        <rect x="85" y="148" width="30" height="22" rx="6" fill={skin} />
-        <rect x="85" y="148" width="30" height="10" rx="6" fill="rgba(0,0,0,0.08)" />
+        <path d={`M 86 ${HY+HRY-4} C 84 ${HY+HRY+12} 84 ${HY+HRY+22} 86 ${HY+HRY+28} L 114 ${HY+HRY+28} C 116 ${HY+HRY+22} 116 ${HY+HRY+12} 114 ${HY+HRY-4} Z`}
+          fill={skin}/>
+        {/* sombra pescoço */}
+        <path d={`M 86 ${HY+HRY-4} C 84 ${HY+HRY+8} 84 ${HY+HRY+16} 85 ${HY+HRY+24} L 90 ${HY+HRY+28} L 86 ${HY+HRY+28} C 84 ${HY+HRY+22} 84 ${HY+HRY+12} 86 ${HY+HRY-4} Z`}
+          fill={skinS} opacity="0.3"/>
 
         {/* ── ORELHAS ── */}
-        <circle cx="60" cy="108" r="14" fill={skin} />
-        <circle cx="140" cy="108" r="14" fill={skin} />
-        <circle cx="60"  cy="108" r="8"  fill="rgba(0,0,0,0.08)" />
-        <circle cx="140" cy="108" r="8"  fill="rgba(0,0,0,0.08)" />
+        <ellipse cx={HX-HRX+2} cy={HY+4} rx="11" ry="14" fill={skin}/>
+        <ellipse cx={HX-HRX+5} cy={HY+4} rx="7" ry="9" fill={skinS} opacity="0.25"/>
+        <ellipse cx={HX+HRX-2} cy={HY+4} rx="11" ry="14" fill={skin}/>
+        <ellipse cx={HX+HRX-5} cy={HY+4} rx="7" ry="9" fill={skinS} opacity="0.25"/>
 
-        {/* ── CABELO (atrás da cabeça) ── */}
-        <HairBack ha={ha} hairC={hairC} uid={uid} />
+        {/* ── CABELO ATRÁS DA CABEÇA ── */}
+        <HairBack ha={ha} hairC={hairC} HX={HX} HY={HY} HRX={HRX} HRY={HRY} />
 
         {/* ── CABEÇA ── */}
-        <rect x="60" y="55" width="80" height="100" rx="35" fill={skin} />
-        {/* sombra lateral esquerda */}
-        <rect x="60" y="55" width="12" height="100" rx="6" fill="rgba(0,0,0,0.06)" />
-        {/* luz testa */}
-        <ellipse cx="100" cy="68" rx="25" ry="12" fill="rgba(255,255,255,0.12)" />
-        {/* bochecha esquerda */}
-        <ellipse cx="73" cy="120" rx="9" ry="6" fill="rgba(220,100,100,0.12)" />
-        {/* bochecha direita */}
-        <ellipse cx="127" cy="120" rx="9" ry="6" fill="rgba(220,100,100,0.12)" />
+        <ellipse cx={HX} cy={HY} rx={HRX} ry={HRY} fill={skin}/>
+        {/* luz suave na testa */}
+        <ellipse cx={HX} cy={HY-22} rx="28" ry="18" fill={`url(#sg${uid})`}/>
+        {/* sombra nas bochechas */}
+        <ellipse cx={HX-22} cy={HY+16} rx="14" ry="10" fill={skinS} opacity="0.15"/>
+        <ellipse cx={HX+22} cy={HY+16} rx="14" ry="10" fill={skinS} opacity="0.15"/>
+        {/* blush rosado */}
+        <ellipse cx={HX-24} cy={HY+20} rx="10" ry="6" fill="#E07070" opacity="0.1"/>
+        <ellipse cx={HX+24} cy={HY+20} rx="10" ry="6" fill="#E07070" opacity="0.1"/>
 
         {/* ── SOBRANCELHAS ── */}
-        <Eyebrows ey={ey} hairC={hairC} />
+        <Brows ey={ey} HX={HX} HY={HY} />
 
         {/* ── OLHOS ── */}
-        <Eyes ey={ey} uid={uid} />
+        <Eyes ey={ey} HX={HX} HY={HY} uid={uid} />
 
         {/* ── NARIZ ── */}
-        <path d="M 100 113 L 95 125 L 102 125" stroke="rgba(0,0,0,0.18)" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        <path d={`M ${HX} ${HY+12} C ${HX-4} ${HY+18} ${HX-5} ${HY+22} ${HX-2} ${HY+24}`}
+          stroke={skinS} strokeWidth="1.8" fill="none" strokeLinecap="round" opacity="0.7"/>
+        <path d={`M ${HX-2} ${HY+24} C ${HX} ${HY+25} ${HX+2} ${HY+24}`}
+          stroke={skinS} strokeWidth="1.6" fill="none" strokeLinecap="round" opacity="0.6"/>
 
         {/* ── BOCA ── */}
-        <Mouth mo={mo} />
+        <Mouth mo={mo} HX={HX} HY={HY} />
 
         {/* ── ACESSÓRIO ── */}
-        <Accessory ac={ac} />
+        <Acc ac={ac} HX={HX} HY={HY} />
 
-        {/* ── CABELO (frente) ── */}
-        <HairFront ha={ha} hairC={hairC} uid={uid} />
+        {/* ── CABELO FRENTE ── */}
+        <HairFront ha={ha} hairC={hairC} HX={HX} HY={HY} HRX={HRX} HRY={HRY} />
 
         {/* ── CHAPÉU ── */}
-        <Hat ht={ht} uid={uid} />
+        <Hat ht={ht} HX={HX} HY={HY} uid={uid} />
 
       </g>
     </svg>
@@ -147,61 +154,53 @@ export function AvatarRenderer({ equipped, size = 80, className = '' }: Props) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// BACKGROUND  (200×220)
+// BACKGROUND
 // ═══════════════════════════════════════════════════════════════
-function Background({ bg, W, H, uid }: { bg: any; W: number; H: number; uid: string }) {
+function BG({ bg, uid }: { bg: any; uid: string }) {
   const type = bg.type ?? 'solid';
-
   if (type === 'office') return (
     <g>
-      <rect width={W} height={H} fill="#1C2B4A"/>
-      <rect width={W} height={170} fill="#243060"/>
-      <rect y="160" width={W} height="60" fill="#0D1520"/>
-      <rect y="160" width={W} height="3" fill="rgba(255,255,255,0.05)"/>
-      {/* janela */}
-      <rect x="130" y="12" width="55" height="40" rx="4" fill="#7EC8E3" opacity="0.65"/>
-      <rect x="130" y="12" width="55" height="40" rx="4" fill="none" stroke="#0a0a0a" strokeWidth="1.5"/>
-      <line x1="157" y1="12" x2="157" y2="52" stroke="#0a0a0a" strokeWidth="1.2"/>
-      <line x1="130" y1="32" x2="185" y2="32" stroke="#0a0a0a" strokeWidth="1.2"/>
+      <rect width="200" height="200" fill="#243060"/>
+      <rect y="150" width="200" height="50" fill="#0D1520"/>
+      <rect y="150" width="200" height="2" fill="rgba(255,255,255,0.06)"/>
+      <rect x="130" y="14" width="54" height="38" rx="4" fill="#7EC8E3" opacity="0.6"/>
+      <rect x="130" y="14" width="54" height="38" rx="4" fill="none" stroke="#0a0a1a" strokeWidth="1.5"/>
+      <line x1="157" y1="14" x2="157" y2="52" stroke="#0a0a1a" strokeWidth="1.2"/>
+      <line x1="130" y1="33" x2="184" y2="33" stroke="#0a0a1a" strokeWidth="1.2"/>
     </g>
   );
-
   if (type === 'arena') return (
     <g>
-      <rect width={W} height={H} fill="#1A0505"/>
-      <rect y="160" width={W} height="3" fill="#CC2222"/>
-      <rect y="163" width={W} height="57" fill="#080000"/>
+      <rect width="200" height="200" fill="#1A0505"/>
+      <rect y="150" width="200" height="2" fill="#CC2222"/>
+      <rect y="152" width="200" height="48" fill="#080000"/>
     </g>
   );
-
   if (type === 'nature') return (
     <g>
-      <rect width={W} height={H} fill="#1464A0"/>
+      <rect width="200" height="200" fill="#1464A0"/>
       <circle cx="160" cy="30" r="22" fill="#FCD34D"/>
-      <ellipse cx="35" cy="35" rx="22" ry="12" fill="rgba(255,255,255,0.7)"/>
-      <ellipse cx="100" cy="22" rx="18" ry="10" fill="rgba(255,255,255,0.55)"/>
-      <rect y="155" width={W} height="65" fill="#14532D"/>
-      <rect y="155" width={W} height="5" fill="#22C55E"/>
+      <ellipse cx="30" cy="30" rx="22" ry="12" fill="rgba(255,255,255,0.7)"/>
+      <ellipse cx="90" cy="20" rx="16" ry="9" fill="rgba(255,255,255,0.55)"/>
+      <rect y="148" width="200" height="52" fill="#14532D"/>
+      <rect y="148" width="200" height="5" fill="#22C55E"/>
     </g>
   );
-
   if (type === 'stars') return (
     <g>
-      <rect width={W} height={H} fill="#030712"/>
-      {([[16,12],[44,8],[80,16],[120,10],[156,20],[180,8],[190,36],[170,56],[24,44],[60,64],[110,36],[144,50],[36,80],[90,70],[176,84],[10,110],[130,96],[30,170],[96,160],[150,176]] as [number,number][]).map(([x,y],i)=>
+      <rect width="200" height="200" fill="#030712"/>
+      {([[15,10],[40,7],[75,15],[115,9],[150,18],[178,7],[188,34],[168,54],[22,42],[58,62],[108,34],[142,48],[34,78],[88,68],[174,82],[9,108],[128,94],[28,168],[94,158],[148,174]] as [number,number][]).map(([x,y],i)=>
         <circle key={i} cx={x} cy={y} r={i%4===0?2:1.2} fill="white" opacity={0.3+i%5*0.12}/>
       )}
     </g>
   );
-
   if (type === 'neon') return (
     <g>
-      <rect width={W} height={H} fill="#05050F"/>
-      <rect y="160" width={W} height="3" fill="#A855F7"/>
-      <rect y="163" width={W} height="57" fill="#030308"/>
+      <rect width="200" height="200" fill="#05050F"/>
+      <rect y="150" width="200" height="2" fill="#A855F7"/>
+      <rect y="152" width="200" height="48" fill="#030308"/>
     </g>
   );
-
   if (type === 'gradient') {
     const c0 = bg.colors?.[0] ?? '#1e293b';
     const c1 = bg.colors?.[1] ?? '#0f172a';
@@ -209,126 +208,72 @@ function Background({ bg, W, H, uid }: { bg: any; W: number; H: number; uid: str
       <g>
         <defs>
           <linearGradient id={`bgG${uid}`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={c0}/>
-            <stop offset="100%" stopColor={c1}/>
+            <stop offset="0%" stopColor={c0}/><stop offset="100%" stopColor={c1}/>
           </linearGradient>
         </defs>
-        <rect width={W} height={H} fill={`url(#bgG${uid})`}/>
+        <rect width="200" height="200" fill={`url(#bgG${uid})`}/>
       </g>
     );
   }
-
-  const c = bg.colors?.[0] ?? '#1e293b';
-  return <rect width={W} height={H} fill={c}/>;
+  return <rect width="200" height="200" fill={bg.colors?.[0] ?? '#1e293b'}/>;
 }
 
 // ═══════════════════════════════════════════════════════════════
-// BODY — roupa, braços, pernas, sapatos
+// TORSO / OMBROS  — busto estilo da imagem
 // ═══════════════════════════════════════════════════════════════
-function Body({ cl, skin, skinS, shirtC, shirtC2, pantC, shoeC, uid }: {
-  cl: any; skin: string; skinS: string; shirtC: string; shirtC2: string;
-  pantC: string; shoeC: string; uid: string;
-}) {
-  const style  = cl.style  ?? 'polo';
-  const collar = cl.collar ?? '#ffffff';
-  const badge  = cl.badge  ?? '#C8A030';
-  const pant2  = cl.pantColor2 ?? adjustHex(pantC, -20);
+function Torso({ cl, skin, uid }: { cl: any; skin: string; uid: string }) {
+  const c1     = cl.color   ?? '#2C3E50';
+  const c2     = cl.color2  ?? '#1a2533';
+  const style  = cl.style   ?? 'polo';
+  const collar = cl.collar  ?? '#ffffff';
+  const badge  = cl.badge   ?? '#C8A030';
+
+  // Ombros largos estilo flat cartoon
+  const shoulderPath = `M 0 200 C 0 170 30 156 100 152 C 170 156 200 170 200 200 Z`;
 
   return (
     <g>
-      {/* ── Braço esquerdo ── */}
-      <path d={`M 58,168 C 42,170 34,185 36,202 C 38,212 46,214 50,208 C 52,198 55,182 65,172 Z`}
-        fill={shirtC} stroke="#111" strokeWidth="1.2" strokeLinejoin="round"/>
-      <path d={`M 58,168 C 42,170 34,185 36,202 C 38,212 46,214 50,208 C 52,198 55,182 65,172 Z`}
-        fill={shirtC2} opacity="0.3"/>
-      {/* Mão esquerda */}
-      <ellipse cx="40" cy="208" rx="9" ry="7" fill={skin} stroke="#111" strokeWidth="1"/>
-      <ellipse cx="40" cy="208" rx="9" ry="7" fill="rgba(0,0,0,0.1)"/>
+      <path d={shoulderPath} fill={c1}/>
+      {/* Sombra lateral nos ombros */}
+      <path d={`M 0 200 C 0 170 30 156 60 154 L 50 200 Z`} fill={c2} opacity="0.4"/>
+      <path d={`M 200 200 C 200 170 170 156 140 154 L 150 200 Z`} fill={c2} opacity="0.3"/>
 
-      {/* ── Braço direito ── */}
-      <path d={`M 142,168 C 158,170 166,185 164,202 C 162,212 154,214 150,208 C 148,198 145,182 135,172 Z`}
-        fill={shirtC} stroke="#111" strokeWidth="1.2" strokeLinejoin="round"/>
-      {/* Mão direita */}
-      <ellipse cx="160" cy="208" rx="9" ry="7" fill={skin} stroke="#111" strokeWidth="1"/>
-      <ellipse cx="160" cy="208" rx="9" ry="7" fill="rgba(0,0,0,0.1)"/>
-
-      {/* ── Torso ── */}
-      <path d={`M 55,167 C 52,167 48,170 48,174 L 48,210 C 48,213 51,215 55,215 L 145,215 C 149,215 152,213 152,210 L 152,174 C 152,170 148,167 145,167 Z`}
-        fill={shirtC} stroke="#111" strokeWidth="1.2"/>
-      {/* Sombra lateral torso */}
-      <path d={`M 48,174 L 48,210 C 48,213 51,215 55,215 L 65,215 L 65,167 L 55,167 C 52,167 48,170 48,174 Z`}
-        fill={shirtC2} opacity="0.45"/>
-      <path d={`M 135,167 L 152,174 L 152,210 C 152,213 149,215 145,215 L 135,215 Z`}
-        fill={shirtC2} opacity="0.3"/>
-
-      {/* ── Gola / detalhes de roupa ── */}
-      {(style === 'polo' || style === 'shirt') && (
+      {/* Gola / detalhe de roupa */}
+      {style === 'polo' || style === 'shirt' ? (
         <>
-          <path d={`M 82,167 L 88,180 L 100,174 L 112,180 L 118,167`}
-            fill={collar} stroke="#111" strokeWidth="1"/>
-          <path d={`M 88,180 L 100,174 L 112,180 L 109,184 L 100,179 L 91,184 Z`}
-            fill="rgba(0,0,0,0.1)"/>
+          {/* gola careca arredondada */}
+          <path d={`M 78 152 C 78 162 86 170 100 171 C 114 170 122 162 122 152 C 114 156 86 156 78 152 Z`}
+            fill={c2} opacity="0.6"/>
+          <path d={`M 80 153 C 82 160 90 166 100 167 C 110 166 118 160 120 153`}
+            fill="none" stroke={c2} strokeWidth="2.5" strokeLinecap="round"/>
         </>
-      )}
-      {style === 'suit' && (
+      ) : style === 'suit' ? (
         <>
-          <path d={`M 78,167 L 86,192 L 100,184 L 114,192 L 122,167`}
+          <path d={`M 72 153 C 74 165 84 172 100 173 C 116 172 126 165 128 153`}
             fill={collar} stroke="#111" strokeWidth="1"/>
-          <path d={`M 86,192 L 100,184 L 114,192 L 110,215 L 90,215 Z`}
-            fill="rgba(255,255,255,0.07)"/>
-          {/* gravata */}
-          <path d={`M 97,178 L 100,184 L 103,178 L 101,215 L 99,215 Z`}
-            fill={adjustHex(shirtC, -30)} stroke="#111" strokeWidth="0.7"/>
-        </>
-      )}
-      {style === 'hoodie' && (
-        <>
-          <path d={`M 82,167 C 86,178 86,186 100,190 C 114,186 114,178 118,167`}
-            fill={collar} stroke="#111" strokeWidth="1"/>
-          <rect x="74" y="192" width="52" height="20" rx="5"
-            fill={shirtC2} stroke="#111" strokeWidth="0.8"/>
-        </>
-      )}
-      {style === 'armor' && (
-        <>
-          <rect x="60" y="170" width="80" height="42" rx="6"
-            fill={cl.color2 ?? '#9ca3af'} stroke="#111" strokeWidth="1.2"/>
-          <path d={`M 60,182 L 100,175 L 140,182`}
+          <path d={`M 84 165 L 100 158 L 116 165`}
             fill="none" stroke="#111" strokeWidth="1"/>
-          <rect x="88" y="186" width="24" height="16" rx="3"
-            fill={shirtC}/>
+          <circle cx="86" cy="162" r="4" fill={badge} stroke="#111" strokeWidth="0.8"/>
         </>
-      )}
+      ) : style === 'hoodie' ? (
+        <>
+          <path d={`M 75 152 C 78 164 86 172 100 174 C 114 172 122 164 125 152`}
+            fill={collar} opacity="0.9"/>
+          <path d={`M 80 153 C 84 161 92 168 100 169 C 108 168 116 161 120 153`}
+            fill="none" stroke={c2} strokeWidth="2.5" strokeLinecap="round"/>
+        </>
+      ) : style === 'armor' ? (
+        <>
+          <path d={shoulderPath} fill={c2}/>
+          <path d={`M 60 165 C 80 158 120 158 140 165 L 130 200 L 70 200 Z`}
+            fill={cl.color2 ?? '#9ca3af'}/>
+          <path d={`M 70 170 C 80 164 120 164 130 170`}
+            fill="none" stroke="#111" strokeWidth="1.5"/>
+        </>
+      ) : null}
 
-      {/* Badge (polo/suit) */}
-      {(style === 'polo' || style === 'suit') && (
-        <circle cx="72" cy="180" r="5" fill={badge} stroke="#111" strokeWidth="0.8"/>
-      )}
-
-      {/* ── Pernas ── */}
-      {/* perna esquerda */}
-      <rect x="60" y="213" width="34" height="45" rx="6"
-        fill={pantC} stroke="#111" strokeWidth="1"/>
-      <rect x="60" y="213" width="10" height="45" rx="4"
-        fill={pant2} opacity="0.4"/>
-      {/* perna direita */}
-      <rect x="106" y="213" width="34" height="45" rx="6"
-        fill={pantC} stroke="#111" strokeWidth="1"/>
-      <rect x="130" y="213" width="10" height="45" rx="4"
-        fill={pant2} opacity="0.4"/>
-      {/* gap entre pernas */}
-      <rect x="93" y="213" width="14" height="45" fill="#111"/>
-
-      {/* ── Sapatos ── */}
-      <path d={`M 54,254 C 50,254 46,257 46,261 C 46,265 49,267 54,267 L 96,267 C 100,267 102,265 102,261 C 102,257 99,254 95,254 Z`}
-        fill={shoeC} stroke="#111" strokeWidth="1"/>
-      <path d={`M 104,254 C 100,254 98,257 98,261 C 98,265 100,267 104,267 L 146,267 C 151,267 154,265 154,261 C 154,257 150,254 146,254 Z`}
-        fill={shoeC} stroke="#111" strokeWidth="1"/>
-      {/* brilho sapato */}
-      <path d={`M 54,257 C 58,255 72,254 80,256`}
-        fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="1.5" strokeLinecap="round"/>
-      <path d={`M 106,257 C 110,255 124,254 132,256`}
-        fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="1.5" strokeLinecap="round"/>
+      {/* Pele visível no decote */}
+      <ellipse cx="100" cy="152" rx="22" ry="6" fill={skin} opacity="0.4"/>
     </g>
   );
 }
@@ -336,22 +281,25 @@ function Body({ cl, skin, skinS, shirtC, shirtC2, pantC, shoeC, uid }: {
 // ═══════════════════════════════════════════════════════════════
 // SOBRANCELHAS
 // ═══════════════════════════════════════════════════════════════
-function Eyebrows({ ey, hairC }: { ey: any; hairC: string }) {
+function Brows({ ey, HX, HY }: { ey: any; HX: number; HY: number }) {
+  const bc    = ey.browColor ?? '#3D2B1F';
   const shape = ey.shape ?? 'round';
-  const bc = ey.browColor ?? hairC;
+  const by    = HY - 20;
 
-  if (shape === 'angry') {
-    return (
-      <g>
-        <path d="M 72 88 Q 82 82 92 88" stroke={bc} strokeWidth="3.5" fill="none" strokeLinecap="round"/>
-        <path d="M 108 88 Q 118 82 128 88" stroke={bc} strokeWidth="3.5" fill="none" strokeLinecap="round"/>
-      </g>
-    );
-  }
+  if (shape === 'angry') return (
+    <g>
+      <path d={`M ${HX-24} ${by-2} C ${HX-16} ${by-6} ${HX-8} ${by-4} ${HX-4} ${by}`}
+        stroke={bc} strokeWidth="3" fill="none" strokeLinecap="round"/>
+      <path d={`M ${HX+4} ${by} C ${HX+8} ${by-4} ${HX+16} ${by-6} ${HX+24} ${by-2}`}
+        stroke={bc} strokeWidth="3" fill="none" strokeLinecap="round"/>
+    </g>
+  );
   return (
     <g>
-      <path d="M 70 90 Q 80 84 90 90" stroke={bc} strokeWidth="3" fill="none" strokeLinecap="round"/>
-      <path d="M 110 90 Q 120 84 130 90" stroke={bc} strokeWidth="3" fill="none" strokeLinecap="round"/>
+      <path d={`M ${HX-24} ${by} C ${HX-16} ${by-5} ${HX-8} ${by-5} ${HX-4} ${by-2}`}
+        stroke={bc} strokeWidth="2.8" fill="none" strokeLinecap="round"/>
+      <path d={`M ${HX+4} ${by-2} C ${HX+8} ${by-5} ${HX+16} ${by-5} ${HX+24} ${by}`}
+        stroke={bc} strokeWidth="2.8" fill="none" strokeLinecap="round"/>
     </g>
   );
 }
@@ -359,88 +307,79 @@ function Eyebrows({ ey, hairC }: { ey: any; hairC: string }) {
 // ═══════════════════════════════════════════════════════════════
 // OLHOS
 // ═══════════════════════════════════════════════════════════════
-function Eyes({ ey, uid }: { ey: any; uid: string }) {
-  const iris  = ey.color ?? '#333333';
+function Eyes({ ey, HX, HY, uid }: { ey: any; HX: number; HY: number; uid: string }) {
+  const iris  = ey.color ?? '#3D2B1F';
   const shape = ey.shape ?? 'round';
+  const ey2   = HY - 4;
+  const lx = HX - 16, rx = HX + 16;
 
-  if (shape === 'almond') {
+  // Olho base helper
+  function Eye({ cx }: { cx: number }) {
+    if (shape === 'almond') return (
+      <g>
+        <path d={`M ${cx-11} ${ey2} C ${cx-7} ${ey2-7} ${cx+7} ${ey2-7} ${cx+11} ${ey2} C ${cx+7} ${ey2+5} ${cx-7} ${ey2+5} Z`}
+          fill="white" stroke="#2a1a0a" strokeWidth="0.8"/>
+        <circle cx={cx} cy={ey2} r="5.5" fill={iris}/>
+        <circle cx={cx} cy={ey2} r="3" fill="#111"/>
+        <circle cx={cx+1.5} cy={ey2-1.5} r="1.8" fill="white"/>
+      </g>
+    );
+    if (shape === 'angry') return (
+      <g>
+        <ellipse cx={cx} cy={ey2} rx="9" ry="7" fill="white" stroke="#2a1a0a" strokeWidth="0.8"/>
+        <circle cx={cx} cy={ey2+1} r="5.5" fill={iris}/>
+        <circle cx={cx} cy={ey2+1} r="3" fill="#111"/>
+        <circle cx={cx+1.5} cy={ey2-0.5} r="1.8" fill="white"/>
+      </g>
+    );
+    // round (default)
     return (
       <g>
-        <path d="M 68 108 C 72 102 88 102 92 108 C 88 113 72 113 68 108 Z" fill="white" stroke="#222" strokeWidth="1"/>
-        <circle cx="80" cy="108" r="5" fill={iris}/>
-        <circle cx="80" cy="108" r="2.5" fill="#111"/>
-        <circle cx="82" cy="106" r="1.5" fill="white"/>
-        <path d="M 108 108 C 112 102 128 102 132 108 C 128 113 112 113 108 108 Z" fill="white" stroke="#222" strokeWidth="1"/>
-        <circle cx="120" cy="108" r="5" fill={iris}/>
-        <circle cx="120" cy="108" r="2.5" fill="#111"/>
-        <circle cx="122" cy="106" r="1.5" fill="white"/>
+        <ellipse cx={cx} cy={ey2} rx="9" ry="9.5" fill="white" stroke="#2a1a0a" strokeWidth="0.8"/>
+        <circle cx={cx} cy={ey2} r="6" fill={iris}/>
+        <circle cx={cx} cy={ey2} r="3.2" fill="#111"/>
+        <circle cx={cx+2} cy={ey2-2} r="2" fill="white"/>
+        <circle cx={cx-2} cy={ey2+3} r="1" fill="rgba(255,255,255,0.4)"/>
       </g>
     );
   }
 
-  if (shape === 'angry') {
-    return (
-      <g>
-        <circle cx="80" cy="108" r="10" fill="white" stroke="#222" strokeWidth="1"/>
-        <circle cx="80" cy="109" r="6" fill={iris}/>
-        <circle cx="80" cy="109" r="3" fill="#111"/>
-        <circle cx="82" cy="106" r="2" fill="white"/>
-        <circle cx="120" cy="108" r="10" fill="white" stroke="#222" strokeWidth="1"/>
-        <circle cx="120" cy="109" r="6" fill={iris}/>
-        <circle cx="120" cy="109" r="3" fill="#111"/>
-        <circle cx="122" cy="106" r="2" fill="white"/>
-      </g>
-    );
-  }
-
-  // round (padrão — fiel ao Gemini SVG)
-  return (
-    <g>
-      <circle cx="78" cy="107" r="10" fill="white" stroke="#222" strokeWidth="1"/>
-      <circle cx="78" cy="107" r="6" fill={iris}/>
-      <circle cx="78" cy="107" r="3" fill="#111"/>
-      <circle cx="80" cy="105" r="2" fill="white"/>
-      <circle cx="122" cy="107" r="10" fill="white" stroke="#222" strokeWidth="1"/>
-      <circle cx="122" cy="107" r="6" fill={iris}/>
-      <circle cx="122" cy="107" r="3" fill="#111"/>
-      <circle cx="124" cy="105" r="2" fill="white"/>
-    </g>
-  );
+  return <g><Eye cx={lx}/><Eye cx={rx}/></g>;
 }
 
 // ═══════════════════════════════════════════════════════════════
 // BOCA
 // ═══════════════════════════════════════════════════════════════
-function Mouth({ mo }: { mo: any }) {
+function Mouth({ mo, HX, HY }: { mo: any; HX: number; HY: number }) {
   const shape  = mo.shape  ?? 'smile';
-  const lipBot = mo.color  ?? '#b03030';
-  const lipTop = mo.lipTop ?? '#e06060';
+  const lip    = mo.lipTop ?? '#E8927F';
+  const my = HY + 32;
 
-  if (shape === 'bigsmile') {
-    return (
-      <g>
-        <path d="M 84 138 Q 100 152 116 138 Z" fill={lipBot} stroke="#222" strokeWidth="1"/>
-        <path d="M 84 138 Q 100 142 116 138" fill={lipTop} stroke="#222" strokeWidth="1"/>
-        <path d="M 86 139 Q 100 148 114 139 L 112 145 Q 100 149 88 145 Z" fill="rgba(255,255,255,0.55)"/>
-      </g>
-    );
-  }
-  if (shape === 'smirk') {
-    return (
-      <path d="M 88 140 C 96 138 108 142 116 139"
-        stroke="#222" strokeWidth="2.5" fill="none" strokeLinecap="round"/>
-    );
-  }
-  if (shape === 'serious') {
-    return (
-      <path d="M 86 140 L 114 140"
-        stroke="#222" strokeWidth="3" fill="none" strokeLinecap="round"/>
-    );
-  }
-  // smile (padrão — fiel ao Gemini SVG)
+  if (shape === 'bigsmile') return (
+    <g>
+      <path d={`M ${HX-14} ${my} C ${HX-12} ${my+10} ${HX+12} ${my+10} ${HX+14} ${my} Z`}
+        fill={mo.color ?? '#C47A6A'} stroke="#2a1a0a" strokeWidth="0.8"/>
+      <path d={`M ${HX-13} ${my+1} C ${HX-9} ${my+4} ${HX+9} ${my+4} ${HX+13} ${my+1}`}
+        fill="rgba(255,255,255,0.6)" stroke="none"/>
+      <path d={`M ${HX-14} ${my} C ${HX-10} ${my+2} ${HX+10} ${my+2} ${HX+14} ${my}`}
+        fill={lip} stroke="#2a1a0a" strokeWidth="0.8"/>
+    </g>
+  );
+  if (shape === 'smirk') return (
+    <path d={`M ${HX-10} ${my+2} C ${HX-4} ${my} ${HX+6} ${my+4} ${HX+12} ${my+1}`}
+      stroke="#2a1a0a" strokeWidth="2.2" fill="none" strokeLinecap="round"/>
+  );
+  if (shape === 'serious') return (
+    <path d={`M ${HX-12} ${my+1} L ${HX+12} ${my+1}`}
+      stroke="#2a1a0a" strokeWidth="2.5" fill="none" strokeLinecap="round"/>
+  );
+  // smile (default) — igual ao da imagem: sorriso suave, fechado
   return (
     <g>
-      <path d="M 88 137 Q 100 150 112 137" stroke="#222" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d={`M ${HX-12} ${my} C ${HX-8} ${my+6} ${HX+8} ${my+6} ${HX+12} ${my}`}
+        stroke="#2a1a0a" strokeWidth="2" fill="none" strokeLinecap="round"/>
+      <path d={`M ${HX-12} ${my} C ${HX-8} ${my+1.5} ${HX+8} ${my+1.5} ${HX+12} ${my}`}
+        stroke={lip} strokeWidth="1.2" fill="none" strokeLinecap="round" opacity="0.7"/>
     </g>
   );
 }
@@ -448,248 +387,296 @@ function Mouth({ mo }: { mo: any }) {
 // ═══════════════════════════════════════════════════════════════
 // ACESSÓRIO
 // ═══════════════════════════════════════════════════════════════
-function Accessory({ ac }: { ac: any }) {
+function Acc({ ac, HX, HY }: { ac: any; HX: number; HY: number }) {
   const style = ac.style ?? 'none';
   const color = ac.color ?? '#4b5563';
+  const ey2 = HY - 4;
 
-  if (style === 'glasses') {
-    return (
-      <g>
-        <circle cx="78" cy="107" r="13" fill="none" stroke={color} strokeWidth="2.5"/>
-        <circle cx="122" cy="107" r="13" fill="none" stroke={color} strokeWidth="2.5"/>
-        <line x1="91" y1="107" x2="109" y2="107" stroke={color} strokeWidth="2"/>
-        <line x1="65" y1="107" x2="56" y2="105" stroke={color} strokeWidth="2"/>
-        <line x1="135" y1="107" x2="144" y2="105" stroke={color} strokeWidth="2"/>
-      </g>
-    );
-  }
-  if (style === 'sunglasses') {
-    return (
-      <g>
-        <rect x="64" y="100" width="28" height="15" rx="7" fill={color} stroke="#111" strokeWidth="1.5" opacity="0.92"/>
-        <rect x="108" y="100" width="28" height="15" rx="7" fill={color} stroke="#111" strokeWidth="1.5" opacity="0.92"/>
-        <line x1="92" y1="107" x2="108" y2="107" stroke="#111" strokeWidth="2"/>
-        <line x1="64" y1="107" x2="55" y2="105" stroke="#111" strokeWidth="2"/>
-        <line x1="136" y1="107" x2="145" y2="105" stroke="#111" strokeWidth="2"/>
-        <path d="M 67 103 C 72 100 84 100 88 103" stroke="rgba(255,255,255,0.3)" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
-      </g>
-    );
-  }
-  if (style === 'earring') {
-    return (
-      <g>
-        <circle cx="47" cy="114" r="4" fill={color} stroke="#111" strokeWidth="1"/>
-        <line x1="47" y1="110" x2="47" y2="106" stroke={color} strokeWidth="1.5"/>
-      </g>
-    );
-  }
-  if (style === 'scar') {
-    return (
-      <path d="M 110 90 C 114 98 112 108 115 116"
-        stroke={color} strokeWidth="2.5" fill="none" strokeLinecap="round"/>
-    );
-  }
+  if (style === 'glasses') return (
+    <g>
+      <circle cx={HX-16} cy={ey2} r="12" fill="none" stroke={color} strokeWidth="2.2"/>
+      <circle cx={HX+16} cy={ey2} r="12" fill="none" stroke={color} strokeWidth="2.2"/>
+      <line x1={HX-4} y1={ey2} x2={HX+4} y2={ey2} stroke={color} strokeWidth="1.8"/>
+      <line x1={HX-28} y1={ey2} x2={HX-36} y2={ey2-2} stroke={color} strokeWidth="1.8"/>
+      <line x1={HX+28} y1={ey2} x2={HX+36} y2={ey2-2} stroke={color} strokeWidth="1.8"/>
+    </g>
+  );
+  if (style === 'sunglasses') return (
+    <g>
+      <rect x={HX-28} y={ey2-8} width="24" height="16" rx="8" fill={color} opacity="0.92" stroke="#111" strokeWidth="1.2"/>
+      <rect x={HX+4} y={ey2-8} width="24" height="16" rx="8" fill={color} opacity="0.92" stroke="#111" strokeWidth="1.2"/>
+      <line x1={HX-4} y1={ey2} x2={HX+4} y2={ey2} stroke="#111" strokeWidth="1.8"/>
+      <line x1={HX-28} y1={ey2} x2={HX-36} y2={ey2-2} stroke="#111" strokeWidth="1.8"/>
+      <line x1={HX+28} y1={ey2} x2={HX+36} y2={ey2-2} stroke="#111" strokeWidth="1.8"/>
+      <path d={`M ${HX-26} ${ey2-5} C ${HX-20} ${ey2-8} ${HX-12} ${ey2-8} ${HX-8} ${ey2-5}`}
+        stroke="rgba(255,255,255,0.25)" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
+    </g>
+  );
+  if (style === 'earring') return (
+    <g>
+      <line x1={HX-50} y1={HY+6} x2={HX-50} y2={HY+2} stroke={color} strokeWidth="1.5"/>
+      <circle cx={HX-50} cy={HY+10} r="4" fill={color} stroke="#111" strokeWidth="0.8"/>
+    </g>
+  );
+  if (style === 'scar') return (
+    <path d={`M ${HX+12} ${HY-16} C ${HX+16} ${HY-6} ${HX+14} ${HY+6} ${HX+17} ${HY+16}`}
+      stroke={color} strokeWidth="2.5" fill="none" strokeLinecap="round"/>
+  );
   return null;
 }
 
 // ═══════════════════════════════════════════════════════════════
-// CABELO — partes de trás (atrás da cabeça)
+// CABELO ATRÁS
 // ═══════════════════════════════════════════════════════════════
-function HairBack({ ha, hairC, uid }: { ha: any; hairC: string; uid: string }) {
+function HairBack({ ha, hairC, HX, HY, HRX, HRY }: {
+  ha: any; hairC: string; HX: number; HY: number; HRX: number; HRY: number;
+}) {
   const style = ha.style ?? 'short';
   if (style === 'bald') return null;
 
   if (style === 'long') {
-    const shade = adjustHex(hairC, -25);
+    const shade = adj(hairC, -20);
     return (
       <g>
-        {/* Cabelo longo cai atrás dos ombros */}
-        <path d={`M 64,95 C 50,118 44,152 48,182 C 51,196 62,200 66,192 C 63,172 61,138 66,108 Z`}
-          fill={hairC} stroke="#111" strokeWidth="1"/>
-        <path d={`M 136,95 C 150,118 156,152 152,182 C 149,196 138,200 134,192 C 137,172 139,138 134,108 Z`}
-          fill={hairC} stroke="#111" strokeWidth="1"/>
-        {/* mechas */}
-        <path d={`M 64,108 C 58,130 56,160 60,185`} fill="none" stroke={shade} strokeWidth="2.5" strokeLinecap="round"/>
-        <path d={`M 136,108 C 142,130 144,160 140,185`} fill="none" stroke={shade} strokeWidth="2.5" strokeLinecap="round"/>
+        <path d={`M ${HX-HRX+4} ${HY-10} C ${HX-HRX-14} ${HY+20} ${HX-HRX-16} ${HY+60} ${HX-HRX-10} ${HY+90}`}
+          stroke={hairC} strokeWidth="22" strokeLinecap="round" fill="none"/>
+        <path d={`M ${HX+HRX-4} ${HY-10} C ${HX+HRX+14} ${HY+20} ${HX+HRX+16} ${HY+60} ${HX+HRX+10} ${HY+90}`}
+          stroke={hairC} strokeWidth="22" strokeLinecap="round" fill="none"/>
+        <path d={`M ${HX-HRX+4} ${HY-10} C ${HX-HRX-8} ${HY+20} ${HX-HRX-10} ${HY+60} ${HX-HRX-4} ${HY+88}`}
+          stroke={shade} strokeWidth="5" strokeLinecap="round" fill="none" opacity="0.4"/>
+        <path d={`M ${HX+HRX-4} ${HY-10} C ${HX+HRX+8} ${HY+20} ${HX+HRX+10} ${HY+60} ${HX+HRX+4} ${HY+88}`}
+          stroke={shade} strokeWidth="5" strokeLinecap="round" fill="none" opacity="0.4"/>
       </g>
     );
   }
-
   return null;
 }
 
 // ═══════════════════════════════════════════════════════════════
-// CABELO — partes da frente (sobre a cabeça)
+// CABELO FRENTE — A CHAVE PARA NÃO PARECER CAPACETE
+// Cada estilo usa chunks separados + strokes de mechas
 // ═══════════════════════════════════════════════════════════════
-function HairFront({ ha, hairC, uid }: { ha: any; hairC: string; uid: string }) {
-  const style = ha.style ?? 'short';
+function HairFront({ ha, hairC, HX, HY, HRX, HRY }: {
+  ha: any; hairC: string; HX: number; HY: number; HRX: number; HRY: number;
+}) {
+  const style  = ha.style ?? 'short';
   if (style === 'bald') return null;
 
-  const shade  = adjustHex(hairC, -30);
-  const light  = adjustHex(hairC, +28);
+  const dark   = adj(hairC, -35);   // sombra profunda (raízes/separações)
+  const mid    = adj(hairC, -15);   // tom médio
+  const light  = adj(hairC, +30);   // destaque
+  const shine  = adj(hairC, +55);   // brilho máximo
 
-  // ── Short ────────────────────────────────────────────────────
+  // Topo da cabeça (onde o cabelo começa)
+  const topY = HY - HRY;  // ≈ 36
+
+  // ── SHORT / QUIFF (estilo da imagem de referência) ───────────
   if (style === 'short') {
     return (
       <g>
-        {/* Faixa de cabelo fina seguindo a curvatura do crânio */}
-        {/* Parte de cima: do topo da cabeça até a hairline */}
-        <path d={`M 63 96 C 60 88 59 76 62 64 C 68 44 82 36 100 35 C 118 36 132 44 138 64 C 141 76 140 88 137 96 C 132 86 122 80 100 79 C 78 80 68 86 63 96 Z`}
-          fill={hairC} stroke="#111" strokeWidth="0.8"/>
+        {/*
+          Estratégia: 4-5 "chunks" separados por linhas escuras
+          Cada chunk é uma forma orgânica com borda levemente irregular
+          As separações (strokes escuros) criam o efeito de mechas
+        */}
 
-        {/* Camada de sombra para dar volume/profundidade */}
-        <path d={`M 63 96 C 68 86 78 80 100 79 C 78 80 68 86 63 96 Z`}
-          fill={shade} opacity="0.3"/>
-        <path d={`M 137 96 C 132 86 122 80 100 79 C 122 80 132 86 137 96 Z`}
-          fill={shade} opacity="0.15"/>
+        {/* === CHUNK CENTRAL (levantado — o quiff) === */}
+        <path d={`
+          M ${HX-18} ${topY+8}
+          C ${HX-22} ${topY-2} ${HX-14} ${topY-18} ${HX-4} ${topY-22}
+          C ${HX+4} ${topY-22} ${HX+14} ${topY-18} ${HX+18} ${topY+4}
+          C ${HX+10} ${topY+2} ${HX+2} ${topY} ${HX-4} ${topY+2}
+          C ${HX-10} ${topY+4} ${HX-14} ${topY+6} Z
+        `} fill={mid}/>
 
-        {/* Mechas desenhadas com strokes — dão textura de cabelo */}
-        <path d={`M 80 38 C 76 50 74 62 74 74`} fill="none" stroke={shade} strokeWidth="2" strokeLinecap="round" opacity="0.7"/>
-        <path d={`M 92 36 C 90 48 89 60 90 72`} fill="none" stroke={shade} strokeWidth="1.8" strokeLinecap="round" opacity="0.6"/>
-        <path d={`M 108 36 C 110 48 111 60 110 72`} fill="none" stroke={shade} strokeWidth="1.8" strokeLinecap="round" opacity="0.6"/>
-        <path d={`M 120 38 C 124 50 126 62 126 74`} fill="none" stroke={shade} strokeWidth="2" strokeLinecap="round" opacity="0.7"/>
+        {/* camada mais clara no topo do chunk central */}
+        <path d={`
+          M ${HX-10} ${topY+4}
+          C ${HX-12} ${topY-8} ${HX-6} ${topY-18} ${HX} ${topY-20}
+          C ${HX+6} ${topY-18} ${HX+12} ${topY-8} ${HX+10} ${topY+4}
+          C ${HX+4} ${topY+1} ${HX-4} ${topY+1} Z
+        `} fill={light}/>
 
-        {/* Costeleta/lateral cobrindo as têmporas */}
-        <path d={`M 62 64 C 60 74 60 86 62 96 C 64 104 68 110 70 106 C 68 96 66 84 66 72 Z`} fill={hairC}/>
-        <path d={`M 138 64 C 140 74 140 86 138 96 C 136 104 132 110 130 106 C 132 96 134 84 134 72 Z`} fill={hairC}/>
+        {/* === CHUNK ESQUERDO === */}
+        <path d={`
+          M ${HX-HRX+2} ${HY-28}
+          C ${HX-HRX-4} ${HY-36} ${HX-30} ${topY-12} ${HX-18} ${topY+8}
+          C ${HX-22} ${topY+14} ${HX-28} ${HY-24} ${HX-HRX+4} ${HY-20} Z
+        `} fill={hairC}/>
 
-        {/* Reflexo de luz no topo */}
-        <path d={`M 82 38 C 90 33 110 33 118 38`}
-          fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="4" strokeLinecap="round"/>
+        {/* === CHUNK DIREITO === */}
+        <path d={`
+          M ${HX+HRX-2} ${HY-28}
+          C ${HX+HRX+4} ${HY-36} ${HX+30} ${topY-12} ${HX+18} ${topY+4}
+          C ${HX+22} ${topY+14} ${HX+28} ${HY-24} ${HX+HRX-4} ${HY-20} Z
+        `} fill={mid}/>
+
+        {/* === BASE / NUCA (faixa fina seguindo o crânio) === */}
+        <path d={`
+          M ${HX-HRX+2} ${HY-28}
+          C ${HX-HRX-2} ${HY-38} ${HX-HRX+2} ${topY+4} ${HX-14} ${topY+10}
+          C ${HX-6} ${topY+12} ${HX+6} ${topY+12} ${HX+14} ${topY+10}
+          C ${HX+HRX-2} ${topY+4} ${HX+HRX+2} ${HY-38} ${HX+HRX-2} ${HY-28}
+          C ${HX+32} ${HY-22} ${HX-32} ${HY-22} Z
+        `} fill={hairC}/>
+
+        {/* === COSTELETAS (laterais cobrindo as têmporas) === */}
+        <path d={`M ${HX-HRX+2} ${HY-28} C ${HX-HRX-4} ${HY-16} ${HX-HRX-2} ${HY-4} ${HX-HRX+6} ${HY+4} C ${HX-HRX+10} ${HY-6} ${HX-HRX+8} ${HY-20} Z`}
+          fill={hairC}/>
+        <path d={`M ${HX+HRX-2} ${HY-28} C ${HX+HRX+4} ${HY-16} ${HX+HRX+2} ${HY-4} ${HX+HRX-6} ${HY+4} C ${HX+HRX-10} ${HY-6} ${HX+HRX-8} ${HY-20} Z`}
+          fill={mid}/>
+
+        {/* === LINHAS DE SEPARAÇÃO (as mais importantes!) === */}
+        {/* Separa chunk central do esquerdo */}
+        <path d={`M ${HX-18} ${topY+8} C ${HX-16} ${topY+2} ${HX-10} ${topY-10} ${HX-4} ${topY-20}`}
+          stroke={dark} strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.7"/>
+        {/* Separa chunk central do direito */}
+        <path d={`M ${HX+18} ${topY+4} C ${HX+16} ${topY+2} ${HX+10} ${topY-10} ${HX+4} ${topY-20}`}
+          stroke={dark} strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.7"/>
+        {/* Mechas internas no chunk central */}
+        <path d={`M ${HX-4} ${topY+2} C ${HX-2} ${topY-10} ${HX} ${topY-18}`}
+          stroke={dark} strokeWidth="1.5" fill="none" strokeLinecap="round" opacity="0.5"/>
+        {/* Mecha no chunk esquerdo */}
+        <path d={`M ${HX-28} ${HY-22} C ${HX-26} ${HY-32} ${HX-22} ${topY+2}`}
+          stroke={dark} strokeWidth="1.5" fill="none" strokeLinecap="round" opacity="0.45"/>
+        {/* Mecha no chunk direito */}
+        <path d={`M ${HX+28} ${HY-22} C ${HX+26} ${HY-32} ${HX+22} ${topY+2}`}
+          stroke={dark} strokeWidth="1.5" fill="none" strokeLinecap="round" opacity="0.35"/>
+
+        {/* === BRILHO/REFLEXO no topo === */}
+        <path d={`M ${HX-6} ${topY-14} C ${HX} ${topY-20} ${HX+6} ${topY-16}`}
+          stroke={shine} strokeWidth="2.5" fill="none" strokeLinecap="round" opacity="0.5"/>
+        <path d={`M ${HX-14} ${topY-4} C ${HX-10} ${topY-12} ${HX-4} ${topY-18}`}
+          stroke="rgba(255,255,255,0.25)" strokeWidth="2" fill="none" strokeLinecap="round"/>
       </g>
     );
   }
 
-  // ── Long ─────────────────────────────────────────────────────
+  // ── LONG ────────────────────────────────────────────────────
   if (style === 'long') {
     return (
       <g>
-        {/* Mesma faixa do short mas com mechas mais longas */}
-        <path d={`M 63 96 C 60 88 59 76 62 64 C 68 44 82 36 100 35 C 118 36 132 44 138 64 C 141 76 140 88 137 96 C 132 86 122 80 100 79 C 78 80 68 86 63 96 Z`}
-          fill={hairC} stroke="#111" strokeWidth="0.8"/>
-
-        {/* Mechas caindo pelo rosto */}
-        <path d={`M 63 96 C 60 106 62 118 66 124 C 68 120 68 108 66 96 Z`} fill={hairC}/>
-        <path d={`M 137 96 C 140 106 138 118 134 124 C 132 120 132 108 134 96 Z`} fill={hairC}/>
-
-        {/* Mechas textura topo */}
-        <path d={`M 76 56 C 82 46 91 42 100 42 C 109 42 118 46 124 56`}
-          fill="none" stroke={shade} strokeWidth="2.5" strokeLinecap="round"/>
-        <path d={`M 70 70 C 76 60 87 54 100 53 C 113 54 124 60 130 70`}
-          fill="none" stroke={shade} strokeWidth="2" strokeLinecap="round"/>
-
-        {/* Partição */}
-        <path d={`M 100 34 C 100 42 100 50 100 58`}
-          fill="none" stroke={shade} strokeWidth="1.5" strokeLinecap="round" opacity="0.5"/>
-
-        {/* Reflexo */}
-        <path d={`M 78 44 C 86 37 100 35 114 42`}
-          fill="none" stroke="rgba(255,255,255,0.18)" strokeWidth="3.5" strokeLinecap="round"/>
+        {/* Base — mesma do short */}
+        <path d={`M ${HX-HRX+2} ${HY-28} C ${HX-HRX-2} ${HY-38} ${HX-HRX+2} ${topY+4} ${HX-14} ${topY+10} C ${HX-6} ${topY+12} ${HX+6} ${topY+12} ${HX+14} ${topY+10} C ${HX+HRX-2} ${topY+4} ${HX+HRX+2} ${HY-38} ${HX+HRX-2} ${HY-28} C ${HX+32} ${HY-22} ${HX-32} ${HY-22} Z`} fill={hairC}/>
+        <path d={`M ${HX-HRX+2} ${HY-28} C ${HX-HRX-4} ${HY-16} ${HX-HRX-2} ${HY-4} ${HX-HRX+6} ${HY+4} C ${HX-HRX+10} ${HY-6} ${HX-HRX+8} ${HY-20} Z`} fill={hairC}/>
+        <path d={`M ${HX+HRX-2} ${HY-28} C ${HX+HRX+4} ${HY-16} ${HX+HRX+2} ${HY-4} ${HX+HRX-6} ${HY+4} C ${HX+HRX-10} ${HY-6} ${HX+HRX-8} ${HY-20} Z`} fill={mid}/>
+        {/* Topo liso */}
+        <path d={`M ${HX-HRX} ${HY-20} C ${HX-HRX-2} ${HY-36} ${HX-24} ${topY-4} ${HX} ${topY-6} C ${HX+24} ${topY-4} ${HX+HRX+2} ${HY-36} ${HX+HRX} ${HY-20} C ${HX+32} ${topY+14} ${HX-32} ${topY+14} Z`} fill={mid}/>
+        {/* Mechas */}
+        <path d={`M ${HX-20} ${topY+8} C ${HX-16} ${topY} ${HX-8} ${topY-4}`} stroke={dark} strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.5"/>
+        <path d={`M ${HX+20} ${topY+8} C ${HX+16} ${topY} ${HX+8} ${topY-4}`} stroke={dark} strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.4"/>
+        <path d={`M ${HX} ${topY-4} C ${HX-4} ${topY-10} ${HX-2} ${topY-16}`} stroke={dark} strokeWidth="1.5" fill="none" strokeLinecap="round" opacity="0.4"/>
+        {/* Brilho */}
+        <path d={`M ${HX-12} ${topY-2} C ${HX} ${topY-8} ${HX+12} ${topY-2}`} stroke="rgba(255,255,255,0.2)" strokeWidth="3" fill="none" strokeLinecap="round"/>
       </g>
     );
   }
 
-  // ── Spiky ────────────────────────────────────────────────────
+  // ── SPIKY ────────────────────────────────────────────────────
   if (style === 'spiky') {
     return (
       <g>
-        {/* Faixa base fina */}
-        <path d={`M 63 96 C 60 88 59 76 62 64 C 68 44 82 36 100 35 C 118 36 132 44 138 64 C 141 76 140 88 137 96 C 132 86 122 80 100 79 C 78 80 68 86 63 96 Z`}
-          fill={hairC} stroke="#111" strokeWidth="0.8"/>
-        {/* Laterais */}
-        <path d={`M 62 64 C 60 76 60 90 63 100 C 65 108 68 110 70 106 C 68 96 66 82 66 70 Z`} fill={hairC}/>
-        <path d={`M 138 64 C 140 76 140 90 137 100 C 135 108 132 110 130 106 C 132 96 134 82 134 70 Z`} fill={hairC}/>
-        {/* Espinhos saindo da faixa base */}
-        <path d={`M 70 68 L 62 26 L 82 60 Z`} fill={hairC} stroke="#111" strokeWidth="1" strokeLinejoin="round"/>
-        <path d={`M 88 52 L 83 10 L 104 50 Z`} fill={hairC} stroke="#111" strokeWidth="1" strokeLinejoin="round"/>
-        <path d={`M 112 52 L 117 10 L 130 56 Z`} fill={hairC} stroke="#111" strokeWidth="1" strokeLinejoin="round"/>
-        <path d={`M 128 64 L 138 26 L 142 66 Z`} fill={hairC} stroke="#111" strokeWidth="1" strokeLinejoin="round"/>
+        {/* Base fina */}
+        <path d={`M ${HX-HRX+2} ${HY-28} C ${HX-HRX-2} ${HY-38} ${HX-HRX+2} ${topY+6} ${HX} ${topY+8} C ${HX+HRX-2} ${topY+6} ${HX+HRX+2} ${HY-38} ${HX+HRX-2} ${HY-28} C ${HX+32} ${HY-22} ${HX-32} ${HY-22} Z`} fill={hairC}/>
+        {/* Espinhos — cada um é um chunk independente */}
+        {[
+          { x: HX-24, baseY: topY+4, tipX: HX-32, tipY: topY-30 },
+          { x: HX-8,  baseY: topY,   tipX: HX-12, tipY: topY-38 },
+          { x: HX+4,  baseY: topY,   tipX: HX+4,  tipY: topY-40 },
+          { x: HX+18, baseY: topY+2, tipX: HX+22, tipY: topY-32 },
+        ].map((sp, i) => (
+          <g key={i}>
+            <path d={`M ${sp.x-5} ${sp.baseY} L ${sp.tipX-2} ${sp.tipY} L ${sp.tipX+3} ${sp.tipY+2} L ${sp.x+6} ${sp.baseY} Z`}
+              fill={i%2===0 ? hairC : mid} stroke="#111" strokeWidth="0.8" strokeLinejoin="round"/>
+            <path d={`M ${sp.tipX} ${sp.tipY+4} L ${sp.tipX+1} ${sp.tipY-2}`}
+              stroke={light} strokeWidth="1.2" fill="none" strokeLinecap="round" opacity="0.6"/>
+          </g>
+        ))}
+        {/* Costeletas */}
+        <path d={`M ${HX-HRX+2} ${HY-28} C ${HX-HRX-4} ${HY-16} ${HX-HRX-2} ${HY-4} ${HX-HRX+6} ${HY+4} C ${HX-HRX+10} ${HY-6} ${HX-HRX+8} ${HY-20} Z`} fill={hairC}/>
+        <path d={`M ${HX+HRX-2} ${HY-28} C ${HX+HRX+4} ${HY-16} ${HX+HRX+2} ${HY-4} ${HX+HRX-6} ${HY+4} C ${HX+HRX-10} ${HY-6} ${HX+HRX-8} ${HY-20} Z`} fill={mid}/>
       </g>
     );
   }
 
-  // ── Mohawk ───────────────────────────────────────────────────
+  // ── MOHAWK ────────────────────────────────────────────────────
   if (style === 'mohawk') {
     return (
       <g>
-        {/* Lados muito curtos */}
-        <path d={`M 60 76 C 58 88 58 100 62 108 C 65 114 70 116 72 110 C 70 100 68 88 68 76 Z`} fill={hairC}/>
-        <path d={`M 140 76 C 142 88 142 100 138 108 C 135 114 130 116 128 110 C 130 100 132 88 132 76 Z`} fill={hairC}/>
-        {/* Crista central */}
-        <path d={`M 90 68 L 86 8 L 100 -4 L 114 8 L 110 68 C 106 58 94 58 90 68 Z`}
-          fill={hairC} stroke="#111" strokeWidth="1.2"/>
-        {/* Textura da crista */}
-        <path d={`M 95 64 C 97 44 100 32 100 16`}
-          fill="none" stroke={shade} strokeWidth="2" strokeLinecap="round"/>
-        <path d={`M 96 56 C 98 38 100 28 102 16`}
-          fill="none" stroke="rgba(255,255,255,0.18)" strokeWidth="1.5" strokeLinecap="round"/>
+        {/* Lados raspados — faixa bem fina */}
+        <path d={`M ${HX-HRX+2} ${HY-28} C ${HX-HRX-4} ${HY-14} ${HX-HRX-2} ${HY-2} ${HX-HRX+6} ${HY+4} C ${HX-HRX+10} ${HY-4} ${HX-HRX+8} ${HY-18} Z`} fill={adj(hairC,-10)}/>
+        <path d={`M ${HX+HRX-2} ${HY-28} C ${HX+HRX+4} ${HY-14} ${HX+HRX+2} ${HY-2} ${HX+HRX-6} ${HY+4} C ${HX+HRX-10} ${HY-4} ${HX+HRX-8} ${HY-18} Z`} fill={adj(hairC,-10)}/>
+        {/* Crista central em chunks */}
+        <path d={`M ${HX-8} ${topY+8} L ${HX-10} ${topY-44} C ${HX-6} ${topY-50} ${HX+6} ${topY-50} ${HX+10} ${topY-44} L ${HX+8} ${topY+8} C ${HX+4} ${topY+4} ${HX-4} ${topY+4} Z`}
+          fill={hairC} stroke="#111" strokeWidth="1"/>
+        {/* Mechas na crista */}
+        <path d={`M ${HX-4} ${topY+4} C ${HX-3} ${topY-20} ${HX-1} ${topY-42}`} stroke={dark} strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.6"/>
+        <path d={`M ${HX+2} ${topY+4} C ${HX+1} ${topY-20} ${HX+3} ${topY-42}`} stroke={light} strokeWidth="1.5" fill="none" strokeLinecap="round" opacity="0.5"/>
+        <path d={`M ${HX-2} ${topY-8} C ${HX} ${topY-28} ${HX+2} ${topY-44}`} stroke="rgba(255,255,255,0.2)" strokeWidth="2.5" fill="none" strokeLinecap="round"/>
       </g>
     );
   }
 
-  // ── Afro (Black Power) ───────────────────────────────────────
+  // ── AFRO ─────────────────────────────────────────────────────
   if (style === 'afro') {
-    const dark = adjustHex(hairC, -45);
+    const darkA = adj(hairC, -40);
     return (
       <g>
-        {/* Massa grande do afro — forma orgânica, não círculo perfeito */}
+        {/* Massa principal — forma orgânica (não círculo perfeito) */}
         <path d={`
-          M 46 90
-          C 42 72 44 52 56 38
-          C 64 28 78 20 100 18
-          C 122 20 136 28 144 38
-          C 156 52 158 72 154 90
-          C 148 82 142 78 140 72
-          C 136 58 122 46 100 44
-          C 78 46 64 58 60 72
-          C 58 78 52 82 46 90 Z
-        `} fill={hairC} stroke="#111" strokeWidth="1.2"/>
+          M ${HX-HRX+2} ${HY-10}
+          C ${HX-HRX-20} ${HY-24} ${HX-HRX-28} ${HY-52} ${HX-HRX-8} ${topY-28}
+          C ${HX-30} ${topY-52} ${HX-8} ${topY-58} ${HX} ${topY-58}
+          C ${HX+8} ${topY-58} ${HX+30} ${topY-52} ${HX+HRX+8} ${topY-28}
+          C ${HX+HRX+28} ${HY-52} ${HX+HRX+20} ${HY-24} ${HX+HRX-2} ${HY-10}
+          C ${HX+HRX-8} ${HY-2} ${HX+HRX-12} ${HY+6} ${HX+HRX-6} ${HY+10}
+          C ${HX+22} ${HY+16} ${HX-22} ${HY+16} ${HX-HRX+6} ${HY+10}
+          C ${HX-HRX+12} ${HY+6} ${HX-HRX+8} ${HY-2} Z
+        `} fill={hairC}/>
 
-        {/* Textura de cachos — pequenos círculos irregulares */}
+        {/* Textura de cachos */}
         {([
-          [-30,10],[-20,-4],[-10,-16],[0,-20],[10,-16],[20,-4],[30,10],
-          [-34,26],[-22,14],[-10,6],[0,2],[10,6],[22,14],[34,26],
-          [-28,40],[-14,30],[0,26],[14,30],[28,40],
+          [-28,  0], [-18,-16], [ -6,-22], [  6,-22], [ 18,-16], [ 28,  0],
+          [-34, 16], [-20, 6],  [ -6,  2], [  6,  2], [ 20,  6], [ 34, 16],
+          [-26, 30], [-10, 22], [  6, 20], [ 20, 24],
         ] as [number,number][]).map(([dx,dy],i) => (
-          <circle key={i} cx={100+dx} cy={66+dy} r={5+i%3} fill={dark} opacity="0.3"/>
+          <circle key={i} cx={HX+dx} cy={HY-32+dy} r={5+i%3*1.2} fill={darkA} opacity="0.28"/>
         ))}
 
-        {/* Mechas laterais cobrindo as orelhas */}
-        <path d={`M 46 88 C 42 96 44 106 50 112 C 54 116 60 116 62 110 C 58 104 54 96 52 88 Z`}
-          fill={hairC}/>
-        <path d={`M 154 88 C 158 96 156 106 150 112 C 146 116 140 116 138 110 C 142 104 146 96 148 88 Z`}
-          fill={hairC}/>
-
         {/* Reflexo de luz */}
-        <path d={`M 72 32 C 82 24 100 20 118 28`}
-          fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="5" strokeLinecap="round"/>
+        <path d={`M ${HX-18} ${topY-46} C ${HX} ${topY-56} ${HX+18} ${topY-46}`}
+          stroke="rgba(255,255,255,0.14)" strokeWidth="7" fill="none" strokeLinecap="round"/>
       </g>
     );
   }
 
-  // ── Topete ───────────────────────────────────────────────────
+  // ── TOPETE (pompadour) ────────────────────────────────────────
   if (style === 'topete') {
     return (
       <g>
-        {/* Base lateral — cobre acima das orelhas */}
-        <path d={`M 60 98 C 58 88 57 78 58 70 C 62 58 70 52 78 50 C 74 58 72 68 72 78 C 72 86 66 92 60 98 Z`} fill={hairC}/>
-        <path d={`M 140 98 C 142 88 143 78 142 70 C 138 58 130 52 122 50 C 126 58 128 68 128 78 C 128 86 134 92 140 98 Z`} fill={hairC}/>
-        {/* Base traseira do crânio */}
-        <path d={`M 60 72 C 62 58 72 50 100 48 C 128 50 138 58 140 72 C 128 64 112 60 100 60 C 88 60 72 64 60 72 Z`} fill={hairC}/>
-        {/* Topete levantado com forma mais orgânica */}
-        <path d={`M 80 62 C 76 44 80 16 100 8 C 120 16 124 44 120 62 C 114 52 88 52 80 62 Z`}
-          fill={hairC} stroke="#111" strokeWidth="1.2"/>
-        {/* Textura interna do topete */}
-        <path d={`M 88 58 C 90 42 96 28 100 16`}
-          fill="none" stroke={shade} strokeWidth="2.5" strokeLinecap="round"/>
-        <path d={`M 112 58 C 110 42 104 28 100 16`}
-          fill="none" stroke={shade} strokeWidth="2" strokeLinecap="round"/>
-        {/* Reflexo */}
-        <path d={`M 86 50 C 90 34 100 18 100 18`}
-          fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="3" strokeLinecap="round"/>
-        {/* Hairline */}
-        <path d={`M 62 84 C 68 76 80 70 100 69 C 120 70 132 76 138 84`}
-          fill="none" stroke={shade} strokeWidth="1.5" strokeLinecap="round" opacity="0.4"/>
+        {/* Base lateral */}
+        <path d={`M ${HX-HRX+2} ${HY-28} C ${HX-HRX-2} ${HY-38} ${HX-HRX+2} ${topY+6} ${HX-20} ${topY+10} C ${HX-28} ${HY-24} ${HX-34} ${HY-20} Z`} fill={hairC}/>
+        <path d={`M ${HX+HRX-2} ${HY-28} C ${HX+HRX+2} ${HY-38} ${HX+HRX-2} ${topY+6} ${HX+20} ${topY+10} C ${HX+28} ${HY-24} ${HX+34} ${HY-20} Z`} fill={mid}/>
+        {/* Costeletas */}
+        <path d={`M ${HX-HRX+2} ${HY-28} C ${HX-HRX-4} ${HY-16} ${HX-HRX-2} ${HY-4} ${HX-HRX+6} ${HY+4} C ${HX-HRX+10} ${HY-6} ${HX-HRX+8} ${HY-20} Z`} fill={hairC}/>
+        <path d={`M ${HX+HRX-2} ${HY-28} C ${HX+HRX+4} ${HY-16} ${HX+HRX+2} ${HY-4} ${HX+HRX-6} ${HY+4} C ${HX+HRX-10} ${HY-6} ${HX+HRX-8} ${HY-20} Z`} fill={mid}/>
+        {/* Pompadour — levantado e varrido para trás */}
+        <path d={`
+          M ${HX-20} ${topY+10}
+          C ${HX-26} ${topY-10} ${HX-20} ${topY-36} ${HX-6} ${topY-44}
+          C ${HX+8} ${topY-44} ${HX+22} ${topY-30} ${HX+20} ${topY+6}
+          C ${HX+12} ${topY} ${HX} ${topY-2} ${HX-10} ${topY+2}
+          C ${HX-14} ${topY+6} Z
+        `} fill={mid}/>
+        {/* Topo mais claro */}
+        <path d={`M ${HX-8} ${topY+2} C ${HX-14} ${topY-16} ${HX-8} ${topY-38} ${HX+2} ${topY-42} C ${HX+12} ${topY-36} ${HX+14} ${topY-14} ${HX+10} ${topY+2} C ${HX+4} ${topY-2} ${HX-2} ${topY-2} Z`}
+          fill={light}/>
+        {/* Mechas */}
+        <path d={`M ${HX-4} ${topY} C ${HX-4} ${topY-20} ${HX-2} ${topY-40}`} stroke={dark} strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.55"/>
+        <path d={`M ${HX+8} ${topY} C ${HX+8} ${topY-18} ${HX+6} ${topY-38}`} stroke={dark} strokeWidth="1.5" fill="none" strokeLinecap="round" opacity="0.45"/>
+        {/* Brilho */}
+        <path d={`M ${HX-4} ${topY-32} C ${HX} ${topY-42} ${HX+8} ${topY-38}`}
+          stroke="rgba(255,255,255,0.28)" strokeWidth="3" fill="none" strokeLinecap="round"/>
       </g>
     );
   }
@@ -700,79 +687,58 @@ function HairFront({ ha, hairC, uid }: { ha: any; hairC: string; uid: string }) 
 // ═══════════════════════════════════════════════════════════════
 // CHAPÉU
 // ═══════════════════════════════════════════════════════════════
-function Hat({ ht, uid }: { ht: any; uid: string }) {
+function Hat({ ht, HX, HY, uid }: { ht: any; HX: number; HY: number; uid: string }) {
   const style  = ht.style  ?? 'none';
   const color  = ht.color  ?? '#1B3A6B';
   const color2 = ht.color2 ?? '#112750';
+  const topY   = HY - 56;
 
   if (style === 'none') return null;
 
-  if (style === 'cap') {
-    return (
-      <g>
-        {/* aba */}
-        <path d={`M 40 76 C 60 68 140 68 160 76 L 166 80 C 140 72 60 72 34 80 Z`}
-          fill={color2} stroke="#111" strokeWidth="1"/>
-        {/* cúpula */}
-        <path d={`M 58 74 C 56 28 100 12 144 28 C 156 38 158 60 156 74 Z`}
-          fill={color} stroke="#111" strokeWidth="1.5"/>
-        {/* faixa */}
-        <path d={`M 58 74 C 80 68 120 68 156 74`}
-          stroke={color2} strokeWidth="5" fill="none"/>
-        {/* brilho */}
-        <path d={`M 80 32 C 100 20 120 24 130 38`}
-          stroke="rgba(255,255,255,0.18)" strokeWidth="3" fill="none" strokeLinecap="round"/>
-      </g>
-    );
-  }
+  if (style === 'cap') return (
+    <g>
+      <path d={`M ${HX-46} ${HY-28} C ${HX-24} ${HY-22} ${HX+24} ${HY-22} ${HX+46} ${HY-28} L ${HX+52} ${HY-24} C ${HX+24} ${HY-16} ${HX-24} ${HY-16} ${HX-52} ${HY-24} Z`}
+        fill={color2} stroke="#111" strokeWidth="1"/>
+      <path d={`M ${HX-HX+54} ${HY-26} C ${HX-48} ${HY-44} ${HX-28} ${topY+2} ${HX} ${topY} C ${HX+28} ${topY+2} ${HX+48} ${HY-44} ${HX+46} ${HY-26} Z`}
+        fill={color} stroke="#111" strokeWidth="1.2"/>
+      <path d={`M ${HX-46} ${HY-26} C ${HX-24} ${HY-20} ${HX+24} ${HY-20} ${HX+46} ${HY-26}`}
+        stroke={color2} strokeWidth="4" fill="none"/>
+      <path d={`M ${HX-22} ${topY+4} C ${HX-8} ${topY-4} ${HX+8} ${topY-4} ${HX+22} ${topY+4}`}
+        stroke="rgba(255,255,255,0.18)" strokeWidth="3.5" fill="none" strokeLinecap="round"/>
+    </g>
+  );
 
-  if (style === 'crown') {
-    return (
-      <g>
-        <rect x="68" y="42" width="64" height="20" rx="4" fill={color} stroke="#111" strokeWidth="1"/>
-        <path d={`M 70 42 L 68 20 L 82 36 L 100 16 L 118 36 L 132 20 L 130 42 Z`}
-          fill={color} stroke="#111" strokeWidth="1.2"/>
-        {/* gemas */}
-        <circle cx="80" cy="52" r="4" fill="#E84848"/>
-        <circle cx="100" cy="52" r="4" fill="#4BE84B"/>
-        <circle cx="120" cy="52" r="4" fill="#4848E8"/>
-      </g>
-    );
-  }
+  if (style === 'crown') return (
+    <g>
+      <rect x={HX-32} y={HY-48} width="64" height="16" rx="3" fill={color} stroke="#111" strokeWidth="1"/>
+      <path d={`M ${HX-30} ${HY-48} L ${HX-28} ${HY-70} L ${HX-14} ${HY-52}`} fill={color} stroke="#111" strokeWidth="1"/>
+      <path d={`M ${HX-4} ${HY-48} L ${HX} ${HY-76} L ${HX+4} ${HY-48}`} fill={color} stroke="#111" strokeWidth="1"/>
+      <path d={`M ${HX+14} ${HY-52} L ${HX+28} ${HY-70} L ${HX+30} ${HY-48}`} fill={color} stroke="#111" strokeWidth="1"/>
+      <circle cx={HX-20} cy={HY-40} r="4" fill="#E84848"/>
+      <circle cx={HX}    cy={HY-40} r="4" fill="#4BE84B"/>
+      <circle cx={HX+20} cy={HY-40} r="4" fill="#4848E8"/>
+    </g>
+  );
 
-  if (style === 'cowboy') {
-    return (
-      <g>
-        {/* aba */}
-        <ellipse cx="100" cy="72" rx="56" ry="12" fill={color2} stroke="#111" strokeWidth="1.2"/>
-        {/* copa */}
-        <path d={`M 70 72 C 66 32 100 18 134 32 C 142 44 144 62 138 72 Z`}
-          fill={color} stroke="#111" strokeWidth="1.5"/>
-        {/* amassado no topo */}
-        <path d={`M 88 28 C 92 18 108 18 112 28`}
-          stroke={color2} strokeWidth="3" fill="none" strokeLinecap="round"/>
-        {/* faixa */}
-        <path d={`M 72 72 C 85 65 115 65 130 72`}
-          stroke={color2} strokeWidth="4" fill="none"/>
-      </g>
-    );
-  }
+  if (style === 'cowboy') return (
+    <g>
+      <ellipse cx={HX} cy={HY-32} rx="56" ry="10" fill={color2} stroke="#111" strokeWidth="1"/>
+      <path d={`M ${HX-30} ${HY-32} C ${HX-34} ${HY-50} ${HX-18} ${topY-12} ${HX} ${topY-14} C ${HX+18} ${topY-12} ${HX+34} ${HY-50} ${HX+30} ${HY-32} Z`}
+        fill={color} stroke="#111" strokeWidth="1.2"/>
+      <path d={`M ${HX-18} ${topY-14} C ${HX-6} ${topY-20} ${HX+6} ${topY-20} ${HX+18} ${topY-14}`}
+        stroke={color2} strokeWidth="3" fill="none" strokeLinecap="round"/>
+    </g>
+  );
 
-  if (style === 'wizard') {
-    return (
-      <g>
-        {/* aba */}
-        <ellipse cx="100" cy="72" rx="48" ry="10" fill={color2} stroke="#111" strokeWidth="1"/>
-        {/* cone */}
-        <path d={`M 70 72 C 60 48 80 24 100 8 C 120 24 140 48 130 72 Z`}
-          fill={color} stroke="#111" strokeWidth="1.5"/>
-        {/* estrelas */}
-        <circle cx="90" cy="48" r="3.5" fill="#FCD34D"/>
-        <circle cx="110" cy="36" r="2.5" fill="#FCD34D"/>
-        <circle cx="96" cy="30" r="1.8" fill="#FCD34D"/>
-      </g>
-    );
-  }
+  if (style === 'wizard') return (
+    <g>
+      <ellipse cx={HX} cy={HY-36} rx="46" ry="9" fill={color2} stroke="#111" strokeWidth="1"/>
+      <path d={`M ${HX-28} ${HY-36} C ${HX-18} ${HY-56} ${HX-8} ${topY-16} ${HX} ${topY-36} C ${HX+8} ${topY-16} ${HX+18} ${HY-56} ${HX+28} ${HY-36} Z`}
+        fill={color} stroke="#111" strokeWidth="1.2"/>
+      <circle cx={HX-10} cy={HY-58} r="3.5" fill="#FCD34D"/>
+      <circle cx={HX+8}  cy={HY-68} r="2.5" fill="#FCD34D"/>
+    </g>
+  );
 
   return null;
 }
