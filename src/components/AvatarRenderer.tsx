@@ -24,7 +24,7 @@ interface Props {
 }
 
 const DEFAULT: Record<string, Record<string, any>> = {
-  background: { type: 'solid',  colors: ['#1e293b'] },
+  background: { type: 'gradient', colors: ['#1e3a5f', '#0f172a'] },
   skin:       { faceColor: '#F5C5A3', shadeColor: '#D4977A', lightColor: '#FFE0C4' },
   eyes:       { shape: 'round', color: '#3d2b1f' },
   mouth:      { shape: 'smile', color: '#b03030' },

@@ -474,18 +474,23 @@ export function PainelVendedor({ userId, userName, equipe, userRole = 'vendedor'
           {/* Top row: avatar + patente + ranking (all inline) */}
           <div className="flex items-start gap-3 sm:gap-4 min-w-0">
 
-            {/* Foto/Avatar do usuário */}
+            {/* Avatar do usuário */}
             <div className="relative flex-shrink-0">
               {/* Avatar SVG clicável */}
               <button
                 onMouseEnter={somHover}
                 onClick={() => { somClick(); setAvatarOpen(true); }}
-                title="Meu Avatar"
+                title="Meu Avatar — clique para personalizar"
                 className="block rounded-2xl overflow-hidden transition-all hover:scale-105 active:scale-95"
-                style={{ border: `2px solid ${nivelInfo.pat.cor}60`, boxShadow: `0 0 20px ${nivelInfo.pat.glow}` }}
+                style={{ border: `2px solid ${nivelInfo.pat.cor}70`, boxShadow: `0 0 24px ${nivelInfo.pat.glow}` }}
               >
-                <AvatarRenderer equipped={avatarEquipped} size={72} />
+                <AvatarRenderer equipped={avatarEquipped} size={88} />
               </button>
+
+              {/* Label "Avatar" */}
+              <div className="absolute -bottom-5 left-0 right-0 flex justify-center">
+                <span className="text-[8px] font-black uppercase tracking-widest text-zinc-600">Avatar</span>
+              </div>
 
               {/* Foto de perfil sobreposta (pequena, canto inferior esquerdo) */}
               {stats?.foto_url && (
@@ -501,7 +506,7 @@ export function PainelVendedor({ userId, userName, equipe, userRole = 'vendedor'
                 onMouseEnter={somHover}
                 onClick={() => { somClick(); setEditandoFoto(true); setNovaFoto(stats?.foto_url ?? ''); }}
                 className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-zinc-800 border border-zinc-600 hover:border-yellow-400/60 flex items-center justify-center text-[10px] transition-all hover:bg-zinc-700"
-                title="Editar foto"
+                title="Editar foto de perfil"
               >
                 ✏️
               </button>
