@@ -473,39 +473,37 @@ export function PainelVendedor({ userId, userName, equipe, userRole = 'vendedor'
 
           {/* Top row: avatar + patente + ranking (all inline) */}
           <div className="flex items-start gap-3 sm:gap-4 min-w-0">
+
+            {/* Foto/Avatar do usuário */}
             <div className="relative flex-shrink-0">
-              {stats?.foto_url ? (
+              {/* Avatar SVG clicável */}
+              <button
+                onMouseEnter={somHover}
+                onClick={() => { somClick(); setAvatarOpen(true); }}
+                title="Meu Avatar"
+                className="block rounded-2xl overflow-hidden transition-all hover:scale-105 active:scale-95"
+                style={{ border: `2px solid ${nivelInfo.pat.cor}60`, boxShadow: `0 0 20px ${nivelInfo.pat.glow}` }}
+              >
+                <AvatarRenderer equipped={avatarEquipped} size={72} />
+              </button>
+
+              {/* Foto de perfil sobreposta (pequena, canto inferior esquerdo) */}
+              {stats?.foto_url && (
                 <img
                   src={stats.foto_url}
                   alt={userName}
-                  className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover"
-                  style={{ border: `2px solid ${nivelInfo.pat.cor}50`, boxShadow: `0 0 20px ${nivelInfo.pat.glow}` }}
+                  className="absolute -bottom-1 -left-1 w-7 h-7 rounded-lg object-cover border-2 border-zinc-900"
                 />
-              ) : (
-                <div
-                  className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl flex items-center justify-center text-4xl sm:text-5xl"
-                  style={{ background: `${nivelInfo.pat.cor}15`, border: `2px solid ${nivelInfo.pat.cor}50`, boxShadow: `0 0 20px ${nivelInfo.pat.glow}` }}
-                >
-                  {nivelInfo.pat.icone}
-                </div>
               )}
+
               {/* Botão editar foto */}
               <button
                 onMouseEnter={somHover}
                 onClick={() => { somClick(); setEditandoFoto(true); setNovaFoto(stats?.foto_url ?? ''); }}
-                className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-zinc-800 border border-zinc-600 hover:border-yellow-400/60 flex items-center justify-center text-[11px] transition-all hover:bg-zinc-700"
+                className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-zinc-800 border border-zinc-600 hover:border-yellow-400/60 flex items-center justify-center text-[10px] transition-all hover:bg-zinc-700"
                 title="Editar foto"
               >
                 ✏️
-              </button>
-              {/* Botão avatar */}
-              <button
-                onMouseEnter={somHover}
-                onClick={() => { somClick(); setAvatarOpen(true); }}
-                className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-zinc-800 border border-zinc-600 hover:border-purple-400/60 flex items-center justify-center text-[11px] transition-all hover:bg-zinc-700"
-                title="Meu Avatar"
-              >
-                🧙
               </button>
             </div>
 
@@ -561,20 +559,18 @@ export function PainelVendedor({ userId, userName, equipe, userRole = 'vendedor'
                   {somAtivo ? 'On' : 'Off'}
                 </span>
               </button>
-              {/* Saldo de moedas + botão avatar */}
-              {coinBalance !== null && (
-                <button
-                  onMouseEnter={somHover}
-                  onClick={() => { somClick(); setAvatarOpen(true); }}
-                  className="flex items-center gap-1 px-2 py-1 rounded-lg bg-yellow-950/30 border border-yellow-700/40 hover:border-yellow-400/60 transition-all"
-                  title="Meu Avatar e Loja"
-                >
-                  <span className="text-sm">🪙</span>
-                  <span className="text-[8px] sm:text-[9px] font-black text-yellow-400">
-                    {userRole === 'admin' ? '∞' : coinBalance.toLocaleString('pt-BR')}
-                  </span>
-                </button>
-              )}
+              {/* Saldo de moedas + botão loja */}
+              <button
+                onMouseEnter={somHover}
+                onClick={() => { somClick(); setAvatarOpen(true); }}
+                className="flex items-center gap-1 px-2 py-1 rounded-lg bg-yellow-950/30 border border-yellow-700/40 hover:border-yellow-400/60 transition-all"
+                title="Meu Avatar e Loja"
+              >
+                <span className="text-sm">🪙</span>
+                <span className="text-[8px] sm:text-[9px] font-black text-yellow-400">
+                  {userRole === 'admin' ? '∞' : coinBalance !== null ? coinBalance.toLocaleString('pt-BR') : '...'}
+                </span>
+              </button>
             </div>
           </div>
 
