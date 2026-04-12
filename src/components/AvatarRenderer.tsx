@@ -453,148 +453,98 @@ function HairBack({ ha, hairC, HX, HY, HRX, HRY }: {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// CABELO FRENTE — A CHAVE PARA NÃO PARECER CAPACETE
-// Cada estilo usa chunks separados + strokes de mechas
+// CABELO FRENTE — uma forma única + strokes de textura
 // ═══════════════════════════════════════════════════════════════
 function HairFront({ ha, hairC, HX, HY, HRX, HRY }: {
   ha: any; hairC: string; HX: number; HY: number; HRX: number; HRY: number;
 }) {
-  const style  = ha.style ?? 'short';
+  const style = ha.style ?? 'short';
   if (style === 'bald') return null;
 
-  const dark   = adj(hairC, -35);   // sombra profunda (raízes/separações)
-  const mid    = adj(hairC, -15);   // tom médio
-  const light  = adj(hairC, +30);   // destaque
-  const shine  = adj(hairC, +55);   // brilho máximo
+  const dark  = adj(hairC, -28);
+  const light = adj(hairC, +22);
 
-  // Topo da cabeça (onde o cabelo começa)
-  const topY = HY - HRY;  // ≈ 36
+  // Hairline: onde o cabelo encontra a testa (y ≈ HY - 30)
+  const HL = HY - 30; // ≈ 62
+  // Topo da cabeça
+  const topY = HY - HRY; // ≈ 36
 
-  // ── SHORT / QUIFF (estilo da imagem de referência) ───────────
+  // ── Helper: forma base do cabelo curto (cobre topo da cabeça até a hairline) ──
+  // É UMA forma única com silhueta levemente orgânica — não chunks separados
+  function ShortBase() {
+    return (
+      <path d={`
+        M ${HX-38} ${HL+4}
+        C ${HX-46} ${HL-4} ${HX-50} ${topY+14} ${HX-48} ${topY+4}
+        C ${HX-46} ${topY-8} ${HX-36} ${topY-16} ${HX-22} ${topY-12}
+        C ${HX-12} ${topY-18} ${HX-2} ${topY-22} ${HX+10} ${topY-18}
+        C ${HX+26} ${topY-14} ${HX+44} ${topY-2} ${HX+48} ${topY+8}
+        C ${HX+50} ${topY+18} ${HX+44} ${HL-2} ${HX+36} ${HL+4}
+        C ${HX+26} ${HL+8} ${HX-26} ${HL+8} Z
+      `} fill={hairC}/>
+    );
+  }
+
+  // ── SHORT ─────────────────────────────────────────────────────
   if (style === 'short') {
     return (
       <g>
-        {/*
-          Estratégia: 4-5 "chunks" separados por linhas escuras
-          Cada chunk é uma forma orgânica com borda levemente irregular
-          As separações (strokes escuros) criam o efeito de mechas
-        */}
-
-        {/* === CHUNK CENTRAL (levantado — o quiff) === */}
-        <path d={`
-          M ${HX-18} ${topY+8}
-          C ${HX-22} ${topY-2} ${HX-14} ${topY-18} ${HX-4} ${topY-22}
-          C ${HX+4} ${topY-22} ${HX+14} ${topY-18} ${HX+18} ${topY+4}
-          C ${HX+10} ${topY+2} ${HX+2} ${topY} ${HX-4} ${topY+2}
-          C ${HX-10} ${topY+4} ${HX-14} ${topY+6} Z
-        `} fill={mid}/>
-
-        {/* camada mais clara no topo do chunk central */}
-        <path d={`
-          M ${HX-10} ${topY+4}
-          C ${HX-12} ${topY-8} ${HX-6} ${topY-18} ${HX} ${topY-20}
-          C ${HX+6} ${topY-18} ${HX+12} ${topY-8} ${HX+10} ${topY+4}
-          C ${HX+4} ${topY+1} ${HX-4} ${topY+1} Z
-        `} fill={light}/>
-
-        {/* === CHUNK ESQUERDO === */}
-        <path d={`
-          M ${HX-HRX+2} ${HY-28}
-          C ${HX-HRX-4} ${HY-36} ${HX-30} ${topY-12} ${HX-18} ${topY+8}
-          C ${HX-22} ${topY+14} ${HX-28} ${HY-24} ${HX-HRX+4} ${HY-20} Z
-        `} fill={hairC}/>
-
-        {/* === CHUNK DIREITO === */}
-        <path d={`
-          M ${HX+HRX-2} ${HY-28}
-          C ${HX+HRX+4} ${HY-36} ${HX+30} ${topY-12} ${HX+18} ${topY+4}
-          C ${HX+22} ${topY+14} ${HX+28} ${HY-24} ${HX+HRX-4} ${HY-20} Z
-        `} fill={mid}/>
-
-        {/* === BASE / NUCA (faixa fina seguindo o crânio) === */}
-        <path d={`
-          M ${HX-HRX+2} ${HY-28}
-          C ${HX-HRX-2} ${HY-38} ${HX-HRX+2} ${topY+4} ${HX-14} ${topY+10}
-          C ${HX-6} ${topY+12} ${HX+6} ${topY+12} ${HX+14} ${topY+10}
-          C ${HX+HRX-2} ${topY+4} ${HX+HRX+2} ${HY-38} ${HX+HRX-2} ${HY-28}
-          C ${HX+32} ${HY-22} ${HX-32} ${HY-22} Z
-        `} fill={hairC}/>
-
-        {/* === COSTELETAS (laterais cobrindo as têmporas) === */}
-        <path d={`M ${HX-HRX+2} ${HY-28} C ${HX-HRX-4} ${HY-16} ${HX-HRX-2} ${HY-4} ${HX-HRX+6} ${HY+4} C ${HX-HRX+10} ${HY-6} ${HX-HRX+8} ${HY-20} Z`}
-          fill={hairC}/>
-        <path d={`M ${HX+HRX-2} ${HY-28} C ${HX+HRX+4} ${HY-16} ${HX+HRX+2} ${HY-4} ${HX+HRX-6} ${HY+4} C ${HX+HRX-10} ${HY-6} ${HX+HRX-8} ${HY-20} Z`}
-          fill={mid}/>
-
-        {/* === LINHAS DE SEPARAÇÃO (as mais importantes!) === */}
-        {/* Separa chunk central do esquerdo */}
-        <path d={`M ${HX-18} ${topY+8} C ${HX-16} ${topY+2} ${HX-10} ${topY-10} ${HX-4} ${topY-20}`}
-          stroke={dark} strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.7"/>
-        {/* Separa chunk central do direito */}
-        <path d={`M ${HX+18} ${topY+4} C ${HX+16} ${topY+2} ${HX+10} ${topY-10} ${HX+4} ${topY-20}`}
-          stroke={dark} strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.7"/>
-        {/* Mechas internas no chunk central */}
-        <path d={`M ${HX-4} ${topY+2} C ${HX-2} ${topY-10} ${HX} ${topY-18}`}
-          stroke={dark} strokeWidth="1.5" fill="none" strokeLinecap="round" opacity="0.5"/>
-        {/* Mecha no chunk esquerdo */}
-        <path d={`M ${HX-28} ${HY-22} C ${HX-26} ${HY-32} ${HX-22} ${topY+2}`}
-          stroke={dark} strokeWidth="1.5" fill="none" strokeLinecap="round" opacity="0.45"/>
-        {/* Mecha no chunk direito */}
-        <path d={`M ${HX+28} ${HY-22} C ${HX+26} ${HY-32} ${HX+22} ${topY+2}`}
+        <ShortBase/>
+        {/* Costeletas finas descendo pelas têmporas */}
+        <path d={`M ${HX-38} ${HL+4} C ${HX-44} ${HL+14} ${HX-44} ${HL+22} ${HX-40} ${HL+28} C ${HX-36} ${HL+20} ${HX-34} ${HL+10} Z`} fill={hairC}/>
+        <path d={`M ${HX+38} ${HL+4} C ${HX+44} ${HL+14} ${HX+44} ${HL+22} ${HX+40} ${HL+28} C ${HX+36} ${HL+20} ${HX+34} ${HL+10} Z`} fill={hairC}/>
+        {/* 3 linhas de textura — direção do cabelo varrido */}
+        <path d={`M ${HX-30} ${HL+2} C ${HX-20} ${topY+2} ${HX-8} ${topY-12} ${HX+4} ${topY-16}`}
+          stroke={dark} strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.55"/>
+        <path d={`M ${HX-14} ${HL} C ${HX-6} ${topY+4} ${HX+4} ${topY-10} ${HX+16} ${topY-14}`}
+          stroke={dark} strokeWidth="1.5" fill="none" strokeLinecap="round" opacity="0.4"/>
+        <path d={`M ${HX+4} ${HL+2} C ${HX+12} ${topY+6} ${HX+22} ${topY-4} ${HX+34} ${topY+2}`}
           stroke={dark} strokeWidth="1.5" fill="none" strokeLinecap="round" opacity="0.35"/>
-
-        {/* === BRILHO/REFLEXO no topo === */}
-        <path d={`M ${HX-6} ${topY-14} C ${HX} ${topY-20} ${HX+6} ${topY-16}`}
-          stroke={shine} strokeWidth="2.5" fill="none" strokeLinecap="round" opacity="0.5"/>
-        <path d={`M ${HX-14} ${topY-4} C ${HX-10} ${topY-12} ${HX-4} ${topY-18}`}
-          stroke="rgba(255,255,255,0.25)" strokeWidth="2" fill="none" strokeLinecap="round"/>
+        {/* Brilho no topo */}
+        <path d={`M ${HX-18} ${topY-8} C ${HX-6} ${topY-18} ${HX+10} ${topY-16}`}
+          stroke="rgba(255,255,255,0.22)" strokeWidth="4" fill="none" strokeLinecap="round"/>
       </g>
     );
   }
 
-  // ── LONG ────────────────────────────────────────────────────
+  // ── LONG ──────────────────────────────────────────────────────
   if (style === 'long') {
     return (
       <g>
-        {/* Base — mesma do short */}
-        <path d={`M ${HX-HRX+2} ${HY-28} C ${HX-HRX-2} ${HY-38} ${HX-HRX+2} ${topY+4} ${HX-14} ${topY+10} C ${HX-6} ${topY+12} ${HX+6} ${topY+12} ${HX+14} ${topY+10} C ${HX+HRX-2} ${topY+4} ${HX+HRX+2} ${HY-38} ${HX+HRX-2} ${HY-28} C ${HX+32} ${HY-22} ${HX-32} ${HY-22} Z`} fill={hairC}/>
-        <path d={`M ${HX-HRX+2} ${HY-28} C ${HX-HRX-4} ${HY-16} ${HX-HRX-2} ${HY-4} ${HX-HRX+6} ${HY+4} C ${HX-HRX+10} ${HY-6} ${HX-HRX+8} ${HY-20} Z`} fill={hairC}/>
-        <path d={`M ${HX+HRX-2} ${HY-28} C ${HX+HRX+4} ${HY-16} ${HX+HRX+2} ${HY-4} ${HX+HRX-6} ${HY+4} C ${HX+HRX-10} ${HY-6} ${HX+HRX-8} ${HY-20} Z`} fill={mid}/>
-        {/* Topo liso */}
-        <path d={`M ${HX-HRX} ${HY-20} C ${HX-HRX-2} ${HY-36} ${HX-24} ${topY-4} ${HX} ${topY-6} C ${HX+24} ${topY-4} ${HX+HRX+2} ${HY-36} ${HX+HRX} ${HY-20} C ${HX+32} ${topY+14} ${HX-32} ${topY+14} Z`} fill={mid}/>
-        {/* Mechas */}
-        <path d={`M ${HX-20} ${topY+8} C ${HX-16} ${topY} ${HX-8} ${topY-4}`} stroke={dark} strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.5"/>
-        <path d={`M ${HX+20} ${topY+8} C ${HX+16} ${topY} ${HX+8} ${topY-4}`} stroke={dark} strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.4"/>
-        <path d={`M ${HX} ${topY-4} C ${HX-4} ${topY-10} ${HX-2} ${topY-16}`} stroke={dark} strokeWidth="1.5" fill="none" strokeLinecap="round" opacity="0.4"/>
-        {/* Brilho */}
-        <path d={`M ${HX-12} ${topY-2} C ${HX} ${topY-8} ${HX+12} ${topY-2}`} stroke="rgba(255,255,255,0.2)" strokeWidth="3" fill="none" strokeLinecap="round"/>
+        <ShortBase/>
+        {/* Costeletas longas */}
+        <path d={`M ${HX-38} ${HL+4} C ${HX-46} ${HL+20} ${HX-46} ${HY+10} ${HX-40} ${HY+20} C ${HX-36} ${HY+10} ${HX-34} ${HL+14} Z`} fill={hairC}/>
+        <path d={`M ${HX+38} ${HL+4} C ${HX+46} ${HL+20} ${HX+46} ${HY+10} ${HX+40} ${HY+20} C ${HX+36} ${HY+10} ${HX+34} ${HL+14} Z`} fill={hairC}/>
+        <path d={`M ${HX-28} ${HL+6} C ${HX-18} ${topY+4} ${HX} ${topY-12}`}
+          stroke={dark} strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.5"/>
+        <path d={`M ${HX+10} ${HL+2} C ${HX+20} ${topY+6} ${HX+32} ${topY-2}`}
+          stroke={dark} strokeWidth="1.5" fill="none" strokeLinecap="round" opacity="0.35"/>
+        <path d={`M ${HX-12} ${topY-10} C ${HX} ${topY-18} ${HX+14} ${topY-12}`}
+          stroke="rgba(255,255,255,0.2)" strokeWidth="4" fill="none" strokeLinecap="round"/>
       </g>
     );
   }
 
-  // ── SPIKY ────────────────────────────────────────────────────
+  // ── SPIKY ─────────────────────────────────────────────────────
   if (style === 'spiky') {
+    // Espinhos como triângulos saindo do topo da ShortBase
+    const spikes = [
+      [HX-30, topY+2, HX-38, topY-28, HX-18, topY-2],
+      [HX-10, topY-4, HX-14, topY-36, HX+4,  topY-8],
+      [HX+8,  topY-6, HX+6,  topY-38, HX+22, topY-4],
+      [HX+26, topY+2, HX+30, topY-26, HX+42, topY+4],
+    ];
     return (
       <g>
-        {/* Base fina */}
-        <path d={`M ${HX-HRX+2} ${HY-28} C ${HX-HRX-2} ${HY-38} ${HX-HRX+2} ${topY+6} ${HX} ${topY+8} C ${HX+HRX-2} ${topY+6} ${HX+HRX+2} ${HY-38} ${HX+HRX-2} ${HY-28} C ${HX+32} ${HY-22} ${HX-32} ${HY-22} Z`} fill={hairC}/>
-        {/* Espinhos — cada um é um chunk independente */}
-        {[
-          { x: HX-24, baseY: topY+4, tipX: HX-32, tipY: topY-30 },
-          { x: HX-8,  baseY: topY,   tipX: HX-12, tipY: topY-38 },
-          { x: HX+4,  baseY: topY,   tipX: HX+4,  tipY: topY-40 },
-          { x: HX+18, baseY: topY+2, tipX: HX+22, tipY: topY-32 },
-        ].map((sp, i) => (
-          <g key={i}>
-            <path d={`M ${sp.x-5} ${sp.baseY} L ${sp.tipX-2} ${sp.tipY} L ${sp.tipX+3} ${sp.tipY+2} L ${sp.x+6} ${sp.baseY} Z`}
-              fill={i%2===0 ? hairC : mid} stroke="#111" strokeWidth="0.8" strokeLinejoin="round"/>
-            <path d={`M ${sp.tipX} ${sp.tipY+4} L ${sp.tipX+1} ${sp.tipY-2}`}
-              stroke={light} strokeWidth="1.2" fill="none" strokeLinecap="round" opacity="0.6"/>
-          </g>
+        <ShortBase/>
+        {spikes.map(([x1,y1,tx,ty,x2,y2], i) => (
+          <path key={i} d={`M ${x1} ${y1} L ${tx} ${ty} L ${x2} ${y2} Z`}
+            fill={i % 2 === 0 ? hairC : adj(hairC,-12)} stroke="#111" strokeWidth="0.8" strokeLinejoin="round"/>
         ))}
-        {/* Costeletas */}
-        <path d={`M ${HX-HRX+2} ${HY-28} C ${HX-HRX-4} ${HY-16} ${HX-HRX-2} ${HY-4} ${HX-HRX+6} ${HY+4} C ${HX-HRX+10} ${HY-6} ${HX-HRX+8} ${HY-20} Z`} fill={hairC}/>
-        <path d={`M ${HX+HRX-2} ${HY-28} C ${HX+HRX+4} ${HY-16} ${HX+HRX+2} ${HY-4} ${HX+HRX-6} ${HY+4} C ${HX+HRX-10} ${HY-6} ${HX+HRX-8} ${HY-20} Z`} fill={mid}/>
+        <path d={`M ${HX-28} ${HL+2} C ${HX-16} ${topY+4} ${HX} ${topY-10}`}
+          stroke={dark} strokeWidth="1.5" fill="none" strokeLinecap="round" opacity="0.5"/>
+        <path d={`M ${HX-22} ${topY-18} C ${HX-16} ${topY-30} ${HX-10} ${topY-34}`}
+          stroke="rgba(255,255,255,0.25)" strokeWidth="2.5" fill="none" strokeLinecap="round"/>
       </g>
     );
   }
@@ -603,80 +553,69 @@ function HairFront({ ha, hairC, HX, HY, HRX, HRY }: {
   if (style === 'mohawk') {
     return (
       <g>
-        {/* Lados raspados — faixa bem fina */}
-        <path d={`M ${HX-HRX+2} ${HY-28} C ${HX-HRX-4} ${HY-14} ${HX-HRX-2} ${HY-2} ${HX-HRX+6} ${HY+4} C ${HX-HRX+10} ${HY-4} ${HX-HRX+8} ${HY-18} Z`} fill={adj(hairC,-10)}/>
-        <path d={`M ${HX+HRX-2} ${HY-28} C ${HX+HRX+4} ${HY-14} ${HX+HRX+2} ${HY-2} ${HX+HRX-6} ${HY+4} C ${HX+HRX-10} ${HY-4} ${HX+HRX-8} ${HY-18} Z`} fill={adj(hairC,-10)}/>
-        {/* Crista central em chunks */}
-        <path d={`M ${HX-8} ${topY+8} L ${HX-10} ${topY-44} C ${HX-6} ${topY-50} ${HX+6} ${topY-50} ${HX+10} ${topY-44} L ${HX+8} ${topY+8} C ${HX+4} ${topY+4} ${HX-4} ${topY+4} Z`}
+        {/* Costeletas rasas nos lados */}
+        <path d={`M ${HX-48} ${topY+10} C ${HX-50} ${HL-4} ${HX-46} ${HL+12} ${HX-38} ${HL+18} C ${HX-34} ${HL+8} ${HX-34} ${topY+18} Z`} fill={adj(hairC,-8)}/>
+        <path d={`M ${HX+48} ${topY+10} C ${HX+50} ${HL-4} ${HX+46} ${HL+12} ${HX+38} ${HL+18} C ${HX+34} ${HL+8} ${HX+34} ${topY+18} Z`} fill={adj(hairC,-8)}/>
+        {/* Crista: uma forma simples */}
+        <path d={`M ${HX-10} ${topY+8} C ${HX-12} ${topY-20} ${HX-8} ${topY-48} ${HX} ${topY-52} C ${HX+8} ${topY-48} ${HX+12} ${topY-20} ${HX+10} ${topY+8} C ${HX+4} ${topY+4} ${HX-4} ${topY+4} Z`}
           fill={hairC} stroke="#111" strokeWidth="1"/>
-        {/* Mechas na crista */}
-        <path d={`M ${HX-4} ${topY+4} C ${HX-3} ${topY-20} ${HX-1} ${topY-42}`} stroke={dark} strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.6"/>
-        <path d={`M ${HX+2} ${topY+4} C ${HX+1} ${topY-20} ${HX+3} ${topY-42}`} stroke={light} strokeWidth="1.5" fill="none" strokeLinecap="round" opacity="0.5"/>
-        <path d={`M ${HX-2} ${topY-8} C ${HX} ${topY-28} ${HX+2} ${topY-44}`} stroke="rgba(255,255,255,0.2)" strokeWidth="2.5" fill="none" strokeLinecap="round"/>
+        <path d={`M ${HX-2} ${topY+4} C ${HX-1} ${topY-20} ${HX} ${topY-44}`}
+          stroke={dark} strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.6"/>
+        <path d={`M ${HX-2} ${topY-10} C ${HX} ${topY-32} ${HX+1} ${topY-44}`}
+          stroke="rgba(255,255,255,0.22)" strokeWidth="2.5" fill="none" strokeLinecap="round"/>
       </g>
     );
   }
 
-  // ── AFRO ─────────────────────────────────────────────────────
+  // ── AFRO ──────────────────────────────────────────────────────
   if (style === 'afro') {
-    const darkA = adj(hairC, -40);
+    const darkA = adj(hairC, -38);
     return (
       <g>
-        {/* Massa principal — forma orgânica (não círculo perfeito) */}
+        {/* Massa grande do afro — forma orgânica em torno de toda a cabeça */}
         <path d={`
-          M ${HX-HRX+2} ${HY-10}
-          C ${HX-HRX-20} ${HY-24} ${HX-HRX-28} ${HY-52} ${HX-HRX-8} ${topY-28}
-          C ${HX-30} ${topY-52} ${HX-8} ${topY-58} ${HX} ${topY-58}
-          C ${HX+8} ${topY-58} ${HX+30} ${topY-52} ${HX+HRX+8} ${topY-28}
-          C ${HX+HRX+28} ${HY-52} ${HX+HRX+20} ${HY-24} ${HX+HRX-2} ${HY-10}
-          C ${HX+HRX-8} ${HY-2} ${HX+HRX-12} ${HY+6} ${HX+HRX-6} ${HY+10}
-          C ${HX+22} ${HY+16} ${HX-22} ${HY+16} ${HX-HRX+6} ${HY+10}
-          C ${HX-HRX+12} ${HY+6} ${HX-HRX+8} ${HY-2} Z
+          M ${HX-HRX+4} ${HY}
+          C ${HX-HRX-22} ${HY-10} ${HX-HRX-30} ${HY-46} ${HX-HRX-10} ${topY-24}
+          C ${HX-32} ${topY-54} ${HX-10} ${topY-62} ${HX} ${topY-62}
+          C ${HX+10} ${topY-62} ${HX+32} ${topY-54} ${HX+HRX+10} ${topY-24}
+          C ${HX+HRX+30} ${HY-46} ${HX+HRX+22} ${HY-10} ${HX+HRX-4} ${HY}
+          C ${HX+HRX-10} ${HY+12} ${HX+HRX-6} ${HY+18}
+          C ${HX+20} ${HY+22} ${HX-20} ${HY+22} ${HX-HRX+6} ${HY+18}
+          C ${HX-HRX+10} ${HY+12} Z
         `} fill={hairC}/>
-
-        {/* Textura de cachos */}
-        {([
-          [-28,  0], [-18,-16], [ -6,-22], [  6,-22], [ 18,-16], [ 28,  0],
-          [-34, 16], [-20, 6],  [ -6,  2], [  6,  2], [ 20,  6], [ 34, 16],
-          [-26, 30], [-10, 22], [  6, 20], [ 20, 24],
-        ] as [number,number][]).map(([dx,dy],i) => (
-          <circle key={i} cx={HX+dx} cy={HY-32+dy} r={5+i%3*1.2} fill={darkA} opacity="0.28"/>
+        {/* Textura de cachos com círculos */}
+        {([[-26,-4],[-16,-20],[-4,-26],[8,-24],[20,-16],[30,-2],[-32,14],[-18,6],[-4,2],[10,4],[22,8],[34,16],[-24,28],[-8,22],[8,22],[22,26]] as [number,number][]).map(([dx,dy],i)=>(
+          <circle key={i} cx={HX+dx} cy={HY-28+dy} r={5+i%3} fill={darkA} opacity="0.25"/>
         ))}
-
-        {/* Reflexo de luz */}
-        <path d={`M ${HX-18} ${topY-46} C ${HX} ${topY-56} ${HX+18} ${topY-46}`}
-          stroke="rgba(255,255,255,0.14)" strokeWidth="7" fill="none" strokeLinecap="round"/>
+        <path d={`M ${HX-20} ${topY-50} C ${HX} ${topY-60} ${HX+20} ${topY-50}`}
+          stroke="rgba(255,255,255,0.12)" strokeWidth="8" fill="none" strokeLinecap="round"/>
       </g>
     );
   }
 
-  // ── TOPETE (pompadour) ────────────────────────────────────────
+  // ── TOPETE (pompadour varrido) ────────────────────────────────
   if (style === 'topete') {
     return (
       <g>
-        {/* Base lateral */}
-        <path d={`M ${HX-HRX+2} ${HY-28} C ${HX-HRX-2} ${HY-38} ${HX-HRX+2} ${topY+6} ${HX-20} ${topY+10} C ${HX-28} ${HY-24} ${HX-34} ${HY-20} Z`} fill={hairC}/>
-        <path d={`M ${HX+HRX-2} ${HY-28} C ${HX+HRX+2} ${HY-38} ${HX+HRX-2} ${topY+6} ${HX+20} ${topY+10} C ${HX+28} ${HY-24} ${HX+34} ${HY-20} Z`} fill={mid}/>
+        {/* Base lateral (mesma do short) */}
+        <ShortBase/>
         {/* Costeletas */}
-        <path d={`M ${HX-HRX+2} ${HY-28} C ${HX-HRX-4} ${HY-16} ${HX-HRX-2} ${HY-4} ${HX-HRX+6} ${HY+4} C ${HX-HRX+10} ${HY-6} ${HX-HRX+8} ${HY-20} Z`} fill={hairC}/>
-        <path d={`M ${HX+HRX-2} ${HY-28} C ${HX+HRX+4} ${HY-16} ${HX+HRX+2} ${HY-4} ${HX+HRX-6} ${HY+4} C ${HX+HRX-10} ${HY-6} ${HX+HRX-8} ${HY-20} Z`} fill={mid}/>
-        {/* Pompadour — levantado e varrido para trás */}
+        <path d={`M ${HX-38} ${HL+4} C ${HX-44} ${HL+14} ${HX-44} ${HL+22} ${HX-40} ${HL+28} C ${HX-36} ${HL+20} ${HX-34} ${HL+10} Z`} fill={hairC}/>
+        <path d={`M ${HX+38} ${HL+4} C ${HX+44} ${HL+14} ${HX+44} ${HL+22} ${HX+40} ${HL+28} C ${HX+36} ${HL+20} ${HX+34} ${HL+10} Z`} fill={hairC}/>
+        {/* Pompadour: elevação central varrida para trás */}
         <path d={`
-          M ${HX-20} ${topY+10}
-          C ${HX-26} ${topY-10} ${HX-20} ${topY-36} ${HX-6} ${topY-44}
-          C ${HX+8} ${topY-44} ${HX+22} ${topY-30} ${HX+20} ${topY+6}
-          C ${HX+12} ${topY} ${HX} ${topY-2} ${HX-10} ${topY+2}
-          C ${HX-14} ${topY+6} Z
-        `} fill={mid}/>
-        {/* Topo mais claro */}
-        <path d={`M ${HX-8} ${topY+2} C ${HX-14} ${topY-16} ${HX-8} ${topY-38} ${HX+2} ${topY-42} C ${HX+12} ${topY-36} ${HX+14} ${topY-14} ${HX+10} ${topY+2} C ${HX+4} ${topY-2} ${HX-2} ${topY-2} Z`}
-          fill={light}/>
-        {/* Mechas */}
-        <path d={`M ${HX-4} ${topY} C ${HX-4} ${topY-20} ${HX-2} ${topY-40}`} stroke={dark} strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.55"/>
-        <path d={`M ${HX+8} ${topY} C ${HX+8} ${topY-18} ${HX+6} ${topY-38}`} stroke={dark} strokeWidth="1.5" fill="none" strokeLinecap="round" opacity="0.45"/>
-        {/* Brilho */}
-        <path d={`M ${HX-4} ${topY-32} C ${HX} ${topY-42} ${HX+8} ${topY-38}`}
-          stroke="rgba(255,255,255,0.28)" strokeWidth="3" fill="none" strokeLinecap="round"/>
+          M ${HX-20} ${topY+6}
+          C ${HX-26} ${topY-14} ${HX-18} ${topY-40} ${HX} ${topY-46}
+          C ${HX+18} ${topY-40} ${HX+26} ${topY-14} ${HX+20} ${topY+2}
+          C ${HX+10} ${topY-2} ${HX} ${topY-4} ${HX-10} ${topY-2} Z
+        `} fill={light}/>
+        {/* 2 linhas de textura no pompadour */}
+        <path d={`M ${HX-8} ${topY+2} C ${HX-10} ${topY-20} ${HX-4} ${topY-40}`}
+          stroke={dark} strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.5"/>
+        <path d={`M ${HX+6} ${topY} C ${HX+6} ${topY-18} ${HX+10} ${topY-36}`}
+          stroke={dark} strokeWidth="1.5" fill="none" strokeLinecap="round" opacity="0.4"/>
+        <path d={`M ${HX-4} ${topY-30} C ${HX+2} ${topY-44} ${HX+8} ${topY-40}`}
+          stroke="rgba(255,255,255,0.25)" strokeWidth="3" fill="none" strokeLinecap="round"/>
       </g>
     );
   }
