@@ -1,5 +1,5 @@
-// AvatarRenderer — Pixel Art sprite style
-// Canvas 100×150, shapeRendering crispEdges
+// AvatarRenderer — Flat 2D cartoon illustration style
+// ViewBox 100×150, smooth curves with SVG paths
 
 interface AvatarItem {
   id: number;
@@ -26,40 +26,17 @@ interface Props {
 
 const DEFAULT: Record<string, Record<string, any>> = {
   background: { type: 'office' },
-  skin:       { face: '#F5C18A', shade: '#D4895A', dark: '#B8733E' },
-  eyes:       { shape: 'round', iris: '#2255CC', white: '#F0F0F0' },
-  mouth:      { shape: 'smile', color: '#C04040' },
-  hair:       { style: 'short', color: '#3B1F0E', shade: '#221008' },
-  clothes:    { style: 'polo', body: '#1B3A6B', shade: '#112750', collar: '#EAEAEA', badge: '#C8A030', pant: '#1E2D40', pantShade: '#111E2C', shoe: '#1A1A2A' },
-  hat:        { style: 'none', color: '#1B3A6B', shade: '#112750' },
+  skin:       { faceColor: '#F5C18A', shadeColor: '#D4895A', lightColor: '#FFF0E0' },
+  eyes:       { shape: 'round', color: '#2255CC', browColor: '#2c1810' },
+  mouth:      { shape: 'smile', color: '#b03030', lipTop: '#e06060' },
+  hair:       { style: 'short', color: '#3B1F0E' },
+  clothes:    { style: 'polo', color: '#1B3A6B', color2: '#112750', badge: '#C8A030', collar: '#EAEAEA', pantColor: '#1E2D40', pantColor2: '#0f172a', shoeColor: '#1A1A2A' },
+  hat:        { style: 'none', color: '#1B3A6B', color2: '#112750' },
   accessory:  { style: 'none', color: '#4B5563' },
 };
 
 function sd(eq: AvatarEquipped, key: keyof AvatarEquipped) {
   return { ...DEFAULT[key], ...(eq[key]?.style_data ?? {}) };
-}
-
-// ── pixel helpers ──────────────────────────────────────────────
-const O = '#111111'; // outline
-function r(x:number,y:number,w:number,h:number,fill:string,k?:string) {
-  return <rect key={k??`${x},${y},${w},${h},${fill}`} x={x} y={y} width={w} height={h} fill={fill} />;
-}
-// rect with outline border
-function rb(x:number,y:number,w:number,h:number,fill:string,k?:string) {
-  return (
-    <g key={k??`rb${x}${y}`}>
-      {r(x-1,y-1,w+2,h+2,O)}
-      {r(x,y,w,h,fill)}
-    </g>
-  );
-}
-// top-edge highlight inside a rect
-function hi(x:number,y:number,w:number) {
-  return r(x,y,w,2,'rgba(255,255,255,0.18)');
-}
-// bottom-edge shadow inside a rect
-function sh(x:number,y:number,w:number,h:number) {
-  return r(x,y+h-2,w,2,'rgba(0,0,0,0.22)');
 }
 
 let _uid = 0;
@@ -84,124 +61,89 @@ export function AvatarRenderer({ equipped, size = 80, className = '' }: Props) {
       viewBox={`0 0 ${W} ${H}`}
       xmlns="http://www.w3.org/2000/svg"
       className={className}
-      shapeRendering="crispEdges"
-      style={{ borderRadius: '10px', flexShrink: 0, display: 'block', imageRendering: 'pixelated' }}
+      style={{ borderRadius: '10px', flexShrink: 0, display: 'block' }}
     >
       <defs>
         <clipPath id={`cp${uid}`}><rect width={W} height={H} rx="10" ry="10"/></clipPath>
       </defs>
       <g clipPath={`url(#cp${uid})`}>
-        <Scene bg={bg} uid={uid} />
-        <Character sk={sk} ey={ey} mo={mo} ha={ha} cl={cl} ht={ht} ac={ac} />
+        <Background bg={bg} uid={uid} />
+        <Body sk={sk} cl={cl} />
+        <Face sk={sk} ey={ey} mo={mo} ha={ha} ac={ac} uid={uid} />
+        <HatLayer ha={ha} ht={ht} sk={sk} uid={uid} />
       </g>
     </svg>
   );
 }
 
 // ═══════════════════════════════════════════════════════════════
-// BACKGROUNDS
+// BACKGROUND
 // ═══════════════════════════════════════════════════════════════
-function Scene({ bg, uid }: { bg: any; uid: string }) {
+function Background({ bg, uid }: { bg: any; uid: string }) {
   const type = bg.type ?? 'solid';
 
   if (type === 'office') return (
-    <>
-      {/* Wall */}
-      {r(0,0,100,108,'#1C2B4A')}
-      {r(0,0,100,108,'#243060',`w${uid}`)}
-      {r(0,0,100,4,'#2D3C70')}
-      {/* Baseboard */}
-      {r(0,100,100,8,'#141E32')}
-      {r(0,100,100,2,'rgba(255,255,255,0.06)')}
+    <g>
+      <rect width="100" height="150" fill="#1C2B4A"/>
+      <rect width="100" height="100" fill="#243060"/>
       {/* Floor */}
-      {r(0,108,100,42,'#0D1520')}
-      {r(0,108,100,2,'rgba(255,255,255,0.05)')}
+      <rect y="100" width="100" height="50" fill="#0D1520"/>
+      <rect y="100" width="100" height="2" fill="rgba(255,255,255,0.06)"/>
       {/* Window */}
-      {r(64,8,28,22,'#0a1830')}
-      {r(64,8,28,22,'#7EC8E3',`wf${uid}`)}
-      {r(64,8,28,1,'rgba(255,255,255,0.3)')}
-      {r(64,8,1,22,'rgba(255,255,255,0.2)')}
-      {r(77,8,1,22,'rgba(255,255,255,0.1)')}
-      {r(64,19,28,1,'rgba(255,255,255,0.1)')}
-      {r(64,8,28,22,'none',`wo${uid}`)}
-      <rect x="64" y="8" width="28" height="22" fill="none" stroke={O} strokeWidth="1"/>
-      {/* Reflection on floor */}
-      {r(20,132,60,4,'rgba(255,255,255,0.03)')}
-      {/* Shadow under character */}
-      <ellipse cx="50" cy="142" rx="18" ry="4" fill="rgba(0,0,0,0.4)" />
-    </>
+      <rect x="64" y="8" width="28" height="22" rx="2" fill="#7EC8E3" opacity="0.7"/>
+      <rect x="64" y="8" width="28" height="22" rx="2" fill="none" stroke="#111" strokeWidth="1"/>
+      <line x1="78" y1="8" x2="78" y2="30" stroke="#111" strokeWidth="0.8"/>
+      <line x1="64" y1="19" x2="92" y2="19" stroke="#111" strokeWidth="0.8"/>
+      {/* Shadow */}
+      <ellipse cx="50" cy="144" rx="22" ry="4" fill="rgba(0,0,0,0.35)"/>
+    </g>
   );
 
   if (type === 'arena') return (
-    <>
-      {r(0,0,100,108,'#1A0505')}
-      {[10,25,40,55,70,85].map(x=> r(x,0,2,108,'rgba(200,30,30,0.06)',`al${x}`))}
-      {r(0,100,100,8,'#0D0000')}
-      {r(0,100,100,2,'#CC2222')}
-      {r(0,108,100,42,'#080000')}
-      {[0,12,24,36,48,60,72,84,96].map(x=> r(x,108,1,42,'rgba(180,20,20,0.08)',`ag${x}`))}
-      <ellipse cx="50" cy="142" rx="18" ry="4" fill="rgba(0,0,0,0.5)" />
-    </>
+    <g>
+      <rect width="100" height="150" fill="#1A0505"/>
+      <rect y="100" width="100" height="2" fill="#CC2222"/>
+      <rect y="102" width="100" height="48" fill="#080000"/>
+      <ellipse cx="50" cy="144" rx="22" ry="4" fill="rgba(0,0,0,0.5)"/>
+    </g>
   );
 
   if (type === 'nature') return (
-    <>
-      {/* Sky gradient */}
-      {r(0,0,100,108,'#1464A0')}
-      {r(0,0,100,40,'#1A7AB8')}
-      {/* Sun */}
+    <g>
+      <rect width="100" height="150" fill="#1464A0"/>
       <circle cx="80" cy="18" r="12" fill="#FCD34D"/>
-      <circle cx="80" cy="18" r="16" fill="#FCD34D" opacity="0.15"/>
-      {/* Clouds */}
-      {r(4,16,22,8,'rgba(255,255,255,0.75)')}
-      {r(8,12,14,8,'rgba(255,255,255,0.75)')}
-      {r(44,10,18,6,'rgba(255,255,255,0.6)')}
-      {/* Mountains */}
-      {[[0,78,20,30],[16,68,24,40],[36,58,28,50],[60,64,24,44],[78,72,22,36]].map(([x,y,w,h],i)=>
-        r(x,y,w,h,i%2===0?'#0A4A2E':'#063D24',`mt${i}`)
-      )}
-      {/* Ground */}
-      {r(0,100,100,8,'#166534')}
-      {r(0,100,100,2,'#22C55E')}
-      {r(0,108,100,42,'#14532D')}
-      <ellipse cx="50" cy="142" rx="18" ry="4" fill="rgba(0,0,0,0.35)" />
-    </>
+      <ellipse cx="15" cy="20" rx="12" ry="7" fill="rgba(255,255,255,0.75)"/>
+      <ellipse cx="50" cy="14" rx="10" ry="5" fill="rgba(255,255,255,0.6)"/>
+      <rect y="95" width="100" height="55" fill="#14532D"/>
+      <rect y="95" width="100" height="3" fill="#22C55E"/>
+      <ellipse cx="50" cy="144" rx="22" ry="4" fill="rgba(0,0,0,0.3)"/>
+    </g>
   );
 
   if (type === 'stars') return (
-    <>
-      {r(0,0,100,150,'#030712')}
-      {([[8,6],[22,4],[40,8],[60,5],[78,10],[90,4],[95,18],[85,28],[12,22],[30,32],[55,18],[72,25],[18,40],[45,35],[88,42],[5,55],[65,48],[15,85],[48,80],[75,88]] as [number,number][]).map(([x,y],i)=>
+    <g>
+      <rect width="100" height="150" fill="#030712"/>
+      {([[8,6],[22,4],[40,8],[60,5],[78,10],[90,4],[12,22],[30,32],[55,18],[72,25],[18,40],[45,35],[88,42],[5,55],[65,48],[15,85],[48,80],[75,88]] as [number,number][]).map(([x,y],i)=>
         <circle key={i} cx={x} cy={y} r={i%4===0?1.5:0.8} fill="white" opacity={0.3+i%5*0.12}/>
       )}
-      <ellipse cx="70" cy="25" rx="22" ry="12" fill="#4F46E5" opacity="0.1"/>
-      {r(0,100,100,8,'#050816')}
-      {r(0,100,100,2,'rgba(139,92,246,0.3)')}
-      {r(0,108,100,42,'#020510')}
-      <ellipse cx="50" cy="142" rx="18" ry="4" fill="rgba(0,0,0,0.6)" />
-    </>
+      <ellipse cx="50" cy="144" rx="22" ry="4" fill="rgba(0,0,0,0.6)"/>
+    </g>
   );
 
   if (type === 'neon') return (
-    <>
-      {r(0,0,100,150,'#05050F')}
-      {[0,10,20,30,40,50,60,70,80,90,100].map(x=>
-        <line key={`nv${x}`} x1={x} y1={0} x2={50} y2={108} stroke="#A855F7" strokeWidth="0.5" opacity="0.12"/>
-      )}
-      {[0.2,0.4,0.6,0.75,0.9].map((t,i)=>
-        r(0,t*108,100,1,'rgba(168,85,247,0.15)',`nh${i}`)
-      )}
-      {r(0,108,100,2,'#A855F7',`nfl`)}
-      {r(0,110,100,40,'#030308')}
-      <ellipse cx="50" cy="142" rx="18" ry="4" fill="rgba(168,85,247,0.2)" />
-    </>
+    <g>
+      <rect width="100" height="150" fill="#05050F"/>
+      <rect y="100" width="100" height="2" fill="#A855F7"/>
+      <rect y="102" width="100" height="48" fill="#030308"/>
+      <ellipse cx="50" cy="144" rx="22" ry="4" fill="rgba(168,85,247,0.2)"/>
+    </g>
   );
 
   if (type === 'gradient') {
     const c0 = bg.colors?.[0] ?? '#1e293b';
     const c1 = bg.colors?.[1] ?? '#0f172a';
     return (
-      <>
+      <g>
         <defs>
           <linearGradient id={`bgG${uid}`} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={c0}/>
@@ -209,529 +151,567 @@ function Scene({ bg, uid }: { bg: any; uid: string }) {
           </linearGradient>
         </defs>
         <rect width="100" height="150" fill={`url(#bgG${uid})`}/>
-        {r(0,100,100,8,'rgba(0,0,0,0.2)')}
-        {r(0,100,100,2,'rgba(255,255,255,0.06)')}
-        {r(0,108,100,42,'rgba(0,0,0,0.3)')}
-        <ellipse cx="50" cy="142" rx="18" ry="4" fill="rgba(0,0,0,0.4)" />
-      </>
+        <ellipse cx="50" cy="144" rx="22" ry="4" fill="rgba(0,0,0,0.4)"/>
+      </g>
     );
   }
 
-  // solid fallback
   const c = bg.colors?.[0] ?? '#1e293b';
   return (
-    <>
-      {r(0,0,100,150,c)}
-      {r(0,100,100,2,'rgba(255,255,255,0.06)')}
-      <ellipse cx="50" cy="142" rx="18" ry="4" fill="rgba(0,0,0,0.4)" />
-    </>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════
-// CHARACTER  — pixel art sprite, full body
-// Coordinate system: character fits from x≈18 to x≈82, y≈8 to y≈136
-// ═══════════════════════════════════════════════════════════════
-function Character({ sk, ey, mo, ha, cl, ht, ac }: {
-  sk:any; ey:any; mo:any; ha:any; cl:any; ht:any; ac:any;
-}) {
-  const F  = sk.face  ?? '#F5C18A';
-  const S  = sk.shade ?? '#D4895A';
-  const D  = sk.dark  ?? '#B8733E';
-
-  const CB  = cl.body      ?? '#1B3A6B';
-  const CS  = cl.shade     ?? '#112750';
-  const COL = cl.collar    ?? '#EAEAEA';
-  const BDG = cl.badge     ?? '#C8A030';
-  const PA  = cl.pant      ?? '#1E2D40';
-  const PS  = cl.pantShade ?? '#111E2C';
-  const SH  = cl.shoe      ?? '#1A1A2A';
-
-  const HR  = ha.color ?? '#3B1F0E';
-  const HRS = ha.shade ?? '#221008';
-
-  // ── layout constants ──────────────────────────────────────
-  // HEAD: x=33..67 (34 wide), y=18..50 (32 tall)
-  const hx=33, hy=18, hw=34, hh=32;
-  // NECK: x=43..57, y=50..58
-  const nx=43, ny=50, nw=14, nh=8;
-  // TORSO: x=28..72, y=58..94
-  const tx=28, ty=58, tw=44, th=36;
-  // LEFT ARM: x=16..28, y=58..90
-  const lax=16, lay=58, law=12, lah=32;
-  // RIGHT ARM: x=72..84, y=58..90
-  const rax=72, ray=58, raw=12, rah=32;
-  // LEFT LEG: x=33..47, y=94..126
-  const llx=33, lly=94, llw=14, llh=32;
-  // RIGHT LEG: x=53..67, y=94..126
-  const rlx=53, rly=94, rlw=14, rlh=32;
-  // LEFT FOOT: x=30..50, y=126..136
-  const lfx=30, lfy=126, lfw=20, lfh=10;
-  // RIGHT FOOT: x=50..70, y=126..136
-  const rfx=50, rfy=126, rfw=20, rfh=10;
-
-  return (
     <g>
-      {/* ── LEGS ── */}
-      {/* outlines */}
-      {r(llx-1,lly-1,llw+2,llh+2,O,'llo')}
-      {r(rlx-1,rly-1,rlw+2,rlh+2,O,'rlo')}
-      {/* left leg */}
-      {r(llx,lly,llw,llh,PA,'ll')}
-      {r(llx,lly,4,llh,PS,'lls')}
-      {hi(llx,lly,llw)}
-      {/* right leg */}
-      {r(rlx,rly,rlw,rlh,PA,'rl')}
-      {r(rlx+rlw-4,rly,4,rlh,PS,'rls')}
-      {hi(rlx,rly,rlw)}
-      {/* gap between legs */}
-      {r(llx+llw-1,lly,rlx-(llx+llw)+2,llh,O,'lg')}
-
-      {/* ── FEET ── */}
-      {r(lfx-1,lfy-1,lfw+2,lfh+2,O,'lfo')}
-      {r(rfx-1,rfy-1,rfw+2,rfh+2,O,'rfo')}
-      {r(lfx,lfy,lfw,lfh,SH,'lf')}
-      {r(lfx,lfy,6,lfh,'rgba(255,255,255,0.08)')}
-      {r(rfx,rfy,rfw,rfh,SH,'rf')}
-      {r(rfx,rfy,6,rfh,'rgba(255,255,255,0.08)')}
-
-      {/* ── LEFT ARM (behind torso in z) ── */}
-      {r(lax-1,lay-1,law+2,lah+2,O,'lao')}
-      {r(lax,lay,law,lah,CB,'la')}
-      {r(lax,lay,4,lah,CS,'las')}
-      {hi(lax,lay,law)}
-      {/* left hand */}
-      {r(lax-1,lay+lah-1,law+4,10,O,'lho')}
-      {r(lax,lay+lah,law+2,8,F,'lh')}
-      {r(lax,lay+lah,4,8,S,'lhs')}
-
-      {/* ── RIGHT ARM ── */}
-      {r(rax-1,ray-1,raw+2,rah+2,O,'rao')}
-      {r(rax,ray,raw,rah,CB,'ra')}
-      {r(rax+raw-4,ray,4,rah,CS,'ras')}
-      {hi(rax,ray,raw)}
-      {/* right hand */}
-      {r(rax-3,ray+rah-1,raw+4,10,O,'rho')}
-      {r(rax-2,ray+rah,raw+2,8,F,'rh')}
-      {r(rax+raw-4,ray+rah,4,8,S,'rhs')}
-
-      {/* ── TORSO ── */}
-      <Torso cl={cl} tx={tx} ty={ty} tw={tw} th={th} CB={CB} CS={CS} COL={COL} BDG={BDG} />
-
-      {/* ── NECK ── */}
-      {r(nx-1,ny-1,nw+2,nh+2,O,'nko')}
-      {r(nx,ny,nw,nh,F,'nk')}
-      {r(nx,ny,4,nh,S,'nks')}
-
-      {/* ── HAIR BACK (long) ── */}
-      {ha.style === 'long' && <HairBack hr={HR} hrs={HRS} />}
-
-      {/* ── HEAD ── */}
-      {r(hx-1,hy-1,hw+2,hh+2,O,'hdo')}
-      {r(hx,hy,hw,hh,F,'hd')}
-      {/* face side shade */}
-      {r(hx+hw-6,hy,6,hh,S,'hds')}
-      {/* chin shade */}
-      {r(hx,hy+hh-6,hw,6,D,'hdc')}
-      {/* cheek blush */}
-      {r(hx+2,hy+16,6,4,'rgba(220,120,100,0.15)')}
-      {r(hx+hw-8,hy+16,6,4,'rgba(220,120,100,0.15)')}
-
-      {/* ── EYEBROWS ── */}
-      <Eyebrows ey={ey} hx={hx} hy={hy} HR={HR} HRS={HRS} />
-
-      {/* ── EYES ── */}
-      <EyesPixel ey={ey} hx={hx} hy={hy} />
-
-      {/* ── NOSE ── */}
-      {r(hx+hw/2-2,hy+20,2,2,S,'ns1')}
-      {r(hx+4,hy+22,2,2,S,'ns2')}
-      {r(hx+hw-6,hy+22,2,2,S,'ns3')}
-
-      {/* ── MOUTH ── */}
-      <MouthPixel mo={mo} hx={hx} hy={hy} hw={hw} hh={hh} />
-
-      {/* ── HAIR FRONT ── */}
-      {ha.style !== 'long' ? <HairFront ha={ha} hx={hx} hy={hy} hw={hw} HR={HR} HRS={HRS} /> : <HairFrontLong hr={HR} hrs={HRS} hx={hx} hy={hy} hw={hw} />}
-
-      {/* ── HAT ── */}
-      {ht.style !== 'none' && <HatPixel ht={ht} hx={hx} hy={hy} hw={hw} />}
-
-      {/* ── ACCESSORY ── */}
-      {ac.style !== 'none' && <AccessoryPixel ac={ac} hx={hx} hy={hy} hw={hw} />}
+      <rect width="100" height="150" fill={c}/>
+      <ellipse cx="50" cy="144" rx="22" ry="4" fill="rgba(0,0,0,0.35)"/>
     </g>
   );
 }
 
-// ── TORSO ─────────────────────────────────────────────────────
-function Torso({ cl, tx, ty, tw, th, CB, CS, COL, BDG }: any) {
-  switch (cl.style) {
-    case 'suit':
-      return (
-        <g>
-          {r(tx-1,ty-1,tw+2,th+2,O,'to')}
-          {r(tx,ty,tw,th,'#1C2C3E','tb')}
-          {r(tx,ty,8,th,'#141F2C','ts')}
-          {/* lapels */}
-          {r(tx+8,ty,10,20,COL,'tll')}
-          {r(tx+tw-18,ty,10,20,COL,'tlr')}
-          {r(tx+14,ty+4,12,4,'#CC2222','tn')}
-          {/* buttons */}
-          {[0,8,16].map(d=> r(tx+tw/2-2,ty+22+d,4,4,'rgba(255,255,255,0.2)',`bt${d}`))}
-          {hi(tx,ty,tw)}
-        </g>
-      );
-    case 'hoodie':
-      return (
-        <g>
-          {r(tx-1,ty-1,tw+2,th+2,O,'to')}
-          {r(tx,ty,tw,th,CB,'tb')}
-          {r(tx,ty,8,th,CS,'ts')}
-          {/* hood */}
-          {r(tx+4,ty-10,tw-8,14,CS,'hd')}
-          {/* pocket */}
-          {r(tx+10,ty+th-14,tw-20,12,CS,'pk')}
-          {r(tx+tw/2-1,ty+th-14,2,12,'rgba(0,0,0,0.2)')}
-          {hi(tx,ty,tw)}
-        </g>
-      );
-    case 'armor':
-      return (
-        <g>
-          {r(tx-1,ty-1,tw+2,th+2,O,'to')}
-          {r(tx,ty,tw,th,'#6B7280','tb')}
-          {r(tx+4,ty+2,tw-8,th-4,'#9CA3AF','ti')}
-          {r(tx+10,ty+6,tw-20,th-12,'#6B7280','tc')}
-          {/* shoulder pads */}
-          {r(tx-2,ty,14,16,'#9CA3AF','spl')}
-          {r(tx+tw-12,ty,14,16,'#9CA3AF','spr')}
-          {hi(tx+4,ty+2,tw-8)}
-        </g>
-      );
-    case 'shirt':
-      return (
-        <g>
-          {r(tx-1,ty-1,tw+2,th+2,O,'to')}
-          {r(tx,ty,tw,th,CB,'tb')}
-          {r(tx,ty,8,th,CS,'ts')}
-          {/* collar */}
-          {r(tx+tw/2-8,ty,16,10,COL,'col')}
-          {r(tx+tw/2-2,ty,4,th,'rgba(0,0,0,0.1)','btn')}
-          {hi(tx,ty,tw)}
-        </g>
-      );
-    default: /* polo */
-      return (
-        <g>
-          {r(tx-1,ty-1,tw+2,th+2,O,'to')}
-          {r(tx,ty,tw,th,CB,'tb')}
-          {r(tx,ty,8,th,CS,'ts')}
-          {hi(tx,ty,tw)}
-          {/* collar left */}
-          {r(tx+tw/2-12,ty,12,12,COL,'coll')}
-          {/* collar right */}
-          {r(tx+tw/2,ty,12,12,COL,'colr')}
-          {r(tx+tw/2-2,ty,4,12,'rgba(0,0,0,0.15)','colc')}
-          {/* badge */}
-          {r(tx+tw-16,ty+16,14,10,O,'bgo')}
-          {r(tx+tw-15,ty+17,12,8,BDG,'bg')}
-          {r(tx+tw-13,ty+19,8,2,'rgba(0,0,0,0.3)','bgl')}
-          {r(tx+tw-13,ty+22,6,2,'rgba(0,0,0,0.2)','bgl2')}
-        </g>
-      );
-  }
+// ═══════════════════════════════════════════════════════════════
+// BODY (clothes, legs, shoes) — drawn BELOW face
+// Character center x=50; character top of torso y≈68, bottom y≈148
+// ═══════════════════════════════════════════════════════════════
+function Body({ sk, cl }: { sk: any; cl: any }) {
+  const clr  = cl.color      ?? '#1B3A6B';
+  const clr2 = cl.color2     ?? '#112750';
+  const pant = cl.pantColor  ?? '#1E2D40';
+  const pant2= cl.pantColor2 ?? '#0f172a';
+  const shoe = cl.shoeColor  ?? '#1A1A2A';
+  const collar = cl.collar   ?? '#EAEAEA';
+  const badge  = cl.badge    ?? '#C8A030';
+  const style  = cl.style    ?? 'polo';
+  const skin   = sk.faceColor ?? '#F5C18A';
+  const skinS  = sk.shadeColor ?? '#D4895A';
+
+  // Arms (behind torso)
+  // Left arm
+  const leftArmPath = `M 25,70 C 18,72 16,85 18,100 C 19,105 24,105 26,100 C 27,88 28,78 32,72 Z`;
+  // Right arm
+  const rightArmPath = `M 75,70 C 82,72 84,85 82,100 C 81,105 76,105 74,100 C 73,88 72,78 68,72 Z`;
+
+  // Hands
+  const leftHandPath  = `M 18,100 C 15,104 14,110 17,113 C 20,116 25,114 26,110 C 27,106 25,101 22,100 Z`;
+  const rightHandPath = `M 82,100 C 85,104 86,110 83,113 C 80,116 75,114 74,110 C 73,106 75,101 78,100 Z`;
+
+  // Torso shape
+  const torsoPath = `M 32,68 C 30,68 28,70 28,73 L 28,106 C 28,108 30,110 32,110 L 68,110 C 70,110 72,108 72,106 L 72,73 C 72,70 70,68 68,68 Z`;
+
+  // Legs
+  const leftLegPath  = `M 32,108 C 30,108 28,110 28,112 L 28,138 C 28,140 30,141 33,141 L 45,141 C 48,141 50,140 50,138 L 50,112 C 50,110 48,108 46,108 Z`;
+  const rightLegPath = `M 54,108 C 52,108 50,110 50,112 L 50,138 C 50,140 52,141 55,141 L 67,141 C 70,141 72,140 72,138 L 72,112 C 72,110 70,108 68,108 Z`;
+
+  // Shoes
+  const leftShoePath  = `M 26,138 C 24,138 22,140 22,143 C 22,146 24,147 27,147 L 48,147 C 51,147 52,145 52,143 C 52,140 50,138 48,138 Z`;
+  const rightShoePath = `M 52,138 C 50,138 48,140 48,143 C 48,145 49,147 52,147 L 73,147 C 76,147 78,146 78,143 C 78,140 76,138 74,138 Z`;
+
+  return (
+    <g>
+      {/* ── Left Arm ── */}
+      <path d={leftArmPath} fill={clr} stroke="#111" strokeWidth="1" strokeLinejoin="round"/>
+      <path d={leftArmPath} fill={clr2} opacity="0.35"/>
+      {/* ── Right Arm ── */}
+      <path d={rightArmPath} fill={clr} stroke="#111" strokeWidth="1" strokeLinejoin="round"/>
+
+      {/* ── Torso ── */}
+      <path d={torsoPath} fill={clr} stroke="#111" strokeWidth="1" strokeLinejoin="round"/>
+      {/* Torso shade on sides */}
+      <path d={`M 28,73 L 28,106 C 28,108 30,110 32,110 L 38,110 L 38,68 L 32,68 C 30,68 28,70 28,73 Z`} fill={clr2} opacity="0.5"/>
+      <path d={`M 62,68 L 72,73 L 72,106 C 72,108 70,110 68,110 L 62,110 Z`} fill={clr2} opacity="0.35"/>
+
+      {/* Polo collar */}
+      {(style === 'polo' || style === 'shirt') && (
+        <>
+          <path d={`M 42,68 L 46,78 L 50,74 L 54,78 L 58,68`} fill={collar} stroke="#111" strokeWidth="0.8"/>
+          <path d={`M 46,78 L 50,74 L 54,78 L 52,80 L 50,77 L 48,80 Z`} fill="rgba(0,0,0,0.1)"/>
+        </>
+      )}
+      {/* Suit lapels */}
+      {(style === 'suit') && (
+        <>
+          <path d={`M 40,68 L 44,85 L 50,80 L 56,85 L 60,68`} fill={collar} stroke="#111" strokeWidth="0.8"/>
+          <path d={`M 44,85 L 50,80 L 56,85 L 52,110 L 48,110 Z`} fill="rgba(255,255,255,0.08)"/>
+        </>
+      )}
+      {/* Hoodie front pocket */}
+      {style === 'hoodie' && (
+        <>
+          <rect x="37" y="90" width="26" height="16" rx="3" fill={clr2} stroke="#111" strokeWidth="0.6"/>
+          <path d={`M 42,68 C 44,75 44,82 50,86 C 56,82 56,75 58,68`} fill={collar} stroke="#111" strokeWidth="0.8"/>
+        </>
+      )}
+      {/* Shirt: no collar, just buttons */}
+      {style === 'shirt' && (
+        <line x1="50" y1="74" x2="50" y2="108" stroke={clr2} strokeWidth="0.8" strokeDasharray="2,3"/>
+      )}
+      {/* Armor chest plate */}
+      {style === 'armor' && (
+        <>
+          <rect x="33" y="70" width="34" height="32" rx="4" fill={cl.color2 ?? '#9ca3af'} stroke="#111" strokeWidth="1"/>
+          <path d={`M 33,80 L 50,75 L 67,80`} fill="none" stroke="#111" strokeWidth="0.8"/>
+          <rect x="44" y="82" width="12" height="8" rx="2" fill={cl.color ?? '#6b7280'}/>
+        </>
+      )}
+      {/* Badge (polo/suit) */}
+      {(style === 'polo' || style === 'suit') && (
+        <circle cx="38" cy="78" r="3" fill={badge} stroke="#111" strokeWidth="0.5"/>
+      )}
+
+      {/* Hands */}
+      <path d={leftHandPath} fill={skin} stroke="#111" strokeWidth="0.8"/>
+      <path d={rightHandPath} fill={skin} stroke="#111" strokeWidth="0.8"/>
+      {/* Hand shade */}
+      <path d={leftHandPath} fill={skinS} opacity="0.2"/>
+      <path d={rightHandPath} fill={skinS} opacity="0.2"/>
+
+      {/* ── Legs ── */}
+      <path d={leftLegPath} fill={pant} stroke="#111" strokeWidth="1"/>
+      <path d={leftLegPath} fill={pant2} opacity="0.3" />
+      <path d={rightLegPath} fill={pant} stroke="#111" strokeWidth="1"/>
+      {/* gap between legs (inner shadow) */}
+      <rect x="49" y="108" width="2" height="30" fill="#111"/>
+
+      {/* ── Shoes ── */}
+      <path d={leftShoePath} fill={shoe} stroke="#111" strokeWidth="1"/>
+      <path d={rightShoePath} fill={shoe} stroke="#111" strokeWidth="1"/>
+      {/* Shoe highlight */}
+      <path d={`M 26,140 C 28,138 38,137 44,139`} fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="1.2" strokeLinecap="round"/>
+      <path d={`M 54,140 C 56,138 66,137 72,139`} fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="1.2" strokeLinecap="round"/>
+    </g>
+  );
 }
 
-// ── EYEBROWS ──────────────────────────────────────────────────
-function Eyebrows({ ey, hx, hy, HR, HRS }: any) {
-  const by = hy + 8;
-  if (ey.shape === 'angry') {
+// ═══════════════════════════════════════════════════════════════
+// FACE  (neck, head, features) — drawn ABOVE body
+// Head center: cx=50, cy=46; rx=18, ry=20
+// ═══════════════════════════════════════════════════════════════
+function Face({ sk, ey, mo, ha, ac, uid }: { sk: any; ey: any; mo: any; ha: any; ac: any; uid: string }) {
+  const face  = sk.faceColor  ?? '#F5C18A';
+  const shade = sk.shadeColor ?? '#D4895A';
+  const light = sk.lightColor ?? '#FFF0E0';
+
+  const CX = 50, CY = 46;
+
+  return (
+    <g>
+      {/* ── Hair behind head ── */}
+      <HairBack ha={ha} cx={CX} cy={CY} uid={uid}/>
+
+      {/* ── Neck ── */}
+      <rect x="44" y="62" width="12" height="10" rx="3" fill={face} stroke="#111" strokeWidth="0.8"/>
+      <rect x="44" y="62" width="4" height="10" fill={shade} opacity="0.3" rx="2"/>
+
+      {/* ── Head ── */}
+      <ellipse cx={CX} cy={CY} rx="19" ry="21" fill="#111"/>
+      <ellipse cx={CX} cy={CY} rx="18" ry="20" fill={face}/>
+      {/* Cheek shading */}
+      <ellipse cx={CX-8} cy={CY+7} rx="5" ry="4" fill={shade} opacity="0.18"/>
+      <ellipse cx={CX+8} cy={CY+7} rx="5" ry="4" fill={shade} opacity="0.18"/>
+      {/* Forehead light */}
+      <ellipse cx={CX} cy={CY-8} rx="9" ry="5" fill={light} opacity="0.2"/>
+      {/* Blush */}
+      <ellipse cx={CX-10} cy={CY+9} rx="4" ry="2.5" fill="#E07070" opacity="0.18"/>
+      <ellipse cx={CX+10} cy={CY+9} rx="4" ry="2.5" fill="#E07070" opacity="0.18"/>
+
+      {/* ── Eyebrows ── */}
+      <EyeBrows ey={ey} cx={CX} cy={CY}/>
+
+      {/* ── Eyes ── */}
+      <Eyes ey={ey} cx={CX} cy={CY} uid={uid}/>
+
+      {/* ── Nose ── */}
+      <ellipse cx={CX} cy={CY+7} rx="2" ry="1.5" fill={shade} opacity="0.5"/>
+
+      {/* ── Mouth ── */}
+      <Mouth mo={mo} cx={CX} cy={CY}/>
+
+      {/* ── Accessory ── */}
+      <Accessory ac={ac} cx={CX} cy={CY}/>
+
+      {/* ── Hair front ── */}
+      <HairFront ha={ha} cx={CX} cy={CY} uid={uid}/>
+    </g>
+  );
+}
+
+// ── EYEBROWS ───────────────────────────────────────────────────
+function EyeBrows({ ey, cx, cy }: { ey: any; cx: number; cy: number }) {
+  const bc = ey.browColor ?? '#3d2b1f';
+  const shape = ey.shape ?? 'round';
+  if (shape === 'angry') {
     return (
-      <>
-        {r(hx+4, by,   12, 3, HRS, 'ebl')}
-        {r(hx+4, by+1,  4, 2, HR,  'ebl2')}
-        {r(hx+hw-16+12, by, 12, 3, HRS, 'ebr')}
-        {r(hx+hw-12+12, by+1, 4, 2, HR, 'ebr2')}
-      </>
+      <g>
+        <path d={`M ${cx-12},${cy-9} C ${cx-10},${cy-11} ${cx-6},${cy-9} ${cx-4},${cy-8}`} stroke={bc} strokeWidth="1.5" fill="none" strokeLinecap="round"/>
+        <path d={`M ${cx+4},${cy-8} C ${cx+6},${cy-9} ${cx+10},${cy-11} ${cx+12},${cy-9}`} stroke={bc} strokeWidth="1.5" fill="none" strokeLinecap="round"/>
+      </g>
     );
   }
   return (
-    <>
-      {r(hx+4,  by, 12, 3, HRS, 'ebl')}
-      {r(hx+5,  by, 10, 2, HR,  'ebl2')}
-      {r(hx+18, by, 12, 3, HRS, 'ebr')}
-      {r(hx+19, by, 10, 2, HR,  'ebr2')}
-    </>
+    <g>
+      <path d={`M ${cx-12},${cy-10} C ${cx-9},${cy-12} ${cx-5},${cy-11} ${cx-4},${cy-10}`} stroke={bc} strokeWidth="1.5" fill="none" strokeLinecap="round"/>
+      <path d={`M ${cx+4},${cy-10} C ${cx+5},${cy-11} ${cx+9},${cy-12} ${cx+12},${cy-10}`} stroke={bc} strokeWidth="1.5" fill="none" strokeLinecap="round"/>
+    </g>
   );
 }
-const hw = 34; // same as above, used in Eyebrows
 
-// ── EYES ──────────────────────────────────────────────────────
-function EyesPixel({ ey, hx, hy }: any) {
-  const ew = '#F0F0F0';
-  const iris = ey.iris ?? '#2255CC';
-  const ey2 = hy + 12;
-  const lx = hx + 5, rx = hx + 20;
+// ── EYES ───────────────────────────────────────────────────────
+function Eyes({ ey, cx, cy, uid }: { ey: any; cx: number; cy: number; uid: string }) {
+  const iris  = ey.color  ?? '#2255CC';
+  const shape = ey.shape  ?? 'round';
 
-  if (ey.shape === 'angry') {
+  const lx = cx - 8, rx = cx + 8, ey2 = cy - 2;
+
+  if (shape === 'almond') {
     return (
-      <>
-        {/* left eye */}
-        {r(lx,ey2,8,8,O,'leo')}
-        {r(lx+1,ey2+1,6,6,ew,'le')}
-        {r(lx+2,ey2+2,4,4,iris,'li')}
-        {r(lx+3,ey2+3,2,2,'#060606','lp')}
-        {r(lx+1,ey2+1,3,1,'rgba(255,255,255,0.5)','ll')}
-        {r(lx,ey2,8,2,'rgba(0,0,0,0.3)','lel')}
-        {/* right eye */}
-        {r(rx,ey2,8,8,O,'reo')}
-        {r(rx+1,ey2+1,6,6,ew,'re')}
-        {r(rx+2,ey2+2,4,4,iris,'ri')}
-        {r(rx+3,ey2+3,2,2,'#060606','rp')}
-        {r(rx+1,ey2+1,3,1,'rgba(255,255,255,0.5)','rl')}
-        {r(rx+8,ey2,0,2,'rgba(0,0,0,0.3)','rel')}
-      </>
+      <g>
+        {/* Left */}
+        <path d={`M ${lx-5},${ey2} C ${lx-3},${ey2-3} ${lx+3},${ey2-3} ${lx+5},${ey2} C ${lx+3},${ey2+2} ${lx-3},${ey2+2} Z`} fill="white" stroke="#111" strokeWidth="0.8"/>
+        <circle cx={lx} cy={ey2} r="2.5" fill={iris}/>
+        <circle cx={lx} cy={ey2} r="1" fill="#111"/>
+        <circle cx={lx+1} cy={ey2-1} r="0.7" fill="white"/>
+        {/* Right */}
+        <path d={`M ${rx-5},${ey2} C ${rx-3},${ey2-3} ${rx+3},${ey2-3} ${rx+5},${ey2} C ${rx+3},${ey2+2} ${rx-3},${ey2+2} Z`} fill="white" stroke="#111" strokeWidth="0.8"/>
+        <circle cx={rx} cy={ey2} r="2.5" fill={iris}/>
+        <circle cx={rx} cy={ey2} r="1" fill="#111"/>
+        <circle cx={rx+1} cy={ey2-1} r="0.7" fill="white"/>
+      </g>
     );
   }
-  if (ey.shape === 'almond') {
+
+  if (shape === 'angry') {
     return (
-      <>
-        {r(lx-1,ey2+1,10,6,O,'leo')}{r(lx,ey2+2,8,4,ew,'le')}
-        {r(lx+2,ey2+2,4,4,iris,'li')}{r(lx+3,ey2+3,2,2,'#060606','lp')}
-        {r(lx,ey2+2,3,1,'rgba(255,255,255,0.5)','ll')}
-        {r(rx-1,ey2+1,10,6,O,'reo')}{r(rx,ey2+2,8,4,ew,'re')}
-        {r(rx+2,ey2+2,4,4,iris,'ri')}{r(rx+3,ey2+3,2,2,'#060606','rp')}
-        {r(rx,ey2+2,3,1,'rgba(255,255,255,0.5)','rl')}
-      </>
+      <g>
+        <path d={`M ${lx-4.5},${ey2+2} C ${lx-2},${ey2-2} ${lx+2},${ey2-2} ${lx+4.5},${ey2+2} C ${lx+2},${ey2+4} ${lx-2},${ey2+4} Z`} fill="white" stroke="#111" strokeWidth="0.8"/>
+        <circle cx={lx} cy={ey2+1} r="2.5" fill={iris}/>
+        <circle cx={lx} cy={ey2+1} r="1" fill="#111"/>
+        <circle cx={lx+1} cy={ey2} r="0.6" fill="white"/>
+        <path d={`M ${rx-4.5},${ey2+2} C ${rx-2},${ey2-2} ${rx+2},${ey2-2} ${rx+4.5},${ey2+2} C ${rx+2},${ey2+4} ${rx-2},${ey2+4} Z`} fill="white" stroke="#111" strokeWidth="0.8"/>
+        <circle cx={rx} cy={ey2+1} r="2.5" fill={iris}/>
+        <circle cx={rx} cy={ey2+1} r="1" fill="#111"/>
+        <circle cx={rx+1} cy={ey2} r="0.6" fill="white"/>
+      </g>
     );
   }
-  // round default
-  return (
-    <>
-      {r(lx,ey2,8,8,O,'leo')}
-      {r(lx+1,ey2+1,6,6,ew,'le')}
-      {r(lx+2,ey2+2,4,4,iris,'li')}
-      {r(lx+3,ey2+3,2,2,'#060606','lp')}
-      {r(lx+1,ey2+1,3,2,'rgba(255,255,255,0.55)','ll')}
 
-      {r(rx,ey2,8,8,O,'reo')}
-      {r(rx+1,ey2+1,6,6,ew,'re')}
-      {r(rx+2,ey2+2,4,4,iris,'ri')}
-      {r(rx+3,ey2+3,2,2,'#060606','rp')}
-      {r(rx+1,ey2+1,3,2,'rgba(255,255,255,0.55)','rl')}
-    </>
+  // round (default)
+  return (
+    <g>
+      <circle cx={lx} cy={ey2} r="4.5" fill="white" stroke="#111" strokeWidth="0.8"/>
+      <circle cx={lx} cy={ey2} r="3" fill={iris}/>
+      <circle cx={lx} cy={ey2} r="1.4" fill="#111"/>
+      <circle cx={lx+1.2} cy={ey2-1.2} r="0.8" fill="white"/>
+      <circle cx={rx} cy={ey2} r="4.5" fill="white" stroke="#111" strokeWidth="0.8"/>
+      <circle cx={rx} cy={ey2} r="3" fill={iris}/>
+      <circle cx={rx} cy={ey2} r="1.4" fill="#111"/>
+      <circle cx={rx+1.2} cy={ey2-1.2} r="0.8" fill="white"/>
+    </g>
   );
 }
 
-// ── MOUTH ─────────────────────────────────────────────────────
-function MouthPixel({ mo, hx, hy, hw, hh }: any) {
-  const c = mo.color ?? '#C04040';
-  const my = hy + 24;
-  switch (mo.shape) {
-    case 'bigsmile':
-      return (
-        <>
-          {r(hx+6,my,hw-12,6,O,'mo')}
-          {r(hx+7,my+1,hw-14,4,c,'mb')}
-          {r(hx+7,my+3,hw-14,2,'#F8E0E0','mt')}
-          {r(hx+7,my+1,4,4,'rgba(255,255,255,0.1)')}
-        </>
-      );
-    case 'smirk':
-      return (
-        <>
-          {r(hx+8,my+2,hw-18,4,O,'mo')}
-          {r(hx+9,my+3,hw-20,2,c,'mb')}
-          {r(hx+hw-12,my,4,6,O,'mc')}
-          {r(hx+hw-11,my+1,2,4,c,'mc2')}
-        </>
-      );
-    case 'serious':
-      return (
-        <>
-          {r(hx+7,my+2,hw-14,4,O,'mo')}
-          {r(hx+8,my+3,hw-16,2,c,'mb')}
-        </>
-      );
-    default: // smile
-      return (
-        <>
-          {r(hx+7,my+2,hw-14,6,O,'mo')}
-          {r(hx+8,my+3,hw-16,4,c,'mb')}
-          {r(hx+8,my+5,hw-16,2,'rgba(255,255,255,0.15)','mh')}
-        </>
-      );
-  }
-}
+// ── MOUTH ──────────────────────────────────────────────────────
+function Mouth({ mo, cx, cy }: { mo: any; cx: number; cy: number }) {
+  const lipBot = mo.color  ?? '#b03030';
+  const lipTop = mo.lipTop ?? '#e06060';
+  const shape  = mo.shape  ?? 'smile';
+  const my = cy + 13;
 
-// ── HAIR ──────────────────────────────────────────────────────
-function HairFront({ ha, hx, hy, hw, HR, HRS }: any) {
-  switch (ha.style) {
-    case 'short':
-      return (
-        <>
-          {r(hx-1,hy-13,hw+2,16,O,'hao')}
-          {r(hx,hy-12,hw,14,HR,'ha')}
-          {r(hx,hy-12,8,14,HRS,'has')}
-          {hi(hx,hy-12,hw)}
-          {r(hx-1,hy-1,6,16,HR,'hal')}
-          {r(hx+hw-5,hy-1,6,16,HR,'har')}
-        </>
-      );
-    case 'spiky':
-      return (
-        <>
-          {/* spikes */}
-          {[0,8,16,24].map(ox=>
-            <g key={`sp${ox}`}>
-              {r(hx+ox,hy-20,6,14,O,`spo${ox}`)}
-              {r(hx+ox+1,hy-18,4,12,HR,`spi${ox}`)}
-            </g>
-          )}
-          {r(hx-1,hy-6,hw+2,8,O,'hao')}
-          {r(hx,hy-5,hw,6,HR,'ha')}
-        </>
-      );
-    case 'mohawk':
-      return (
-        <>
-          {r(hx+hw/2-5,hy-24,10,28,O,'mho')}
-          {r(hx+hw/2-4,hy-22,8,26,HR,'mh')}
-          {r(hx+hw/2-4,hy-22,3,26,HRS,'mhs')}
-          {r(hx-1,hy-1,10,14,HR,'mhl')}
-          {r(hx+hw-9,hy-1,10,14,HR,'mhr')}
-        </>
-      );
-    case 'bald':
-      return (
-        <>{r(hx+4,hy-4,hw-8,6,'rgba(255,255,255,0.04)','bd')}</>
-      );
-    default:
-      return null;
+  if (shape === 'bigsmile') {
+    return (
+      <g>
+        <path d={`M ${cx-7},${my} C ${cx-6},${my+5} ${cx+6},${my+5} ${cx+7},${my} Z`} fill={lipBot} stroke="#111" strokeWidth="0.8"/>
+        <path d={`M ${cx-7},${my} C ${cx-5},${my+2} ${cx+5},${my+2} ${cx+7},${my}`} fill={lipTop} stroke="#111" strokeWidth="0.8"/>
+        <path d={`M ${cx-6},${my+2} C ${cx-4},${my+4} ${cx+4},${my+4} ${cx+6},${my+2}`} fill="rgba(255,255,255,0.25)" strokeWidth="0"/>
+        {/* teeth hint */}
+        <path d={`M ${cx-5},${my+0.5} L ${cx+5},${my+0.5} L ${cx+4},${my+3} L ${cx-4},${my+3} Z`} fill="rgba(255,255,255,0.7)"/>
+      </g>
+    );
   }
-}
 
-function HairBack({ hr, hrs }: any) {
+  if (shape === 'smirk') {
+    return (
+      <g>
+        <path d={`M ${cx-5},${my+1} C ${cx},${my} ${cx+5},${my+3} ${cx+7},${my+1}`} fill="none" stroke="#111" strokeWidth="1.2" strokeLinecap="round"/>
+        <path d={`M ${cx-5},${my+1} C ${cx},${my+0.5} ${cx+5},${my+2.5} ${cx+7},${my+1}`} fill="none" stroke={lipTop} strokeWidth="0.8" strokeLinecap="round"/>
+      </g>
+    );
+  }
+
+  if (shape === 'serious') {
+    return (
+      <g>
+        <path d={`M ${cx-6},${my+1} L ${cx+6},${my+1}`} fill="none" stroke="#111" strokeWidth="1.5" strokeLinecap="round"/>
+        <path d={`M ${cx-5},${my} L ${cx+5},${my}`} fill="none" stroke={lipTop} strokeWidth="0.8" strokeLinecap="round"/>
+      </g>
+    );
+  }
+
+  // smile (default)
   return (
-    <>
-      {r(32,50,8,60,hr,'hbl')}
-      {r(32,50,4,60,hrs,'hbls')}
-      {r(60,50,8,60,hr,'hbr')}
-      {r(64,50,4,60,hrs,'hbrs')}
-    </>
+    <g>
+      <path d={`M ${cx-6},${my} C ${cx-5},${my+4} ${cx+5},${my+4} ${cx+6},${my}`} fill={lipBot} stroke="#111" strokeWidth="0.8"/>
+      <path d={`M ${cx-6},${my} C ${cx-4},${my+1} ${cx+4},${my+1} ${cx+6},${my}`} fill={lipTop}/>
+    </g>
   );
 }
 
-function HairFrontLong({ hr, hrs, hx, hy, hw }: any) {
-  return (
-    <>
-      {r(hx-1,hy-13,hw+2,16,O,'hao')}
-      {r(hx,hy-12,hw,14,hr,'ha')}
-      {r(hx,hy-12,8,14,hrs,'has')}
-      {hi(hx,hy-12,hw)}
-    </>
-  );
+// ── ACCESSORY ──────────────────────────────────────────────────
+function Accessory({ ac, cx, cy }: { ac: any; cx: number; cy: number }) {
+  const style = ac.style ?? 'none';
+  const color = ac.color ?? '#4b5563';
+  const ey2 = cy - 2;
+
+  if (style === 'glasses') {
+    return (
+      <g>
+        <circle cx={cx-8} cy={ey2} r="5.5" fill="none" stroke={color} strokeWidth="1.2"/>
+        <circle cx={cx+8} cy={ey2} r="5.5" fill="none" stroke={color} strokeWidth="1.2"/>
+        <line x1={cx-2.5} y1={ey2} x2={cx+2.5} y2={ey2} stroke={color} strokeWidth="1"/>
+        <line x1={cx-13.5} y1={ey2} x2={cx-18} y2={ey2-1} stroke={color} strokeWidth="1"/>
+        <line x1={cx+13.5} y1={ey2} x2={cx+18} y2={ey2-1} stroke={color} strokeWidth="1"/>
+      </g>
+    );
+  }
+
+  if (style === 'sunglasses') {
+    return (
+      <g>
+        <rect x={cx-15} y={ey2-4.5} width="13" height="9" rx="4.5" fill={color} stroke="#111" strokeWidth="0.8" opacity="0.9"/>
+        <rect x={cx+2} y={ey2-4.5} width="13" height="9" rx="4.5" fill={color} stroke="#111" strokeWidth="0.8" opacity="0.9"/>
+        <line x1={cx-2} y1={ey2} x2={cx+2} y2={ey2} stroke="#111" strokeWidth="1"/>
+        <line x1={cx-15} y1={ey2} x2={cx-19} y2={ey2-1} stroke="#111" strokeWidth="1"/>
+        <line x1={cx+15} y1={ey2} x2={cx+19} y2={ey2-1} stroke="#111" strokeWidth="1"/>
+        <path d={`M ${cx-13},${ey2-3} C ${cx-11},${ey2-4} ${cx-8},${ey2-4} ${cx-7},${ey2-3}`} stroke="rgba(255,255,255,0.25)" strokeWidth="0.8" fill="none"/>
+      </g>
+    );
+  }
+
+  if (style === 'earring') {
+    return (
+      <g>
+        <circle cx={cx-18.5} cy={cy+3} r="2" fill={color} stroke="#111" strokeWidth="0.5"/>
+        <line x1={cx-18.5} y1={cy+1} x2={cx-18.5} y2={cy-1} stroke={color} strokeWidth="0.8"/>
+      </g>
+    );
+  }
+
+  if (style === 'scar') {
+    return (
+      <path d={`M ${cx+3},${cy-5} C ${cx+5},${cy-2} ${cx+4},${cy+2} ${cx+6},${cy+5}`} stroke={color} strokeWidth="1.5" fill="none" strokeLinecap="round"/>
+    );
+  }
+
+  return null;
 }
 
-// ── HAT ───────────────────────────────────────────────────────
-function HatPixel({ ht, hx, hy, hw }: any) {
-  const c  = ht.color  ?? '#1B3A6B';
-  const c2 = ht.shade  ?? '#112750';
-  switch (ht.style) {
-    case 'cap':
-      return (
-        <>
-          {r(hx-1,hy-26,hw+2,20,O,'hto')}
-          {r(hx,hy-25,hw,18,c,'ht')}
-          {r(hx,hy-25,8,18,c2,'hts')}
-          {hi(hx,hy-25,hw)}
-          {r(hx-8,hy-10,hw+16,6,O,'hbo')}
-          {r(hx-7,hy-9,hw+14,4,c2,'hb')}
-        </>
-      );
-    case 'crown':
-      return (
-        <>
-          {r(hx+2,hy-22,hw-4,10,O,'hto')}
-          {r(hx+3,hy-21,hw-6,8,c,'ht')}
-          {/* points */}
-          {[[0,8],[12,14],[24,8]].map(([ox,h],i)=>
-            <g key={i}>
-              {r(hx+6+ox,hy-22-h,8,h+4,O,`cp${i}o`)}
-              {r(hx+7+ox,hy-21-h,6,h+2,c,`cp${i}`)}
-            </g>
-          )}
-          {[[2,'#EF4444'],[14,'#22C55E'],[26,'#3B82F6']].map(([ox,gc],i)=>
-            r(hx+8+Number(ox),hy-30+i*2,4,4,gc as string,`gm${i}`)
-          )}
-        </>
-      );
-    case 'cowboy':
-      return (
-        <>
-          {r(hx-12,hy-18,hw+24,6,O,'hbo')}
-          {r(hx-11,hy-17,hw+22,4,c2,'hb')}
-          {r(hx-1,hy-32,hw+2,18,O,'hto')}
-          {r(hx,hy-31,hw,16,c,'ht')}
-          {r(hx,hy-31,8,16,c2,'hts')}
-          {hi(hx,hy-31,hw)}
-        </>
-      );
-    case 'wizard':
-      return (
-        <>
-          {r(hx+4,hy-12,hw-8,8,O,'hbo')}
-          {r(hx+5,hy-11,hw-10,6,c2,'hb')}
-          {r(hx+hw/2-5,hy-46,10,38,O,'hto')}
-          {r(hx+hw/2-4,hy-44,8,36,c,'ht')}
-          {r(hx+hw/2-4,hy-44,3,36,c2,'hts')}
-          {r(hx+hw/2-2,hy-38,4,4,'#FBBF24','hts')}
-        </>
-      );
-    default: return null;
+// ═══════════════════════════════════════════════════════════════
+// HAIR (back — drawn behind head)
+// ═══════════════════════════════════════════════════════════════
+function HairBack({ ha, cx, cy, uid }: { ha: any; cx: number; cy: number; uid: string }) {
+  const style = ha.style ?? 'short';
+  const color = ha.color ?? '#3B1F0E';
+
+  if (style === 'bald') return null;
+
+  if (style === 'long') {
+    // Long hair falls behind body
+    return (
+      <g>
+        <path d={`M ${cx-18},${cy} C ${cx-22},${cy+20} ${cx-20},${cy+50} ${cx-16},${cy+60} C ${cx-10},${cy+65} ${cx-5},${cy+60} ${cx-5},${cy+55}`} fill={color} stroke="#111" strokeWidth="0.8"/>
+        <path d={`M ${cx+18},${cy} C ${cx+22},${cy+20} ${cx+20},${cy+50} ${cx+16},${cy+60} C ${cx+10},${cy+65} ${cx+5},${cy+60} ${cx+5},${cy+55}`} fill={color} stroke="#111" strokeWidth="0.8"/>
+        <rect x={cx-18} y={cy-6} width="36" height="14" rx="2" fill={color}/>
+      </g>
+    );
   }
+
+  return null;
 }
 
-// ── ACCESSORY ─────────────────────────────────────────────────
-function AccessoryPixel({ ac, hx, hy, hw }: any) {
-  const c = ac.color ?? '#4B5563';
-  const ey2 = hy + 12;
-  switch (ac.style) {
-    case 'glasses':
-      return (
-        <>
-          {r(hx+3,ey2-1,12,10,O,'gl1o')}{r(hx+4,ey2,10,8,c,'gl1')}{r(hx+4,ey2,10,8,'rgba(255,255,255,0.06)')}
-          {r(hx+19,ey2-1,12,10,O,'gl2o')}{r(hx+20,ey2,10,8,c,'gl2')}{r(hx+20,ey2,10,8,'rgba(255,255,255,0.06)')}
-          {r(hx+15,ey2+3,4,2,c,'glb')}
-          {r(hx-1,ey2+3,4,2,c,'gll')}{r(hx+hw-3,ey2+3,4,2,c,'glr')}
-        </>
-      );
-    case 'sunglasses':
-      return (
-        <>
-          {r(hx+3,ey2-1,12,10,O,'sg1o')}{r(hx+4,ey2,10,8,c,'sg1')}
-          {r(hx+4,ey2,6,3,'rgba(255,255,255,0.15)','sg1h')}
-          {r(hx+19,ey2-1,12,10,O,'sg2o')}{r(hx+20,ey2,10,8,c,'sg2')}
-          {r(hx+20,ey2,6,3,'rgba(255,255,255,0.15)','sg2h')}
-          {r(hx+15,ey2+3,4,2,c,'sgb')}
-          {r(hx-1,ey2+3,4,2,c,'sgl')}{r(hx+hw-3,ey2+3,4,2,c,'sgr')}
-        </>
-      );
-    case 'earring':
-      return (
-        <>
-          {r(hx+hw-3,ey2+12,6,6,O,'ero')}
-          {r(hx+hw-2,ey2+13,4,4,c,'er')}
-          {r(hx+hw-2,ey2+13,2,2,'rgba(255,255,255,0.3)','erh')}
-        </>
-      );
-    case 'scar':
-      return (
-        <>
-          {r(hx+hw-12,ey2+2,4,16,O,'sco')}
-          {r(hx+hw-11,ey2+3,2,14,c,'sc')}
-        </>
-      );
-    default: return null;
+// ═══════════════════════════════════════════════════════════════
+// HAIR (front — drawn above face features)
+// ═══════════════════════════════════════════════════════════════
+function HairFront({ ha, cx, cy, uid }: { ha: any; cx: number; cy: number; uid: string }) {
+  const style = ha.style ?? 'short';
+  const color = ha.color ?? '#3B1F0E';
+
+  if (style === 'bald') return null;
+
+  // Short hair — sits on top of head, slight cap shape
+  if (style === 'short') {
+    return (
+      <g>
+        <path d={`M ${cx-18},${cy} C ${cx-19},${cy-16} ${cx-14},${cy-22} ${cx},${cy-24} C ${cx+14},${cy-22} ${cx+19},${cy-16} ${cx+18},${cy}`} fill={color} stroke="#111" strokeWidth="1"/>
+        {/* side sideburn */}
+        <rect x={cx-19} y={cy-2} width="4" height="8" rx="2" fill={color}/>
+        <rect x={cx+15} y={cy-2} width="4" height="8" rx="2" fill={color}/>
+        {/* highlight */}
+        <path d={`M ${cx-8},${cy-22} C ${cx},${cy-26} ${cx+8},${cy-22}`} fill="none" stroke="rgba(255,255,255,0.18)" strokeWidth="2" strokeLinecap="round"/>
+      </g>
+    );
   }
+
+  if (style === 'long') {
+    return (
+      <g>
+        <path d={`M ${cx-18},${cy} C ${cx-19},${cy-16} ${cx-14},${cy-22} ${cx},${cy-24} C ${cx+14},${cy-22} ${cx+19},${cy-16} ${cx+18},${cy}`} fill={color} stroke="#111" strokeWidth="1"/>
+        <rect x={cx-19} y={cy-2} width="4" height="12" rx="2" fill={color}/>
+        <rect x={cx+15} y={cy-2} width="4" height="12" rx="2" fill={color}/>
+        <path d={`M ${cx-8},${cy-22} C ${cx},${cy-26} ${cx+8},${cy-22}`} fill="none" stroke="rgba(255,255,255,0.18)" strokeWidth="2" strokeLinecap="round"/>
+      </g>
+    );
+  }
+
+  // Spiky hair
+  if (style === 'spiky') {
+    return (
+      <g>
+        {/* base */}
+        <path d={`M ${cx-18},${cy} C ${cx-18},${cy-14} ${cx-12},${cy-20} ${cx},${cy-22} C ${cx+12},${cy-20} ${cx+18},${cy-14} ${cx+18},${cy}`} fill={color}/>
+        {/* spikes */}
+        <path d={`M ${cx-14},${cy-16} L ${cx-18},${cy-30} L ${cx-10},${cy-22}`} fill={color} stroke="#111" strokeWidth="0.8" strokeLinejoin="round"/>
+        <path d={`M ${cx-5},${cy-20} L ${cx-6},${cy-34} L ${cx+3},${cy-22}`} fill={color} stroke="#111" strokeWidth="0.8" strokeLinejoin="round"/>
+        <path d={`M ${cx+5},${cy-20} L ${cx+7},${cy-34} L ${cx+14},${cy-20}`} fill={color} stroke="#111" strokeWidth="0.8" strokeLinejoin="round"/>
+        <path d={`M ${cx+12},${cy-18} L ${cx+18},${cy-28} L ${cx+20},${cy-16}`} fill={color} stroke="#111" strokeWidth="0.8" strokeLinejoin="round"/>
+        <path d={`M ${cx-18},${cy} C ${cx-18},${cy-14} ${cx-12},${cy-20} ${cx},${cy-22} C ${cx+12},${cy-20} ${cx+18},${cy-14} ${cx+18},${cy}`} fill={color} stroke="#111" strokeWidth="1"/>
+        <rect x={cx-19} y={cy-2} width="4" height="8" rx="2" fill={color}/>
+        <rect x={cx+15} y={cy-2} width="4" height="8" rx="2" fill={color}/>
+      </g>
+    );
+  }
+
+  // Mohawk
+  if (style === 'mohawk') {
+    return (
+      <g>
+        {/* sides shaved */}
+        <path d={`M ${cx-18},${cy} C ${cx-18},${cy-10} ${cx-14},${cy-16} ${cx-8},${cy-18}`} fill={color} stroke="#111" strokeWidth="1"/>
+        <path d={`M ${cx+18},${cy} C ${cx+18},${cy-10} ${cx+14},${cy-16} ${cx+8},${cy-18}`} fill={color} stroke="#111" strokeWidth="1"/>
+        {/* mohawk strip */}
+        <path d={`M ${cx-4},${cy-18} L ${cx-5},${cy-40} L ${cx},${cy-44} L ${cx+5},${cy-40} L ${cx+4},${cy-18} Z`} fill={color} stroke="#111" strokeWidth="0.8"/>
+        <rect x={cx-19} y={cy-2} width="4" height="8" rx="2" fill={color}/>
+        <rect x={cx+15} y={cy-2} width="4" height="8" rx="2" fill={color}/>
+      </g>
+    );
+  }
+
+  // Afro (black power)
+  if (style === 'afro') {
+    const shade = shadeHex(color, -30);
+    return (
+      <g>
+        {/* Large rounded afro puff */}
+        <circle cx={cx} cy={cy-18} r="26" fill={color} stroke="#111" strokeWidth="1.2"/>
+        {/* texture bumps */}
+        {([[-12,-6],[-6,-12],[0,-8],[6,-12],[12,-6],[-14,2],[-4,-2],[4,-2],[14,2],[0,0],[-8,8],[8,8]] as [number,number][]).map(([dx,dy],i) => (
+          <circle key={i} cx={cx+dx} cy={cy-18+dy} r="3.5" fill={shade} opacity="0.4"/>
+        ))}
+        {/* Cover sides of face */}
+        <circle cx={cx-17} cy={cy} r="7" fill={color} stroke="#111" strokeWidth="1"/>
+        <circle cx={cx+17} cy={cy} r="7" fill={color} stroke="#111" strokeWidth="1"/>
+        {/* highlight */}
+        <circle cx={cx-6} cy={cy-26} r="5" fill="rgba(255,255,255,0.1)"/>
+      </g>
+    );
+  }
+
+  // Topete (quiff/pompadour)
+  if (style === 'topete') {
+    return (
+      <g>
+        {/* base */}
+        <path d={`M ${cx-18},${cy} C ${cx-19},${cy-14} ${cx-12},${cy-20} ${cx},${cy-22} C ${cx+12},${cy-20} ${cx+19},${cy-14} ${cx+18},${cy}`} fill={color} stroke="#111" strokeWidth="1"/>
+        {/* swept-up front quiff */}
+        <path d={`M ${cx-8},${cy-20} C ${cx-10},${cy-28} ${cx-6},${cy-36} ${cx},${cy-38} C ${cx+6},${cy-36} ${cx+10},${cy-28} ${cx+8},${cy-20} C ${cx+4},${cy-22} ${cx-4},${cy-22} Z`} fill={color} stroke="#111" strokeWidth="0.9"/>
+        {/* quiff shape line */}
+        <path d={`M ${cx-6},${cy-22} C ${cx-4},${cy-32} ${cx+4},${cy-32} ${cx+6},${cy-22}`} fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="1.2" strokeLinecap="round"/>
+        <rect x={cx-19} y={cy-2} width="4" height="8" rx="2" fill={color}/>
+        <rect x={cx+15} y={cy-2} width="4" height="8" rx="2" fill={color}/>
+      </g>
+    );
+  }
+
+  return null;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// HAT — drawn last (topmost)
+// ═══════════════════════════════════════════════════════════════
+function HatLayer({ ha, ht, sk, uid }: { ha: any; ht: any; sk: any; uid: string }) {
+  const style  = ht.style  ?? 'none';
+  const color  = ht.color  ?? '#1B3A6B';
+  const color2 = ht.color2 ?? '#112750';
+  const cx = 50, cy = 46;
+
+  if (style === 'none') return null;
+
+  if (style === 'cap') {
+    return (
+      <g>
+        {/* bill */}
+        <path d={`M ${cx-20},${cy-16} C ${cx-10},${cy-12} ${cx+10},${cy-12} ${cx+20},${cy-16} L ${cx+24},${cy-14} C ${cx+10},${cy-8} ${cx-10},${cy-8} ${cx-24},${cy-14} Z`} fill={color2} stroke="#111" strokeWidth="0.8"/>
+        {/* cap dome */}
+        <path d={`M ${cx-18},${cy-14} C ${cx-20},${cy-26} ${cx-10},${cy-34} ${cx},${cy-34} C ${cx+10},${cy-34} ${cx+20},${cy-26} ${cx+18},${cy-14} Z`} fill={color} stroke="#111" strokeWidth="1"/>
+        {/* band */}
+        <path d={`M ${cx-18},${cy-14} C ${cx-10},${cy-12} ${cx+10},${cy-12} ${cx+18},${cy-14}`} stroke={color2} strokeWidth="2.5" fill="none"/>
+        {/* highlight */}
+        <path d={`M ${cx-8},${cy-32} C ${cx},${cy-36} ${cx+8},${cy-32}`} stroke="rgba(255,255,255,0.2)" strokeWidth="2" fill="none" strokeLinecap="round"/>
+      </g>
+    );
+  }
+
+  if (style === 'crown') {
+    return (
+      <g>
+        {/* base band */}
+        <rect x={cx-16} y={cy-26} width="32" height="8" rx="2" fill={color} stroke="#111" strokeWidth="0.8"/>
+        {/* points */}
+        <path d={`M ${cx-14},${cy-26} L ${cx-14},${cy-36} L ${cx-8},${cy-28}`} fill={color} stroke="#111" strokeWidth="0.8"/>
+        <path d={`M ${cx},${cy-26} L ${cx},${cy-40} L ${cx+6},${cy-28}`} fill={color} stroke="#111" strokeWidth="0.8"/>
+        <path d={`M ${cx+14},${cy-26} L ${cx+14},${cy-36} L ${cx+8},${cy-28}`} fill={color} stroke="#111" strokeWidth="0.8"/>
+        <path d={`M ${cx-14},${cy-26} L ${cx-8},${cy-28} L ${cx},${cy-26} L ${cx+8},${cy-28} L ${cx+14},${cy-26}`} fill={color} stroke="#111" strokeWidth="0.8"/>
+        {/* gems */}
+        <circle cx={cx-11} cy={cy-22} r="2" fill="#E84848"/>
+        <circle cx={cx} cy={cy-22} r="2" fill="#4BE84B"/>
+        <circle cx={cx+11} cy={cy-22} r="2" fill="#4848E8"/>
+      </g>
+    );
+  }
+
+  if (style === 'cowboy') {
+    return (
+      <g>
+        {/* brim */}
+        <ellipse cx={cx} cy={cy-20} rx="24" ry="5" fill={color2} stroke="#111" strokeWidth="0.8"/>
+        {/* crown */}
+        <path d={`M ${cx-14},${cy-20} C ${cx-16},${cy-32} ${cx-8},${cy-40} ${cx},${cy-40} C ${cx+8},${cy-40} ${cx+16},${cy-32} ${cx+14},${cy-20} Z`} fill={color} stroke="#111" strokeWidth="1"/>
+        {/* indent top */}
+        <path d={`M ${cx-6},${cy-38} C ${cx-2},${cy-42} ${cx+2},${cy-42} ${cx+6},${cy-38}`} fill="none" stroke={color2} strokeWidth="1.5" strokeLinecap="round"/>
+        {/* band */}
+        <path d={`M ${cx-14},${cy-20} C ${cx-8},${cy-22} ${cx+8},${cy-22} ${cx+14},${cy-20}`} stroke={color2} strokeWidth="2" fill="none"/>
+      </g>
+    );
+  }
+
+  if (style === 'wizard') {
+    return (
+      <g>
+        {/* brim */}
+        <ellipse cx={cx} cy={cy-22} rx="22" ry="5" fill={color2} stroke="#111" strokeWidth="0.8"/>
+        {/* cone */}
+        <path d={`M ${cx-14},${cy-22} C ${cx-8},${cy-34} ${cx-4},${cy-50} ${cx},${cy-58} C ${cx+4},${cy-50} ${cx+8},${cy-34} ${cx+14},${cy-22} Z`} fill={color} stroke="#111" strokeWidth="1"/>
+        {/* stars on hat */}
+        <circle cx={cx-4} cy={cy-34} r="1.5" fill="#FCD34D"/>
+        <circle cx={cx+5} cy={cy-40} r="1" fill="#FCD34D"/>
+        {/* highlight */}
+        <path d={`M ${cx-5},${cy-52} C ${cx-2},${cy-56} ${cx+2},${cy-52}`} fill="none" stroke="rgba(255,255,255,0.25)" strokeWidth="1" strokeLinecap="round"/>
+      </g>
+    );
+  }
+
+  return null;
+}
+
+// ── helper: darken a hex color ─────────────────────────────────
+function shadeHex(hex: string, amount: number): string {
+  const n = parseInt(hex.replace('#', ''), 16);
+  const r = Math.max(0, Math.min(255, (n >> 16) + amount));
+  const g = Math.max(0, Math.min(255, ((n >> 8) & 0xff) + amount));
+  const b = Math.max(0, Math.min(255, (n & 0xff) + amount));
+  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
 }
