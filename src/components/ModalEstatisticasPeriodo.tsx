@@ -60,6 +60,7 @@ const toBRT = (iso: string) => new Date(new Date(iso).getTime() - BRT_MS);
 export function ModalEstatisticasPeriodo({ titulo, periodo, vendas, onClose, onEditVenda, onDeleteVenda }: Props) {
   // semanaOffset: 0 = semana atual, -1 = semana passada, etc.
   const [semanaOffset, setSemanaOffset] = useState(0);
+  const [selectedBarIndex, setSelectedBarIndex] = useState<number | null>(null);
 
   const aprovadas = useMemo(() => vendas.filter(v => v.status === 'aprovada'), [vendas]);
 
@@ -99,17 +100,17 @@ export function ModalEstatisticasPeriodo({ titulo, periodo, vendas, onClose, onE
     const now = new Date(Date.now() - BRT_MS);
 
     if (periodo === 'hoje') {
-      // Agrupa por hora (0–23)
       const buckets = Array.from({ length: 24 }, (_, h) => ({
         label: `${String(h).padStart(2, '0')}h`,
-        valor: 0, count: 0,
+        valor: 0, count: 0, vendas: [] as Venda[],
       }));
       aprovadas.forEach(v => {
         const d = toBRT(v.created_at);
-        buckets[d.getUTCHours()].valor += Number(v.sale_value);
-        buckets[d.getUTCHours()].count++;
+        const h = d.getUTCHours();
+        buckets[h].valor += Number(v.sale_value);
+        buckets[h].count++;
+        buckets[h].vendas.push(v);
       });
-      // Mostra apenas horas de 6h até agora
       const horaAtual = now.getUTCHours();
       return buckets.slice(6, horaAtual + 1);
     }
@@ -127,6 +128,7 @@ export function ModalEstatisticasPeriodo({ titulo, periodo, vendas, onClose, onE
           label: `${nomesDia[ref.getUTCDay()]} ${String(d).padStart(2,'0')}`,
           valor: lista.reduce((a, v) => a + Number(v.sale_value), 0),
           count: lista.length,
+          vendas: lista,
         };
       });
     }
@@ -145,6 +147,7 @@ export function ModalEstatisticasPeriodo({ titulo, periodo, vendas, onClose, onE
         label: String(dia).padStart(2, '0'),
         valor: lista.reduce((a, v) => a + Number(v.sale_value), 0),
         count: lista.length,
+        vendas: lista,
       };
     });
   }, [aprovadas, periodo, semanaRange]);
@@ -227,7 +230,7 @@ export function ModalEstatisticasPeriodo({ titulo, periodo, vendas, onClose, onE
               <div className="flex items-center gap-1 bg-zinc-900 border border-zinc-800 rounded-xl px-2 py-1.5 mt-2.5 w-fit">
                 <button
                   onMouseEnter={somHover}
-                  onClick={() => { somClick(); setSemanaOffset(o => o - 1); }}
+                  onClick={() => { somClick(); setSemanaOffset(o => o - 1); setSelectedBarIndex(null); }}
                   className="w-7 h-7 flex items-center justify-center text-zinc-400 hover:text-yellow-400 hover:bg-zinc-800 rounded-lg transition-all font-black text-sm"
                 >←</button>
                 <span className="text-zinc-300 text-[10px] font-black uppercase tracking-wider px-1 whitespace-nowrap">
@@ -235,7 +238,7 @@ export function ModalEstatisticasPeriodo({ titulo, periodo, vendas, onClose, onE
                 </span>
                 <button
                   onMouseEnter={somHover}
-                  onClick={() => { somClick(); setSemanaOffset(o => Math.min(o + 1, 0)); }}
+                  onClick={() => { somClick(); setSemanaOffset(o => Math.min(o + 1, 0)); setSelectedBarIndex(null); }}
                   disabled={semanaOffset >= 0}
                   className="w-7 h-7 flex items-center justify-center text-zinc-400 hover:text-yellow-400 hover:bg-zinc-800 rounded-lg transition-all font-black text-sm disabled:opacity-30 disabled:cursor-not-allowed"
                 >→</button>
@@ -266,13 +269,26 @@ export function ModalEstatisticasPeriodo({ titulo, periodo, vendas, onClose, onE
             <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
               <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest mb-4">
                 {periodo === 'hoje' ? '⏱ Por Hora' : periodo === 'semana' ? '📆 Por Dia' : '📆 Por Dia do Mês'}
+                {selectedBarIndex !== null && (
+                  <button
+                    onClick={() => setSelectedBarIndex(null)}
+                    className="ml-3 text-yellow-400 hover:text-white transition-colors normal-case"
+                  >✕ fechar</button>
+                )}
               </p>
               <div className="flex items-end gap-1 w-full overflow-x-auto pb-1">
                 {barras.map((b, i) => {
                   const barPx = b.valor > 0 ? Math.max(Math.round((b.valor / maxBarra) * CHART_H), 5) : 2;
                   const isBest = b.valor === maxBarra && b.valor > 0;
+                  const isSelected = selectedBarIndex === i;
+                  const hasVendas = b.count > 0;
                   return (
-                    <div key={i} className="flex flex-col items-center gap-1 group relative" style={{ minWidth: periodo === 'mes' ? 18 : 28, flex: 1 }}>
+                    <div
+                      key={i}
+                      className={`flex flex-col items-center gap-1 group relative ${hasVendas ? 'cursor-pointer' : ''}`}
+                      style={{ minWidth: periodo === 'mes' ? 18 : 28, flex: 1 }}
+                      onClick={() => { if (hasVendas) { somClick(); setSelectedBarIndex(isSelected ? null : i); } }}
+                    >
                       {/* Tooltip */}
                       <div
                         className="absolute left-1/2 -translate-x-1/2 hidden group-hover:flex flex-col items-center z-10 pointer-events-none"
@@ -287,22 +303,88 @@ export function ModalEstatisticasPeriodo({ titulo, periodo, vendas, onClose, onE
 
                       <div className="w-full flex items-end justify-center" style={{ height: CHART_H }}>
                         <div
-                          className="w-full rounded-t transition-all duration-700"
+                          className="w-full rounded-t transition-all duration-300"
                           style={{
                             height: barPx,
-                            background: isBest
+                            background: isSelected
+                              ? 'linear-gradient(180deg, #fff, #a1a1aa)'
+                              : isBest
                               ? 'linear-gradient(180deg, #facc15, #ca8a04)'
                               : b.valor > 0 ? '#3f3f46' : '#27272a',
-                            boxShadow: isBest ? '0 0 8px rgba(250,204,21,0.4)' : undefined,
+                            boxShadow: isSelected
+                              ? '0 0 8px rgba(255,255,255,0.3)'
+                              : isBest ? '0 0 8px rgba(250,204,21,0.4)' : undefined,
                             opacity: b.valor === 0 ? 0.3 : 1,
                           }}
                         />
                       </div>
-                      <span className="text-[8px] text-zinc-600 font-bold truncate w-full text-center">{b.label}</span>
+                      <span className={`text-[8px] font-bold truncate w-full text-center ${isSelected ? 'text-white' : 'text-zinc-600'}`}>{b.label}</span>
                     </div>
                   );
                 })}
               </div>
+
+              {/* Painel drill-down: vendas do dia/hora selecionado */}
+              {selectedBarIndex !== null && barras[selectedBarIndex] && (() => {
+                const barra = barras[selectedBarIndex];
+                const vendasDia = [...barra.vendas].sort((a, b2) =>
+                  new Date(b2.created_at).getTime() - new Date(a.created_at).getTime()
+                );
+                return (
+                  <div className="mt-4 border-t border-zinc-800 pt-4">
+                    <p className="text-white text-xs font-black uppercase tracking-wider mb-3 flex items-center gap-2">
+                      <span className="text-yellow-400">{barra.label}</span>
+                      <span className="text-zinc-600">—</span>
+                      <span>{vendasDia.length} venda{vendasDia.length !== 1 ? 's' : ''}</span>
+                      <span className="text-yellow-400 ml-auto">{fmt(barra.valor)}</span>
+                    </p>
+                    <div className="space-y-2 max-h-64 overflow-y-auto">
+                      {vendasDia.map(v => {
+                        const isCheckout = !v.seller_id || String(v.seller_id) === '' || String(v.seller_id) === 'null';
+                        const hora = toBRT(v.created_at);
+                        const horaStr = `${String(hora.getUTCHours()).padStart(2,'0')}:${String(hora.getUTCMinutes()).padStart(2,'0')}`;
+                        return (
+                          <div key={v.id} className="flex items-start gap-3 p-2.5 rounded-xl bg-zinc-800/60 border border-zinc-700/50">
+                            {/* Avatar inicial vendedor */}
+                            <div className="w-8 h-8 rounded-full bg-zinc-700 border border-zinc-600 flex items-center justify-center flex-shrink-0">
+                              <span className="text-[10px] font-black text-zinc-300">
+                                {isCheckout ? '🛒' : (v.seller_name ?? '?').split(' ').map((p: string) => p[0]).slice(0,2).join('').toUpperCase()}
+                              </span>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              {/* Linha 1: vendedor + horário */}
+                              <div className="flex items-center justify-between gap-1 mb-0.5">
+                                <span className="text-zinc-200 text-xs font-black truncate">
+                                  {isCheckout ? 'Checkout' : (v.seller_name ?? 'Desconhecido')}
+                                </span>
+                                <span className="text-zinc-600 text-[10px] font-bold flex-shrink-0">{horaStr}</span>
+                              </div>
+                              {/* Linha 2: cliente */}
+                              <div className="flex items-center gap-1 mb-0.5">
+                                <span className="text-zinc-500 text-[10px]">👤</span>
+                                <span className="text-zinc-400 text-[10px] truncate">{v.customer_name ?? '—'}</span>
+                              </div>
+                              {/* Linha 3: produto + método */}
+                              <div className="flex items-center gap-1">
+                                <span className="text-zinc-600 text-[10px] truncate">{v.product_name}</span>
+                                {v.payment_method && (
+                                  <>
+                                    <span className="text-zinc-700 text-[10px]">·</span>
+                                    <span className="text-[10px]" style={{ color: corDoMetodo(v.payment_method) }}>{iconeDoMetodo(v.payment_method)} {v.payment_method}</span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex-shrink-0 text-right">
+                              <p className="text-green-400 font-black text-xs">{fmt(Number(v.sale_value))}</p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           )}
 
