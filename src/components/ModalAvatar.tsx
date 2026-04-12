@@ -27,9 +27,10 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   userRole: string;
+  onEquipChange?: (equipped: AvatarEquipped) => void;
 }
 
-export function ModalAvatar({ isOpen, onClose, userRole }: Props) {
+export function ModalAvatar({ isOpen, onClose, userRole, onEquipChange }: Props) {
   const [tab, setTab] = useState<'avatar' | 'shop'>('avatar');
   const [cat, setCat] = useState<string>('background');
   const [balance, setBalance] = useState(0);
@@ -83,7 +84,11 @@ export function ModalAvatar({ isOpen, onClose, userRole }: Props) {
 
     try {
       await api.post('/avatar/equip', { category: item.category, itemId: item.id });
-      setEquipped(prev => ({ ...prev, [item.category]: item }));
+      setEquipped(prev => {
+        const next = { ...prev, [item.category]: item };
+        onEquipChange?.(next);
+        return next;
+      });
       if (!isOwned) flash(`${item.name} comprado e equipado! 🎉`, true);
     } catch (e: any) {
       flash(e.response?.data?.error ?? 'Erro ao equipar.', false);

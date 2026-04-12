@@ -529,48 +529,33 @@ function HairFront({ ha, hairC, uid }: { ha: any; hairC: string; uid: string }) 
   const light  = adjustHex(hairC, +28);
 
   // ── Short ────────────────────────────────────────────────────
-  // Cabelo com textura de mechas, não um capacete liso
   if (style === 'short') {
     return (
       <g>
-        {/* Massa principal do cabelo — contorno irregular para parecer cabelo */}
-        <path d={`
-          M 60 100
-          C 58 95 57 88 57 80
-          C 56 58 68 38 100 34
-          C 132 38 144 58 143 80
-          C 143 88 142 95 140 100
-          C 136 92 130 88 130 82
-          C 128 66 116 56 100 54
-          C 84 56 72 66 70 82
-          C 70 88 64 92 60 100 Z
-        `} fill={hairC}/>
+        {/* Faixa de cabelo fina seguindo a curvatura do crânio */}
+        {/* Parte de cima: do topo da cabeça até a hairline */}
+        <path d={`M 63 96 C 60 88 59 76 62 64 C 68 44 82 36 100 35 C 118 36 132 44 138 64 C 141 76 140 88 137 96 C 132 86 122 80 100 79 C 78 80 68 86 63 96 Z`}
+          fill={hairC} stroke="#111" strokeWidth="0.8"/>
 
-        {/* Linha da testa — hairline natural com sombra sutil */}
-        <path d={`M 63 88 C 68 76 80 70 100 69 C 120 70 132 76 137 88`}
-          fill="none" stroke={shade} strokeWidth="1.5" strokeLinecap="round" opacity="0.4"/>
+        {/* Camada de sombra para dar volume/profundidade */}
+        <path d={`M 63 96 C 68 86 78 80 100 79 C 78 80 68 86 63 96 Z`}
+          fill={shade} opacity="0.3"/>
+        <path d={`M 137 96 C 132 86 122 80 100 79 C 122 80 132 86 137 96 Z`}
+          fill={shade} opacity="0.15"/>
 
-        {/* Mechas laterais que cobrem parte das orelhas */}
-        <path d={`M 58 80 C 57 90 58 100 62 108 C 65 114 68 116 70 112 C 68 104 66 94 66 84 Z`}
-          fill={hairC}/>
-        <path d={`M 142 80 C 143 90 142 100 138 108 C 135 114 132 116 130 112 C 132 104 134 94 134 84 Z`}
-          fill={hairC}/>
+        {/* Mechas desenhadas com strokes — dão textura de cabelo */}
+        <path d={`M 80 38 C 76 50 74 62 74 74`} fill="none" stroke={shade} strokeWidth="2" strokeLinecap="round" opacity="0.7"/>
+        <path d={`M 92 36 C 90 48 89 60 90 72`} fill="none" stroke={shade} strokeWidth="1.8" strokeLinecap="round" opacity="0.6"/>
+        <path d={`M 108 36 C 110 48 111 60 110 72`} fill="none" stroke={shade} strokeWidth="1.8" strokeLinecap="round" opacity="0.6"/>
+        <path d={`M 120 38 C 124 50 126 62 126 74`} fill="none" stroke={shade} strokeWidth="2" strokeLinecap="round" opacity="0.7"/>
 
-        {/* Mechas/textura no topo para não ficar liso */}
-        <path d={`M 75 60 C 80 50 90 46 100 46 C 110 46 120 50 125 60`}
-          fill="none" stroke={shade} strokeWidth="2.5" strokeLinecap="round"/>
-        <path d={`M 68 72 C 74 62 85 56 100 55 C 115 56 126 62 132 72`}
-          fill="none" stroke={shade} strokeWidth="2" strokeLinecap="round"/>
+        {/* Costeleta/lateral cobrindo as têmporas */}
+        <path d={`M 62 64 C 60 74 60 86 62 96 C 64 104 68 110 70 106 C 68 96 66 84 66 72 Z`} fill={hairC}/>
+        <path d={`M 138 64 C 140 74 140 86 138 96 C 136 104 132 110 130 106 C 132 96 134 84 134 72 Z`} fill={hairC}/>
 
-        {/* Linha de partição ao centro (sutil) */}
-        <path d={`M 100 36 C 100 42 100 50 100 58`}
-          fill="none" stroke={shade} strokeWidth="1.5" strokeLinecap="round" opacity="0.5"/>
-
-        {/* Reflexo de luz — mais orgânico */}
-        <path d={`M 78 46 C 86 40 100 38 114 44`}
-          fill="none" stroke={light} strokeWidth="3" strokeLinecap="round" opacity="0.4"/>
-        <path d={`M 72 62 C 80 54 90 50 100 50`}
-          fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="3" strokeLinecap="round"/>
+        {/* Reflexo de luz no topo */}
+        <path d={`M 82 38 C 90 33 110 33 118 38`}
+          fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="4" strokeLinecap="round"/>
       </g>
     );
   }
@@ -579,22 +564,13 @@ function HairFront({ ha, hairC, uid }: { ha: any; hairC: string; uid: string }) 
   if (style === 'long') {
     return (
       <g>
-        {/* Massa principal */}
-        <path d={`
-          M 60 100
-          C 58 92 57 82 57 74
-          C 56 52 68 36 100 32
-          C 132 36 144 52 143 74
-          C 143 82 142 92 140 100
-          C 136 90 130 86 130 78
-          C 128 62 116 52 100 50
-          C 84 52 72 62 70 78
-          C 70 86 64 90 60 100 Z
-        `} fill={hairC}/>
+        {/* Mesma faixa do short mas com mechas mais longas */}
+        <path d={`M 63 96 C 60 88 59 76 62 64 C 68 44 82 36 100 35 C 118 36 132 44 138 64 C 141 76 140 88 137 96 C 132 86 122 80 100 79 C 78 80 68 86 63 96 Z`}
+          fill={hairC} stroke="#111" strokeWidth="0.8"/>
 
-        {/* Mechas caindo na frente */}
-        <path d={`M 60 98 C 58 106 60 116 66 122 C 68 118 68 108 66 98 Z`} fill={hairC}/>
-        <path d={`M 140 98 C 142 106 140 116 134 122 C 132 118 132 108 134 98 Z`} fill={hairC}/>
+        {/* Mechas caindo pelo rosto */}
+        <path d={`M 63 96 C 60 106 62 118 66 124 C 68 120 68 108 66 96 Z`} fill={hairC}/>
+        <path d={`M 137 96 C 140 106 138 118 134 124 C 132 120 132 108 134 96 Z`} fill={hairC}/>
 
         {/* Mechas textura topo */}
         <path d={`M 76 56 C 82 46 91 42 100 42 C 109 42 118 46 124 56`}
@@ -617,20 +593,17 @@ function HairFront({ ha, hairC, uid }: { ha: any; hairC: string; uid: string }) 
   if (style === 'spiky') {
     return (
       <g>
-        {/* Base */}
-        <path d={`M 62 98 C 60 86 58 74 60 66 C 66 48 82 40 100 38 C 118 40 134 48 140 66 C 142 74 140 86 138 98 C 134 88 128 84 128 78 C 126 65 114 56 100 55 C 86 56 74 65 72 78 C 72 84 66 88 62 98 Z`}
-          fill={hairC}/>
+        {/* Faixa base fina */}
+        <path d={`M 63 96 C 60 88 59 76 62 64 C 68 44 82 36 100 35 C 118 36 132 44 138 64 C 141 76 140 88 137 96 C 132 86 122 80 100 79 C 78 80 68 86 63 96 Z`}
+          fill={hairC} stroke="#111" strokeWidth="0.8"/>
         {/* Laterais */}
-        <path d={`M 60 68 C 57 80 57 94 62 102 C 65 108 68 110 70 106 C 67 96 65 84 65 72 Z`} fill={hairC}/>
-        <path d={`M 140 68 C 143 80 143 94 138 102 C 135 108 132 110 130 106 C 133 96 135 84 135 72 Z`} fill={hairC}/>
-        {/* Espinhos */}
-        <path d={`M 72 62 L 64 24 L 84 56 Z`} fill={hairC} stroke="#111" strokeWidth="1" strokeLinejoin="round"/>
-        <path d={`M 90 52 L 84 12 L 106 50 Z`} fill={hairC} stroke="#111" strokeWidth="1" strokeLinejoin="round"/>
-        <path d={`M 110 52 L 116 12 L 128 54 Z`} fill={hairC} stroke="#111" strokeWidth="1" strokeLinejoin="round"/>
-        <path d={`M 126 60 L 138 24 L 142 62 Z`} fill={hairC} stroke="#111" strokeWidth="1" strokeLinejoin="round"/>
-        {/* Reflexo */}
-        <path d={`M 80 42 C 90 34 110 34 120 42`}
-          fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="2.5" strokeLinecap="round"/>
+        <path d={`M 62 64 C 60 76 60 90 63 100 C 65 108 68 110 70 106 C 68 96 66 82 66 70 Z`} fill={hairC}/>
+        <path d={`M 138 64 C 140 76 140 90 137 100 C 135 108 132 110 130 106 C 132 96 134 82 134 70 Z`} fill={hairC}/>
+        {/* Espinhos saindo da faixa base */}
+        <path d={`M 70 68 L 62 26 L 82 60 Z`} fill={hairC} stroke="#111" strokeWidth="1" strokeLinejoin="round"/>
+        <path d={`M 88 52 L 83 10 L 104 50 Z`} fill={hairC} stroke="#111" strokeWidth="1" strokeLinejoin="round"/>
+        <path d={`M 112 52 L 117 10 L 130 56 Z`} fill={hairC} stroke="#111" strokeWidth="1" strokeLinejoin="round"/>
+        <path d={`M 128 64 L 138 26 L 142 66 Z`} fill={hairC} stroke="#111" strokeWidth="1" strokeLinejoin="round"/>
       </g>
     );
   }

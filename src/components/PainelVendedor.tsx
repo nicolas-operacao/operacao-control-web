@@ -1060,6 +1060,7 @@ export function PainelVendedor({ userId, userName, equipe, userRole = 'vendedor'
         isOpen={avatarOpen}
         onClose={() => setAvatarOpen(false)}
         userRole={userRole}
+        onEquipChange={setAvatarEquipped}
       />
 
     </div>
