@@ -490,9 +490,9 @@ function HairFront({ ha, hairC, HX, HY, HRX, HRY }: {
     return (
       <g>
         <ShortBase/>
-        {/* Costeletas finas descendo pelas têmporas */}
-        <path d={`M ${HX-38} ${HL+4} C ${HX-44} ${HL+14} ${HX-44} ${HL+22} ${HX-40} ${HL+28} C ${HX-36} ${HL+20} ${HX-34} ${HL+10} Z`} fill={hairC}/>
-        <path d={`M ${HX+38} ${HL+4} C ${HX+44} ${HL+14} ${HX+44} ${HL+22} ${HX+40} ${HL+28} C ${HX+36} ${HL+20} ${HX+34} ${HL+10} Z`} fill={hairC}/>
+        {/* Costeletas — finas, coladas à curva lateral da cabeça */}
+        <path d={`M ${HX-36} ${HL+6} C ${HX-40} ${HL+14} ${HX-40} ${HL+22} ${HX-37} ${HL+28} C ${HX-34} ${HL+22} ${HX-33} ${HL+12} Z`} fill={hairC}/>
+        <path d={`M ${HX+36} ${HL+6} C ${HX+40} ${HL+14} ${HX+40} ${HL+22} ${HX+37} ${HL+28} C ${HX+34} ${HL+22} ${HX+33} ${HL+12} Z`} fill={hairC}/>
         {/* 3 linhas de textura — direção do cabelo varrido */}
         <path d={`M ${HX-30} ${HL+2} C ${HX-20} ${topY+2} ${HX-8} ${topY-12} ${HX+4} ${topY-16}`}
           stroke={dark} strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.55"/>
@@ -512,9 +512,9 @@ function HairFront({ ha, hairC, HX, HY, HRX, HRY }: {
     return (
       <g>
         <ShortBase/>
-        {/* Costeletas longas */}
-        <path d={`M ${HX-38} ${HL+4} C ${HX-46} ${HL+20} ${HX-46} ${HY+10} ${HX-40} ${HY+20} C ${HX-36} ${HY+10} ${HX-34} ${HL+14} Z`} fill={hairC}/>
-        <path d={`M ${HX+38} ${HL+4} C ${HX+46} ${HL+20} ${HX+46} ${HY+10} ${HX+40} ${HY+20} C ${HX+36} ${HY+10} ${HX+34} ${HL+14} Z`} fill={hairC}/>
+        {/* Costeletas longas — finas, seguindo a curva da cabeça */}
+        <path d={`M ${HX-36} ${HL+6} C ${HX-40} ${HL+20} ${HX-40} ${HY+8} ${HX-36} ${HY+18} C ${HX-33} ${HY+8} ${HX-32} ${HL+16} Z`} fill={hairC}/>
+        <path d={`M ${HX+36} ${HL+6} C ${HX+40} ${HL+20} ${HX+40} ${HY+8} ${HX+36} ${HY+18} C ${HX+33} ${HY+8} ${HX+32} ${HL+16} Z`} fill={hairC}/>
         <path d={`M ${HX-28} ${HL+6} C ${HX-18} ${topY+4} ${HX} ${topY-12}`}
           stroke={dark} strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.5"/>
         <path d={`M ${HX+10} ${HL+2} C ${HX+20} ${topY+6} ${HX+32} ${topY-2}`}
@@ -599,9 +599,9 @@ function HairFront({ ha, hairC, HX, HY, HRX, HRY }: {
       <g>
         {/* Base lateral (mesma do short) */}
         <ShortBase/>
-        {/* Costeletas */}
-        <path d={`M ${HX-38} ${HL+4} C ${HX-44} ${HL+14} ${HX-44} ${HL+22} ${HX-40} ${HL+28} C ${HX-36} ${HL+20} ${HX-34} ${HL+10} Z`} fill={hairC}/>
-        <path d={`M ${HX+38} ${HL+4} C ${HX+44} ${HL+14} ${HX+44} ${HL+22} ${HX+40} ${HL+28} C ${HX+36} ${HL+20} ${HX+34} ${HL+10} Z`} fill={hairC}/>
+        {/* Costeletas finas */}
+        <path d={`M ${HX-36} ${HL+6} C ${HX-40} ${HL+14} ${HX-40} ${HL+22} ${HX-37} ${HL+28} C ${HX-34} ${HL+22} ${HX-33} ${HL+12} Z`} fill={hairC}/>
+        <path d={`M ${HX+36} ${HL+6} C ${HX+40} ${HL+14} ${HX+40} ${HL+22} ${HX+37} ${HL+28} C ${HX+34} ${HL+22} ${HX+33} ${HL+12} Z`} fill={hairC}/>
         {/* Pompadour: elevação central varrida para trás */}
         <path d={`
           M ${HX-20} ${topY+6}
