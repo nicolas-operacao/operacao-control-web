@@ -19,6 +19,9 @@ interface RelatorioBatalhaProps {
   titulo: string;
   subtitulo?: string;
   onClose: () => void;
+  dataInicio?: string;
+  dataFim?: string;
+  onFiltrar?: (inicio: string, fim: string) => void;
 }
 
 type ItemRelatorio = {
@@ -46,10 +49,12 @@ type VisaoGeralSoldado = {
   qtdOutros: number;
 };
 
-export function RelatorioBatalha({ vendas, titulo, subtitulo, onClose }: RelatorioBatalhaProps) {
+export function RelatorioBatalha({ vendas, titulo, subtitulo, onClose, dataInicio: dataInicioProps = '', dataFim: dataFimProps = '', onFiltrar }: RelatorioBatalhaProps) {
   const formataBRL = (valor: number) => valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
   const [abaAtiva, setAbaAtiva] = useState<string>('VISÃO GERAL');
+  const [localInicio, setLocalInicio] = useState(dataInicioProps);
+  const [localFim, setLocalFim] = useState(dataFimProps);
   const [vendedorExpandido, setVendedorExpandido] = useState<string | null>(null);
   const [clienteSearch, setClienteSearch] = useState('');
 
@@ -138,16 +143,50 @@ export function RelatorioBatalha({ vendas, titulo, subtitulo, onClose }: Relator
     <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-6 shadow-2xl animate-in fade-in slide-in-from-top-4 duration-300">
       
       {/* CABEÇALHO DO RELATÓRIO */}
-      <div className="flex justify-between items-center mb-6 pb-4 border-b border-zinc-800">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 pb-4 border-b border-zinc-800 gap-3">
         <div>
             <h3 className="text-xl font-black text-white uppercase tracking-wider flex items-center gap-2">
               <span className="text-yellow-400">⚡</span> {titulo}
             </h3>
             {subtitulo && <p className="text-zinc-400 text-xs font-bold uppercase mt-1">{subtitulo}</p>}
         </div>
-        <button onMouseEnter={somHover} onClick={() => { somClick(); onClose(); }} className="text-zinc-500 hover:text-red-500 font-bold uppercase text-xs transition-colors px-3 py-1 border border-zinc-800 rounded hover:border-red-500">
-          FECHAR X
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          {onFiltrar && (
+            <form
+              onSubmit={e => {
+                e.preventDefault();
+                if (!localInicio || !localFim) return;
+                somClick();
+                onFiltrar(localInicio, localFim);
+              }}
+              className="flex items-center gap-2"
+            >
+              <input
+                type="date"
+                value={localInicio}
+                onChange={e => setLocalInicio(e.target.value)}
+                className="bg-zinc-950 border border-zinc-700 text-white rounded px-2 py-1 text-xs [color-scheme:dark] focus:outline-none focus:border-yellow-500/50"
+              />
+              <span className="text-zinc-500 text-xs font-bold">até</span>
+              <input
+                type="date"
+                value={localFim}
+                onChange={e => setLocalFim(e.target.value)}
+                className="bg-zinc-950 border border-zinc-700 text-white rounded px-2 py-1 text-xs [color-scheme:dark] focus:outline-none focus:border-yellow-500/50"
+              />
+              <button
+                type="submit"
+                onMouseEnter={somHover}
+                className="bg-yellow-400 hover:bg-yellow-300 text-black font-black px-3 py-1 rounded text-xs uppercase tracking-widest transition-all active:scale-95"
+              >
+                Buscar
+              </button>
+            </form>
+          )}
+          <button onMouseEnter={somHover} onClick={() => { somClick(); onClose(); }} className="text-zinc-500 hover:text-red-500 font-bold uppercase text-xs transition-colors px-3 py-1 border border-zinc-800 rounded hover:border-red-500">
+            FECHAR X
+          </button>
+        </div>
       </div>
 
       {/* PAINEL DE RESUMO GERAL */}

@@ -619,7 +619,7 @@ export function Dashboard() {
         )}
 
         {/* ── RELATÓRIO PERÍODO ── */}
-        {visaoAtiva === 'periodo' && (<RelatorioBatalha vendas={vendasTabela} titulo={tituloRelatorio} subtitulo={subTituloRelatorio} onClose={() => { setVisaoAtiva(null); setVendedorSelecionado(''); setDataInicio(''); setDataFim(''); }} />)}
+        {visaoAtiva === 'periodo' && (<RelatorioBatalha vendas={vendasTabela} titulo={tituloRelatorio} subtitulo={subTituloRelatorio} dataInicio={dataInicio} dataFim={dataFim} onFiltrar={(inicio, fim) => { setDataInicio(inicio); setDataFim(fim); setVisaoAtiva('periodo'); }} onClose={() => { setVisaoAtiva(null); setVendedorSelecionado(''); setDataInicio(''); setDataFim(''); }} />)}
 
         {/* ── KPI CARDS ── */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
