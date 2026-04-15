@@ -30,6 +30,12 @@ type Venda = {
   edit_status?: string; 
 };
 
+// ─── MODO APRESENTAÇÃO ─────────────────────────────────────────────────────────
+// false = modo apresentação: oculta histórico de vendas, comissão e músicas
+// true  = modo completo: exibe tudo normalmente
+const MOSTRAR_HISTORICO_E_COMISSAO = false;
+const MUSICA_ATIVA = false;
+
 // 🔥 FUNÇÕES BLINDADAS FORA DO COMPONENTE PARA NÃO PESAR A MEMÓRIA
 const checkCancelada = (status?: string) => {
   if (!status) return false;
@@ -74,9 +80,9 @@ export function Vendas() {
 
   // ── Música de celebração — usa GlobalMusic (App.tsx) via evento ───────────
   const MUSIC_VIDEO_ID = '7IFvoaH44Is';
-  function tocarMusicaVenda() { window.dispatchEvent(new CustomEvent('operacao:music', { detail: { action: 'start', videoId: MUSIC_VIDEO_ID } })); }
-  function pararMusicaAprovada() { window.dispatchEvent(new CustomEvent('operacao:music', { detail: { action: 'stop' } })); }
-  function pararMusicaLancada()  { window.dispatchEvent(new CustomEvent('operacao:music', { detail: { action: 'stop' } })); }
+  function tocarMusicaVenda()   { if (MUSICA_ATIVA) window.dispatchEvent(new CustomEvent('operacao:music', { detail: { action: 'start', videoId: MUSIC_VIDEO_ID } })); }
+  function pararMusicaAprovada() { if (MUSICA_ATIVA) window.dispatchEvent(new CustomEvent('operacao:music', { detail: { action: 'stop' } })); }
+  function pararMusicaLancada()  { if (MUSICA_ATIVA) window.dispatchEvent(new CustomEvent('operacao:music', { detail: { action: 'stop' } })); }
 
   // ── Notificações ──────────────────────────────────────────────────────────
   type VendaAprovada = { product_name: string; sale_value: number; customer_name: string };
@@ -443,8 +449,8 @@ export function Vendas() {
           </div>
         </div>
 
-        {/* 🔥 ALERTA DE BAIXAS */}
-        {minhasVendasCanceladas.length > 0 && (
+        {/* 🔥 ALERTA DE BAIXAS — oculto no modo apresentação */}
+        {MOSTRAR_HISTORICO_E_COMISSAO && minhasVendasCanceladas.length > 0 && (
           <div className="bg-red-950/40 border border-red-500/50 rounded-xl p-3 sm:p-4 md:p-6 mb-6 shadow-[0_0_20px_rgba(239,68,68,0.2)] animate-in fade-in">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
@@ -467,8 +473,8 @@ export function Vendas() {
         {/* Painel completo do vendedor */}
         <PainelVendedor userId={String(user.id)} userName={user.name} equipe={user.equipe || 'A'} userRole={user.role ?? 'vendedor'} />
 
-        {/* Comissão estimada — mantida como card discreto */}
-        <div className="bg-zinc-900 border border-green-500/20 rounded-xl px-4 sm:px-5 py-3 sm:py-4 mb-6 flex items-center justify-between gap-3">
+        {/* Comissão estimada — oculta no modo apresentação */}
+        {MOSTRAR_HISTORICO_E_COMISSAO && <div className="bg-zinc-900 border border-green-500/20 rounded-xl px-4 sm:px-5 py-3 sm:py-4 mb-6 flex items-center justify-between gap-3">
           <div>
             <p className="text-green-400 text-[9px] sm:text-[10px] font-black uppercase tracking-widest">💰 Comissão Estimada</p>
             <p className="text-zinc-500 text-[10px] sm:text-xs mt-0.5">{qtdVendasMes} vendas · {percentualComissao}%</p>
@@ -482,13 +488,14 @@ export function Vendas() {
               }
             </button>
           </div>
-        </div>
+        </div>}
 
         <div className="mb-8">
           <GuerraEquipes refreshTrigger={0} />
         </div>
 
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 md:p-6 shadow-2xl">
+        {/* Histórico de vendas — oculto no modo apresentação */}
+        {MOSTRAR_HISTORICO_E_COMISSAO && <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 md:p-6 shadow-2xl">
           {/* Filtros + CTA */}
           <div className="flex flex-col gap-3 mb-5 border-b border-zinc-800 pb-5">
             <div className="flex flex-wrap gap-2">
@@ -681,7 +688,7 @@ export function Vendas() {
               >Próx →</button>
             </div>
           )}
-        </div>
+        </div>}
       </div>
 
       {/* MODAL DE REGISTRAR VENDA */}

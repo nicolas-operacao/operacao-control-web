@@ -141,8 +141,10 @@ export function PainelVendedor({ userId, userName, equipe, userRole = 'vendedor'
   const [avatarEquipped, setAvatarEquipped] = useState<AvatarEquipped>({});
   const [coinBalance, setCoinBalance] = useState<number | null>(null);
   const CONQUISTA_VIDEO_ID = '7IFvoaH44Is';
-  function tocarMusicaConquista() { window.dispatchEvent(new CustomEvent('operacao:music', { detail: { action: 'start', videoId: CONQUISTA_VIDEO_ID } })); }
-  function pararMusicaConquista() { window.dispatchEvent(new CustomEvent('operacao:music', { detail: { action: 'stop' } })); }
+  // MUSICA_CONQUISTA_ATIVA = false durante apresentação — mude para true para reativar
+  const MUSICA_CONQUISTA_ATIVA = false;
+  function tocarMusicaConquista() { if (MUSICA_CONQUISTA_ATIVA) window.dispatchEvent(new CustomEvent('operacao:music', { detail: { action: 'start', videoId: CONQUISTA_VIDEO_ID } })); }
+  function pararMusicaConquista() { if (MUSICA_CONQUISTA_ATIVA) window.dispatchEvent(new CustomEvent('operacao:music', { detail: { action: 'stop' } })); }
 
   const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const isB = (equipe || '').trim().toUpperCase() === 'B';
