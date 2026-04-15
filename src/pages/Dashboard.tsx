@@ -234,10 +234,18 @@ export function Dashboard() {
     if (!visaoAtiva || !v.created_at) return false;
     let passaFiltroPrincipal = false;
     if (visaoAtiva === 'vendedor') passaFiltroPrincipal = v.seller_name === vendedorSelecionado;
-    else if (visaoAtiva === 'periodo') passaFiltroPrincipal = v.created_at.split('T')[0] >= dataInicio && v.created_at.split('T')[0] <= dataFim;
-    else {
-      const dataVenda = new Date(v.created_at); const hojeData = new Date(); hojeData.setHours(0, 0, 0, 0);
-      const inicioSemana = new Date(hojeData); inicioSemana.setDate(hojeData.getDate() - hojeData.getDay()); const inicioMes = new Date(hojeData.getFullYear(), hojeData.getMonth(), 1);
+    else if (visaoAtiva === 'periodo') {
+      // Converte para horário de Brasília (UTC-3) antes de comparar
+      const brtDate = new Date(new Date(v.created_at).getTime() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      passaFiltroPrincipal = brtDate >= dataInicio && brtDate <= dataFim;
+    } else {
+      // BRT offset: subtrai 3h para obter data local correta
+      const brtMs = new Date(v.created_at).getTime() - 3 * 60 * 60 * 1000;
+      const dataVenda = new Date(brtMs);
+      const agora = new Date(Date.now() - 3 * 60 * 60 * 1000);
+      const hojeData = new Date(agora); hojeData.setUTCHours(0, 0, 0, 0);
+      const inicioSemana = new Date(hojeData); inicioSemana.setUTCDate(hojeData.getUTCDate() - hojeData.getUTCDay());
+      const inicioMes = new Date(Date.UTC(hojeData.getUTCFullYear(), hojeData.getUTCMonth(), 1));
       if (visaoAtiva === 'hoje') passaFiltroPrincipal = dataVenda >= hojeData; else if (visaoAtiva === 'semana') passaFiltroPrincipal = dataVenda >= inicioSemana; else if (visaoAtiva === 'mes') passaFiltroPrincipal = dataVenda >= inicioMes;
     }
     if (!passaFiltroPrincipal) return false;
