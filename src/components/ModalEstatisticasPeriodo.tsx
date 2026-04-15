@@ -276,12 +276,14 @@ export function ModalEstatisticasPeriodo({ titulo, periodo, vendas, onClose, onE
                   >✕ fechar</button>
                 )}
               </p>
-              <div className="flex items-end gap-1 w-full overflow-x-auto pb-1">
+              <div className="flex items-end gap-1 w-full overflow-x-auto pb-1 overflow-y-visible">
                 {barras.map((b, i) => {
                   const barPx = b.valor > 0 ? Math.max(Math.round((b.valor / maxBarra) * CHART_H), 5) : 2;
                   const isBest = b.valor === maxBarra && b.valor > 0;
                   const isSelected = selectedBarIndex === i;
                   const hasVendas = b.count > 0;
+                  const isLast = i >= barras.length - 2;
+                  const isFirst = i <= 1;
                   return (
                     <div
                       key={i}
@@ -289,16 +291,16 @@ export function ModalEstatisticasPeriodo({ titulo, periodo, vendas, onClose, onE
                       style={{ minWidth: periodo === 'mes' ? 18 : 28, flex: 1 }}
                       onClick={() => { if (hasVendas) { somClick(); setSelectedBarIndex(isSelected ? null : i); } }}
                     >
-                      {/* Tooltip */}
+                      {/* Tooltip — posição ajustada nas extremidades para não sair da tela */}
                       <div
-                        className="absolute left-1/2 -translate-x-1/2 hidden group-hover:flex flex-col items-center z-10 pointer-events-none"
+                        className={`absolute hidden group-hover:flex flex-col items-center z-50 pointer-events-none ${isLast ? 'right-0' : isFirst ? 'left-0' : 'left-1/2 -translate-x-1/2'}`}
                         style={{ bottom: barPx + 6 }}
                       >
                         <div className="bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-1 text-[10px] font-bold text-white whitespace-nowrap shadow-xl">
                           {fmt(b.valor)}
                           {b.count > 0 && <span className="text-zinc-400 ml-1">({b.count})</span>}
                         </div>
-                        <div className="w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-zinc-700" />
+                        <div className={`w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-zinc-700 ${isLast ? 'self-end mr-2' : isFirst ? 'self-start ml-2' : ''}`} />
                       </div>
 
                       <div className="w-full flex items-end justify-center" style={{ height: CHART_H }}>
