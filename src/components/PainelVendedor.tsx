@@ -11,7 +11,7 @@ import { AvatarRenderer, type AvatarEquipped } from './AvatarRenderer';
 // ─── MODO PLACAR ───────────────────────────────────────────────────────────────
 // false = exibe APENAS o ranking/placar para os vendedores
 // true  = exibe o painel completo (avatar, KPIs, conquistas, missões, etc.)
-const MOSTRAR_PAINEL_COMPLETO = false;
+const MOSTRAR_PAINEL_COMPLETO = true;
 
 // ─── SISTEMA DE NÍVEIS (igual ao GuerraEquipes) ────────────────────────────────
 const VENDAS_POR_NIVEL   = 5;
@@ -142,7 +142,7 @@ export function PainelVendedor({ userId, userName, equipe, userRole = 'vendedor'
   const [coinBalance, setCoinBalance] = useState<number | null>(null);
   const CONQUISTA_VIDEO_ID = '7IFvoaH44Is';
   // MUSICA_CONQUISTA_ATIVA = false durante apresentação — mude para true para reativar
-  const MUSICA_CONQUISTA_ATIVA = false;
+  const MUSICA_CONQUISTA_ATIVA = true;
   function tocarMusicaConquista() { if (MUSICA_CONQUISTA_ATIVA) window.dispatchEvent(new CustomEvent('operacao:music', { detail: { action: 'start', videoId: CONQUISTA_VIDEO_ID } })); }
   function pararMusicaConquista() { if (MUSICA_CONQUISTA_ATIVA) window.dispatchEvent(new CustomEvent('operacao:music', { detail: { action: 'stop' } })); }
 

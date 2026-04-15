@@ -33,8 +33,8 @@ type Venda = {
 // ─── MODO APRESENTAÇÃO ─────────────────────────────────────────────────────────
 // false = modo apresentação: oculta histórico de vendas, comissão e músicas
 // true  = modo completo: exibe tudo normalmente
-const MOSTRAR_HISTORICO_E_COMISSAO = false;
-const MUSICA_ATIVA = false;
+const MOSTRAR_HISTORICO_E_COMISSAO = true;
+const MUSICA_ATIVA = true;
 
 // 🔥 FUNÇÕES BLINDADAS FORA DO COMPONENTE PARA NÃO PESAR A MEMÓRIA
 const checkCancelada = (status?: string) => {
