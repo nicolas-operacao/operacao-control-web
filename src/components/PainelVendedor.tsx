@@ -8,6 +8,11 @@ import { ModalRegistrarAbordagem } from './ModalRegistrarAbordagem';
 import { ModalAvatar } from './ModalAvatar';
 import { AvatarRenderer, type AvatarEquipped } from './AvatarRenderer';
 
+// ─── MODO PLACAR ───────────────────────────────────────────────────────────────
+// false = exibe APENAS o ranking/placar para os vendedores
+// true  = exibe o painel completo (avatar, KPIs, conquistas, missões, etc.)
+const MOSTRAR_PAINEL_COMPLETO = false;
+
 // ─── SISTEMA DE NÍVEIS (igual ao GuerraEquipes) ────────────────────────────────
 const VENDAS_POR_NIVEL   = 5;
 const VENDAS_POR_PATENTE = 20;
@@ -461,8 +466,8 @@ export function PainelVendedor({ userId, userName, equipe, userRole = 'vendedor'
         </div>
       )}
 
-      {/* ── HERO: Patente + Frase ── */}
-      <div
+      {/* ── HERO: Patente + Frase — oculto no modo placar ── */}
+      {MOSTRAR_PAINEL_COMPLETO && <div
         className="relative rounded-2xl overflow-hidden border p-5 md:p-6"
         style={{ borderColor: nivelInfo.pat.cor + '40', boxShadow: `0 0 30px ${nivelInfo.pat.glow}20` }}
       >
@@ -584,10 +589,10 @@ export function PainelVendedor({ userId, userName, equipe, userRole = 'vendedor'
           <span>{frase.emoji}</span> {frase.texto}
         </p>
         </div>
-      </div>
+      </div>}
 
-      {/* ── KPI Cards: Hoje / Semana / Mês ── */}
-      <div className="grid grid-cols-3 gap-3">
+      {/* ── KPI Cards: Hoje / Semana / Mês — oculto no modo placar ── */}
+      {MOSTRAR_PAINEL_COMPLETO && <div className="grid grid-cols-3 gap-3">
         {[
           { label: 'Hoje', valor: stats?.hoje?.valor ?? 0, count: stats?.hoje?.count ?? 0, cor: 'yellow', emoji: '⚡' },
           { label: 'Semana', valor: stats?.semana?.valor ?? 0, count: stats?.semana?.count ?? 0, cor: 'blue', emoji: '📅' },
@@ -606,10 +611,10 @@ export function PainelVendedor({ userId, userName, equipe, userRole = 'vendedor'
             <p className="text-zinc-600 text-[9px] sm:text-[10px] font-bold mt-1">{count}v</p>
           </div>
         ))}
-      </div>
+      </div>}
 
-      {/* ── Delta do 1º lugar + posição na equipe ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      {/* ── Delta do 1º lugar + posição na equipe — oculto no modo placar ── */}
+      {MOSTRAR_PAINEL_COMPLETO && <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 
         {/* vs Líder */}
         {lider && String(lider.id) !== String(userId) && (
@@ -653,10 +658,10 @@ export function PainelVendedor({ userId, userName, equipe, userRole = 'vendedor'
             })}
           </div>
         </div>
-      </div>
+      </div>}
 
-      {/* ── Gráfico 7 dias ── */}
-      {dias7.length > 0 && (
+      {/* ── Gráfico 7 dias — oculto no modo placar ── */}
+      {MOSTRAR_PAINEL_COMPLETO && dias7.length > 0 && (
         <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 md:p-5">
           <p className="text-zinc-400 text-[10px] font-black uppercase tracking-widest mb-4">📊 Últimos 7 dias</p>
           <div className="flex items-end gap-2 h-24">
@@ -690,8 +695,8 @@ export function PainelVendedor({ userId, userName, equipe, userRole = 'vendedor'
         </div>
       )}
 
-      {/* ── Projeção de Fechamento do Mês ── */}
-      {(() => {
+      {/* ── Projeção de Fechamento do Mês — oculto no modo placar ── */}
+      {MOSTRAR_PAINEL_COMPLETO && (() => {
         const META_PADRAO = 400000;
         const bateAMeta = projecao >= META_PADRAO;
         const diff = META_PADRAO - projecao;
@@ -724,8 +729,7 @@ export function PainelVendedor({ userId, userName, equipe, userRole = 'vendedor'
         );
       })()}
 
-      {/* ── Conquistas ── */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 md:p-5">
+      {MOSTRAR_PAINEL_COMPLETO && <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 md:p-5">
         <p className="text-zinc-400 text-[10px] font-black uppercase tracking-widest mb-4">🏅 Conquistas do Mês</p>
         <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
           {conquistas.map(c => (
@@ -746,10 +750,10 @@ export function PainelVendedor({ userId, userName, equipe, userRole = 'vendedor'
             </div>
           ))}
         </div>
-      </div>
+      </div>}
 
-      {/* ── Streak de dias consecutivos ── */}
-      {(() => {
+      {/* ── Streak de dias consecutivos — oculto no modo placar ── */}
+      {MOSTRAR_PAINEL_COMPLETO && (() => {
         let bgClass = 'bg-zinc-900 border-zinc-800';
         let textClass = 'text-zinc-400';
         let msg = 'Faça uma venda hoje para começar o streak!';
@@ -786,8 +790,8 @@ export function PainelVendedor({ userId, userName, equipe, userRole = 'vendedor'
         );
       })()}
 
-      {/* ── Meta Diária gamificada ── */}
-      {(() => {
+      {/* ── Meta Diária gamificada — oculto no modo placar ── */}
+      {MOSTRAR_PAINEL_COMPLETO && (() => {
         const vendas = stats?.hoje?.count ?? 0;
         const metas = [3, 5, 10];
         const metaAtual = metas.find(m => vendas < m) ?? metas[metas.length - 1];
@@ -824,8 +828,8 @@ export function PainelVendedor({ userId, userName, equipe, userRole = 'vendedor'
         );
       })()}
 
-      {/* ── Meta Individual do Mês ── */}
-      {stats?.meta_mensal && stats.meta_mensal > 0 && (() => {
+      {/* ── Meta Individual do Mês — oculto no modo placar ── */}
+      {MOSTRAR_PAINEL_COMPLETO && stats?.meta_mensal && stats.meta_mensal > 0 && (() => {
         const count = stats.mes?.count ?? 0;
         const meta = stats.meta_mensal;
         const pct = Math.min((count / meta) * 100, 100);
@@ -859,8 +863,8 @@ export function PainelVendedor({ userId, userName, equipe, userRole = 'vendedor'
         );
       })()}
 
-      {/* ── Missões Ativas ── */}
-      {missoes.length > 0 && (
+      {/* ── Missões Ativas — oculto no modo placar ── */}
+      {MOSTRAR_PAINEL_COMPLETO && missoes.length > 0 && (
         <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4 md:p-5">
           <p className="text-zinc-400 text-[10px] font-black uppercase tracking-widest mb-3">⚡ Missões Ativas</p>
           <div className="space-y-2">
@@ -943,8 +947,8 @@ export function PainelVendedor({ userId, userName, equipe, userRole = 'vendedor'
         </div>
       )}
 
-      {/* ── Modal editar foto de perfil ── */}
-      {editandoFoto && (
+      {/* ── Modal editar foto de perfil — oculto no modo placar ── */}
+      {MOSTRAR_PAINEL_COMPLETO && editandoFoto && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-5 w-full max-w-sm space-y-4">
             <h3 className="text-white font-black text-lg uppercase tracking-wider">📸 Foto de Perfil</h3>
@@ -1055,13 +1059,13 @@ export function PainelVendedor({ userId, userName, equipe, userRole = 'vendedor'
         </div>
       )}
 
-      {/* ── MODAL DE AVATAR ── */}
-      <ModalAvatar
+      {/* ── MODAL DE AVATAR — oculto no modo placar ── */}
+      {MOSTRAR_PAINEL_COMPLETO && <ModalAvatar
         isOpen={avatarOpen}
         onClose={() => setAvatarOpen(false)}
         userRole={userRole}
         onEquipChange={setAvatarEquipped}
-      />
+      />}
 
     </div>
   );
