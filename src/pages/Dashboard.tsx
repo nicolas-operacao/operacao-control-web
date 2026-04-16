@@ -767,10 +767,45 @@ export function Dashboard() {
         let ti = 0;
         for (let i = TIER_INICIO.length - 1; i >= 0; i--) { if (c >= TIER_INICIO[i]) { ti = i; break; } }
         const nivel = Math.floor((c - TIER_INICIO[ti]) / VENDAS_POR_NIVEL) + 1;
+
+        // Para CHECKOUT (sem seller_id numérico), computa stats localmente
+        const isCheckoutEntry = isNaN(Number(vendedorModalAdmin.id));
+        let statsExternas: any = undefined;
+        if (isCheckoutEntry) {
+          const nomeKey = vendedorModalAdmin.nome;
+          const vendasEntry = todasVendas.filter(v => v.seller_name === nomeKey && v.status === 'aprovada');
+          const nowBRT2 = new Date(Date.now() - BRT_MS);
+          const hj = { y: nowBRT2.getUTCFullYear(), m: nowBRT2.getUTCMonth(), d: nowBRT2.getUTCDate() };
+          const inicioSem = new Date(Date.UTC(hj.y, hj.m, hj.d - nowBRT2.getUTCDay()));
+          const inicioMes2 = new Date(Date.UTC(hj.y, hj.m, 1));
+          const hoje2 = vendasEntry.filter(v => { const b = new Date(new Date(v.created_at).getTime() - BRT_MS); return b.getUTCFullYear()===hj.y&&b.getUTCMonth()===hj.m&&b.getUTCDate()===hj.d; });
+          const semana2 = vendasEntry.filter(v => new Date(new Date(v.created_at).getTime()-BRT_MS) >= inicioSem);
+          const mes2 = vendasEntry.filter(v => new Date(new Date(v.created_at).getTime()-BRT_MS) >= inicioMes2);
+          // ultimos7dias
+          const ultimos7dias = Array.from({length:7},(_,i)=>{
+            const d = new Date(Date.UTC(hj.y,hj.m,hj.d-6+i));
+            const vs = vendasEntry.filter(v=>{const b=new Date(new Date(v.created_at).getTime()-BRT_MS);return b.getUTCFullYear()===d.getUTCFullYear()&&b.getUTCMonth()===d.getUTCMonth()&&b.getUTCDate()===d.getUTCDate();});
+            return {label:`${String(d.getUTCDate()).padStart(2,'0')}/${String(d.getUTCMonth()+1).padStart(2,'0')}`,valor:vs.reduce((a,v)=>a+Number(v.sale_value),0),count:vs.length};
+          });
+          // ultimos6meses
+          const ultimos6meses = Array.from({length:6},(_,i)=>{
+            const mm = hj.m-5+i; const aa = hj.y+Math.floor(mm/12); const mr = ((mm%12)+12)%12;
+            const vs = vendasEntry.filter(v=>{const b=new Date(new Date(v.created_at).getTime()-BRT_MS);return b.getUTCFullYear()===aa&&b.getUTCMonth()===mr;});
+            return {label:['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][mr],valor:vs.reduce((a,v)=>a+Number(v.sale_value),0),count:vs.length};
+          });
+          statsExternas = {
+            hoje:  {valor:hoje2.reduce((a,v)=>a+Number(v.sale_value),0), count:hoje2.length},
+            semana:{valor:semana2.reduce((a,v)=>a+Number(v.sale_value),0), count:semana2.length},
+            mes:   {valor:mes2.reduce((a,v)=>a+Number(v.sale_value),0), count:mes2.length},
+            ultimos7dias, ultimos6meses,
+          };
+        }
+
         return (
           <ModalVendedor
             vendedor={{ ...vendedorModalAdmin, patente: PATENTES[ti].nome, patenteIcone: PATENTES[ti].icone, nivel }}
             onClose={() => setVendedorModalAdmin(null)}
+            statsExternas={statsExternas}
           />
         );
       })()}

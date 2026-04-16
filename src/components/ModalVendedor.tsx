@@ -30,6 +30,7 @@ type VendedorInfo = {
 interface ModalVendedorProps {
   vendedor: VendedorInfo;
   onClose: () => void;
+  statsExternas?: Stats;
 }
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
@@ -90,9 +91,9 @@ function BarChart({ dados, corBarra }: { dados: BarData[]; corBarra: string }) {
 
 // ─── COMPONENTE PRINCIPAL ─────────────────────────────────────────────────────
 
-export function ModalVendedor({ vendedor, onClose }: ModalVendedorProps) {
-  const [stats, setStats]     = useState<Stats | null>(null);
-  const [loading, setLoading] = useState(true);
+export function ModalVendedor({ vendedor, onClose, statsExternas }: ModalVendedorProps) {
+  const [stats, setStats]     = useState<Stats | null>(statsExternas ?? null);
+  const [loading, setLoading] = useState(!statsExternas);
   const [aba, setAba]         = useState<'semana' | 'meses'>('semana');
 
   const iniciais = vendedor.nome
@@ -108,11 +109,12 @@ export function ModalVendedor({ vendedor, onClose }: ModalVendedorProps) {
   const corGlow   = isEquipeB ? 'shadow-[0_0_30px_rgba(239,68,68,0.12)]' : 'shadow-[0_0_30px_rgba(59,130,246,0.12)]';
 
   useEffect(() => {
+    if (statsExternas) return; // já tem dados, não precisa buscar
     api.get(`/sellers/${vendedor.id}/stats`)
       .then(r => setStats(r.data))
       .catch(() => setStats(null))
       .finally(() => setLoading(false));
-  }, [vendedor.id]);
+  }, [vendedor.id, statsExternas]);
 
   return (
     <div
