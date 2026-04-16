@@ -276,7 +276,8 @@ export function ModalEstatisticasPeriodo({ titulo, periodo, vendas, onClose, onE
                   >✕ fechar</button>
                 )}
               </p>
-              <div className="flex items-end gap-1 w-full overflow-x-auto pb-1 overflow-y-visible">
+              <div className="w-full overflow-x-auto">
+              <div className="flex items-end gap-1 pb-1" style={{ minWidth: '100%', paddingTop: 48 }}>
                 {barras.map((b, i) => {
                   const barPx = b.valor > 0 ? Math.max(Math.round((b.valor / maxBarra) * CHART_H), 5) : 2;
                   const isBest = b.valor === maxBarra && b.valor > 0;
@@ -324,6 +325,7 @@ export function ModalEstatisticasPeriodo({ titulo, periodo, vendas, onClose, onE
                     </div>
                   );
                 })}
+              </div>
               </div>
 
               {/* Painel drill-down: vendas do dia/hora selecionado */}
