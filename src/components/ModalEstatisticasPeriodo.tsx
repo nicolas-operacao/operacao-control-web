@@ -111,8 +111,7 @@ export function ModalEstatisticasPeriodo({ titulo, periodo, vendas, onClose, onE
         buckets[h].count++;
         buckets[h].vendas.push(v);
       });
-      const horaAtual = now.getUTCHours();
-      return buckets.slice(6, horaAtual + 1);
+      return buckets.slice(6);
     }
 
     if (periodo === 'semana') {
