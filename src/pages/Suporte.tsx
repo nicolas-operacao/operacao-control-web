@@ -21,6 +21,7 @@ type Venda = {
   customer_phone?: string;
   payment_method?: string;
   sale_value: number;
+  seller_value?: number | null;
   status: string;
   created_at: string;
   seller_name?: string;
@@ -298,7 +299,7 @@ export function Suporte() {
                           </div>
                           <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-[11px] text-zinc-500">
                             <span>🎯 {venda.product_name}</span>
-                            <span>💰 {formataBRL(Number(venda.sale_value))}</span>
+                            <span>💰 {formataBRL(Number(venda.seller_value ?? venda.sale_value))}</span>
                             <span>🧑‍💼 {venda.seller_name || 'Desconhecido'}</span>
                             <span>📅 {new Date(venda.created_at).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</span>
                           </div>
@@ -399,7 +400,7 @@ export function Suporte() {
                         </td>
                         <td className="p-4 text-zinc-400 text-xs">{venda.product_name}</td>
                         <td className={`p-4 font-black text-right whitespace-nowrap ${venda.status === 'cancelada' ? 'text-red-400 line-through opacity-70' : 'text-zinc-100'}`}>
-                          {formataBRL(Number(venda.sale_value))}
+                          {formataBRL(Number(venda.seller_value ?? venda.sale_value))}
                         </td>
                         <td className="p-4 text-center text-zinc-400 text-[10px] font-bold uppercase">
                           {venda.payment_method || '--'}
@@ -448,7 +449,7 @@ export function Suporte() {
               <div className="bg-zinc-950 p-4 rounded border border-zinc-800">
                 <p className="text-zinc-400 text-xs uppercase tracking-widest mb-1">Estornar venda de:</p>
                 <p className="text-white font-black text-lg">{selectedSale.customer_name}</p>
-                <p className="text-zinc-500 text-sm mt-1">Valor: <span className="text-red-400 font-bold">{formataBRL(Number(selectedSale.sale_value))}</span></p>
+                <p className="text-zinc-500 text-sm mt-1">Valor: <span className="text-red-400 font-bold">{formataBRL(Number(selectedSale.seller_value ?? selectedSale.sale_value))}</span></p>
                 <p className="text-zinc-500 text-xs mt-1">Pagamento: <span className="text-yellow-400 font-bold">{selectedSale.payment_method || '--'}</span></p>
                 <p className="text-zinc-500 text-xs mt-1">Vendedor: <span className="text-blue-400 font-bold">{selectedSale.seller_name}</span></p>
               </div>
