@@ -26,7 +26,7 @@ import { toast } from '../services/toast';
 import confetti from 'canvas-confetti'; 
 
 type Produto = { id: number; nome: string; valor: number; };
-type Venda = { id: string; product_name: string; customer_name: string; customer_phone?: string; customer_email?: string; payment_method?: string; sale_value: number; status: string; created_at: string; seller_name?: string; seller_id?: string | number; edit_status?: string; edit_reason?: string; edit_data?: any; };
+type Venda = { id: string; product_name: string; customer_name: string; customer_phone?: string; customer_email?: string; payment_method?: string; sale_value: number; seller_value?: number | null; status: string; created_at: string; seller_name?: string; seller_id?: string | number; edit_status?: string; edit_reason?: string; edit_data?: any; };
 
 export function Dashboard() {
   const navigate = useNavigate();

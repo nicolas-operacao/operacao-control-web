@@ -5,6 +5,7 @@ interface Venda {
   id: string;
   seller_name?: string;
   sale_value: number;
+  seller_value?: number | null;
   created_at: string;
   status: string;
 }
@@ -32,14 +33,17 @@ export function ModalFinanceiro({ isOpen, onClose, vendas }: Props) {
 
     let totalGeral = 0;
     let totalComissoes = 0;
+    // totalGeral usa sale_value (bruto) para exibição do faturamento real
+    // ranking usa seller_value (preço do produto) para cálculo de comissões
     const ranking: Record<string, { total: number; qtd: number }> = {};
 
     aprovadasDoMes.forEach(v => {
-      const valor = Number(v.sale_value) || 0;
-      totalGeral += valor;
+      const valorBruto = Number(v.sale_value) || 0;
+      const valorComissao = v.seller_value != null ? Number(v.seller_value) : valorBruto;
+      totalGeral += valorBruto;
       const seller = v.seller_name || 'Desconhecido';
       if (!ranking[seller]) ranking[seller] = { total: 0, qtd: 0 };
-      ranking[seller].total += valor;
+      ranking[seller].total += valorComissao;
       ranking[seller].qtd += 1;
     });
 
@@ -58,7 +62,12 @@ export function ModalFinanceiro({ isOpen, onClose, vendas }: Props) {
       })
       .sort((a, b) => b.total - a.total);
 
-    return { totalGeral, totalComissoes, listaSellers };
+    // totalVendedores = soma dos seller_value de todas as vendas com vendedor (base da sua comissão de 1%)
+    const totalVendedores = Object.entries(ranking)
+      .filter(([nome]) => nome !== 'Checkout Automático' && nome !== 'CHECKOUT')
+      .reduce((acc, [, dados]) => acc + dados.total, 0);
+
+    return { totalGeral, totalComissoes, totalVendedores, listaSellers };
   }, [vendas, mesSelecionado]);
 
   function exportarCSV() {
@@ -74,7 +83,7 @@ export function ModalFinanceiro({ isOpen, onClose, vendas }: Props) {
       [],
       ['', '', 'Faturamento Bruto', '', stats.totalGeral.toFixed(2).replace('.', ',')],
       ['', '', 'Total Comissões', '', stats.totalComissoes.toFixed(2).replace('.', ',')],
-      ['', '', 'Sua Comissão (1%)', '', (stats.totalGeral * 0.01).toFixed(2).replace('.', ',')],
+      ['', '', 'Sua Comissão (1%)', '', (stats.totalVendedores * 0.01).toFixed(2).replace('.', ',')],
     ];
     const csv = linhas.map(l => l.join(';')).join('\n');
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
@@ -134,7 +143,7 @@ export function ModalFinanceiro({ isOpen, onClose, vendas }: Props) {
           </div>
           <div className="bg-green-950/20 border border-green-500/30 p-3 sm:p-5 rounded-xl">
             <p className="text-green-500 text-[9px] sm:text-[10px] uppercase font-black tracking-widest">Sua Comissão</p>
-            <p className="text-sm sm:text-2xl font-black text-green-400 mt-1 leading-tight">{formataBRL(stats.totalGeral * 0.01)}</p>
+            <p className="text-sm sm:text-2xl font-black text-green-400 mt-1 leading-tight">{formataBRL(stats.totalVendedores * 0.01)}</p>
           </div>
         </div>
 
