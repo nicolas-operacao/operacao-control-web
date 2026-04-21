@@ -70,7 +70,7 @@ export function Dashboard() {
   const [todasVendas, setTodasVendas] = useState<Venda[]>([]);
 
   // Vendas do mês selecionado (BRT-aware, aprovadas)
-  const { vendasMes, qtdMes, vendasDoMesSel, vendasMesSemCheckout, vendasMesEquipe, vendasMesCheckout } = useMemo(() => {
+  const { vendasMes, qtdMes, vendasDoMesSel, vendasMesSemCheckout, vendasMesEquipe, vendasMesCheckout, comissaoBase } = useMemo(() => {
     const aprovadas = todasVendas.filter(v => v.status === 'aprovada' && v.created_at);
     const doMes = aprovadas.filter(v => {
       const d = new Date(new Date(v.created_at).getTime() - BRT_MS);
@@ -87,6 +87,7 @@ export function Dashboard() {
       vendasMesSemCheckout: doMesEquipe.reduce((acc, v) => acc + Number(v.sale_value), 0),
       vendasMesEquipe: doMesEquipe.reduce((acc, v) => acc + Number(v.sale_value), 0),
       vendasMesCheckout: doMesCheckout.reduce((acc, v) => acc + Number(v.sale_value), 0),
+      comissaoBase: doMesEquipe.reduce((acc, v) => acc + Number(v.seller_value ?? v.sale_value), 0),
     };
   }, [todasVendas, mesSelecionado]);
 
@@ -666,7 +667,7 @@ export function Dashboard() {
               <p className="text-zinc-500 text-[9px] sm:text-[10px] font-black uppercase tracking-widest">💰 Comissão 1%</p>
               <button onMouseEnter={somHover} onClick={() => { somClick(); setMostrarComissao(!mostrarComissao); }} className="text-zinc-600 hover:text-zinc-400 text-xs transition-colors">{mostrarComissao ? '🙈' : '👁️'}</button>
             </div>
-            <p className="text-base sm:text-2xl font-black text-green-400 truncate">{mostrarComissao ? formataBRL(vendasMesSemCheckout * 0.01) : '••••••'}</p>
+            <p className="text-base sm:text-2xl font-black text-green-400 truncate">{mostrarComissao ? formataBRL(comissaoBase * 0.01) : '••••••'}</p>
             <div className="flex items-center justify-between mt-1">
               <p className="text-zinc-600 text-[9px] sm:text-[10px]">{MESES[mesSelecionado.mes]} {mesSelecionado.ano}</p>
               <div className="flex items-center gap-1">
