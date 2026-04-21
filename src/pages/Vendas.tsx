@@ -20,14 +20,15 @@ type Venda = {
   id: string;
   product_name: string;
   sale_value: number;
-  created_at: string; 
+  seller_value?: number | null;
+  created_at: string;
   customer_name: string;
   customer_email?: string;
   customer_phone?: string;
   payment_method?: string;
   status: string;
-  seller_id: string | number; 
-  edit_status?: string; 
+  seller_id: string | number;
+  edit_status?: string;
 };
 
 // ─── MODO APRESENTAÇÃO ─────────────────────────────────────────────────────────
