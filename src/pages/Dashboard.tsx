@@ -80,14 +80,13 @@ export function Dashboard() {
     const doMesEquipe = doMes.filter(v => v.seller_id != null && String(v.seller_id) !== '' && v.seller_name !== 'CHECKOUT');
     // Vendas de checkout direto (sem vendedor)
     const doMesCheckout = doMes.filter(v => !v.seller_id || String(v.seller_id) === '' || v.seller_name === 'CHECKOUT');
-    const val = (v: Venda) => Number(v.seller_value ?? v.sale_value);
     return {
-      vendasMes: doMes.reduce((acc, v) => acc + val(v), 0),
+      vendasMes: doMes.reduce((acc, v) => acc + Number(v.sale_value), 0),
       qtdMes: doMes.length,
       vendasDoMesSel: doMes,
-      vendasMesSemCheckout: doMesEquipe.reduce((acc, v) => acc + val(v), 0),
-      vendasMesEquipe: doMesEquipe.reduce((acc, v) => acc + val(v), 0),
-      vendasMesCheckout: doMesCheckout.reduce((acc, v) => acc + val(v), 0),
+      vendasMesSemCheckout: doMesEquipe.reduce((acc, v) => acc + Number(v.sale_value), 0),
+      vendasMesEquipe: doMesEquipe.reduce((acc, v) => acc + Number(v.sale_value), 0),
+      vendasMesCheckout: doMesCheckout.reduce((acc, v) => acc + Number(v.sale_value), 0),
     };
   }, [todasVendas, mesSelecionado]);
 
@@ -160,7 +159,7 @@ export function Dashboard() {
       vendasAprovadas.forEach((v: Venda) => {
         const brt = new Date(new Date(v.created_at).getTime() - BRT_MS);
         const vMs = Date.UTC(brt.getUTCFullYear(), brt.getUTCMonth(), brt.getUTCDate());
-        const valor = Number(v.seller_value ?? v.sale_value);
+        const valor = Number(v.sale_value);
         if (vMs >= inicioSemanaMs) { tSemana += valor; qSemana++; }
         if (vMs >= hojeMs) { tHoje += valor; qHoje++; }
       });
@@ -329,9 +328,8 @@ export function Dashboard() {
       if (!map.has(key)) map.set(key, { id: key, nome: v.seller_name, totalMes: 0, qtdMes: 0, totalHoje: 0 });
       const e = map.get(key)!;
       const brt = new Date(new Date(v.created_at).getTime() - BRT_MS);
-      const vVal = Number(v.seller_value ?? v.sale_value);
-      if (brt.getUTCFullYear() === mesSelecionado.ano && brt.getUTCMonth() === mesSelecionado.mes) { e.totalMes += vVal; e.qtdMes++; }
-      if (brt.getUTCFullYear() === hoje.y && brt.getUTCMonth() === hoje.m && brt.getUTCDate() === hoje.d) e.totalHoje += vVal;
+      if (brt.getUTCFullYear() === mesSelecionado.ano && brt.getUTCMonth() === mesSelecionado.mes) { e.totalMes += Number(v.sale_value); e.qtdMes++; }
+      if (brt.getUTCFullYear() === hoje.y && brt.getUTCMonth() === hoje.m && brt.getUTCDate() === hoje.d) e.totalHoje += Number(v.sale_value);
     });
     return Array.from(map.values()).sort((a, b) => b.totalMes - a.totalMes);
   })();
