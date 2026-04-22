@@ -9,6 +9,8 @@ type Venda = {
   customer_email?: string;
   customer_phone?: string;
   payment_method?: string;
+  sale_value?: number | null;
+  seller_value?: number | null;
   status: string;
   created_at: string;
   seller_name?: string;
@@ -26,6 +28,10 @@ function toBRT(isoStr: string) {
 function formatHora(isoStr: string) {
   const d = toBRT(isoStr);
   return `${String(d.getUTCHours()).padStart(2,'0')}:${String(d.getUTCMinutes()).padStart(2,'0')}`;
+}
+
+function formataBRL(v: number) {
+  return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
 function classeTurno(hora: number) {
@@ -100,6 +106,35 @@ export function TrafegoPago() {
     return Array.from(map.entries())
       .map(([nome, dados]) => ({ nome, ...dados }))
       .sort((a, b) => b.total - a.total);
+  }, [vendasDoMes]);
+
+  // Totais financeiros globais do mês
+  const totaisFinanceiros = useMemo(() => {
+    let globalTotal = 0, equipeTotal = 0, checkoutTotal = 0;
+    for (const v of vendasDoMes) {
+      const val = Number(v.sale_value ?? 0);
+      const isCheckout = !v.seller_id || String(v.seller_id) === '' || v.seller_name === 'CHECKOUT';
+      globalTotal += val;
+      if (isCheckout) checkoutTotal += val; else equipeTotal += val;
+    }
+    return { globalTotal, equipeTotal, checkoutTotal };
+  }, [vendasDoMes]);
+
+  // Valores financeiros por dia
+  const financeiroPorDia = useMemo(() => {
+    const map = new Map<number, { equipe: number; checkout: number; total: number }>();
+    for (const v of vendasDoMes) {
+      const dia = toBRT(v.created_at).getUTCDate();
+      const val = Number(v.sale_value ?? 0);
+      const isCheckout = !v.seller_id || String(v.seller_id) === '' || v.seller_name === 'CHECKOUT';
+      const entry = map.get(dia) ?? { equipe: 0, checkout: 0, total: 0 };
+      entry.total += val;
+      if (isCheckout) entry.checkout += val; else entry.equipe += val;
+      map.set(dia, entry);
+    }
+    return Array.from(map.entries())
+      .map(([dia, dados]) => ({ dia, ...dados }))
+      .sort((a, b) => a.dia - b.dia);
   }, [vendasDoMes]);
 
   // Dias do calendário
@@ -242,6 +277,98 @@ export function TrafegoPago() {
                 : <p className="text-2xl font-black text-zinc-600">—</p>;
             })()}
           </div>
+        </div>
+
+        {/* Dashboard Financeiro */}
+        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 space-y-4">
+          <h3 className="text-xs font-black uppercase tracking-widest text-zinc-400">
+            💰 Financeiro do Mês — {MESES[mesSel.mes]} {mesSel.ano}
+          </h3>
+
+          {/* Cards de valor */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="bg-zinc-800/60 rounded-xl p-4 border border-zinc-700/50">
+              <p className="text-zinc-500 text-[10px] uppercase tracking-widest mb-1">Valor Global Total</p>
+              <p className="text-xl font-black text-white">{formataBRL(totaisFinanceiros.globalTotal)}</p>
+              <p className="text-zinc-600 text-[10px]">{vendasDoMes.length} vendas</p>
+            </div>
+            <div className="bg-green-950/40 rounded-xl p-4 border border-green-800/40">
+              <p className="text-green-500 text-[10px] uppercase tracking-widest mb-1">Equipe de Vendas</p>
+              <p className="text-xl font-black text-green-400">{formataBRL(totaisFinanceiros.equipeTotal)}</p>
+              <p className="text-zinc-600 text-[10px]">
+                {totaisFinanceiros.globalTotal > 0 ? Math.round((totaisFinanceiros.equipeTotal / totaisFinanceiros.globalTotal) * 100) : 0}% do total
+              </p>
+            </div>
+            <div className="bg-purple-950/40 rounded-xl p-4 border border-purple-800/40">
+              <p className="text-purple-400 text-[10px] uppercase tracking-widest mb-1">Checkout</p>
+              <p className="text-xl font-black text-purple-400">{formataBRL(totaisFinanceiros.checkoutTotal)}</p>
+              <p className="text-zinc-600 text-[10px]">
+                {totaisFinanceiros.globalTotal > 0 ? Math.round((totaisFinanceiros.checkoutTotal / totaisFinanceiros.globalTotal) * 100) : 0}% do total
+              </p>
+            </div>
+          </div>
+
+          {/* Tabela por dia */}
+          {financeiroPorDia.length > 0 && (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-zinc-700">
+                    <th className="text-left text-zinc-500 uppercase tracking-widest font-bold py-2 pr-4">Dia</th>
+                    <th className="text-right text-green-500 uppercase tracking-widest font-bold py-2 pr-4">Equipe</th>
+                    <th className="text-right text-purple-400 uppercase tracking-widest font-bold py-2 pr-4">Checkout</th>
+                    <th className="text-right text-zinc-400 uppercase tracking-widest font-bold py-2 pr-4">Total</th>
+                    <th className="text-left text-zinc-500 uppercase tracking-widest font-bold py-2">Distribuição</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {financeiroPorDia.map(({ dia, equipe, checkout, total }) => {
+                    const pctEquipe = total > 0 ? (equipe / total) * 100 : 0;
+                    const pctCheckout = 100 - pctEquipe;
+                    const qtdDia = porDia.get(dia)?.length || 0;
+                    return (
+                      <tr
+                        key={dia}
+                        className="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors cursor-pointer"
+                        onClick={() => setDiaSel(diaSel === dia ? null : dia)}
+                      >
+                        <td className="py-2.5 pr-4">
+                          <span className={`font-black ${diaSel === dia ? 'text-yellow-400' : 'text-white'}`}>
+                            {String(dia).padStart(2,'0')}/{mesSel.mes+1}
+                          </span>
+                          <span className="text-zinc-600 ml-2 text-[10px]">{qtdDia} venda{qtdDia !== 1 ? 's' : ''}</span>
+                        </td>
+                        <td className="py-2.5 pr-4 text-right">
+                          <span className="text-green-400 font-bold">{formataBRL(equipe)}</span>
+                        </td>
+                        <td className="py-2.5 pr-4 text-right">
+                          <span className="text-purple-400 font-bold">{formataBRL(checkout)}</span>
+                        </td>
+                        <td className="py-2.5 pr-4 text-right">
+                          <span className="text-white font-black">{formataBRL(total)}</span>
+                        </td>
+                        <td className="py-2.5 w-32">
+                          <div className="flex h-2 rounded-full overflow-hidden bg-zinc-800">
+                            {equipe > 0 && <div className="bg-green-500 h-full" style={{ width: `${pctEquipe}%` }} />}
+                            {checkout > 0 && <div className="bg-purple-500 h-full" style={{ width: `${pctCheckout}%` }} />}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t border-zinc-700">
+                    <td className="py-2.5 pr-4 font-black text-zinc-400 uppercase text-[10px] tracking-widest">Total</td>
+                    <td className="py-2.5 pr-4 text-right font-black text-green-400">{formataBRL(totaisFinanceiros.equipeTotal)}</td>
+                    <td className="py-2.5 pr-4 text-right font-black text-purple-400">{formataBRL(totaisFinanceiros.checkoutTotal)}</td>
+                    <td className="py-2.5 pr-4 text-right font-black text-white">{formataBRL(totaisFinanceiros.globalTotal)}</td>
+                    <td />
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
