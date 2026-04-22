@@ -29,12 +29,14 @@ const ROLE_LABEL: Record<string, string> = {
   vendedor: 'Vendedor',
   admin: 'Admin',
   suporte: 'Suporte',
+  trafego: 'Gestor de Tráfego',
 };
 
 const ROLE_COLOR: Record<string, string> = {
   vendedor: 'text-green-400 bg-green-500/10 border-green-500/30',
   admin: 'text-yellow-400 bg-yellow-500/10 border-yellow-500/30',
   suporte: 'text-blue-400 bg-blue-500/10 border-blue-500/30',
+  trafego: 'text-orange-400 bg-orange-500/10 border-orange-500/30',
 };
 
 export function RecrutasAdmin() {
@@ -397,6 +399,7 @@ export function RecrutasAdmin() {
                             <option value="vendedor">Vendedor</option>
                             <option value="admin">Admin</option>
                             <option value="suporte">Suporte</option>
+                            <option value="trafego">Gestor de Tráfego</option>
                           </select>
                         </div>
                         {editRole !== 'suporte' && (
