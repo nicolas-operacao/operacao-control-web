@@ -64,12 +64,15 @@ export function TrafegoPago() {
       .finally(() => setLoading(false));
   }, []);
 
-  const vendasDoMes = useMemo(() => {
-    return vendas.filter(v => {
+  const { vendasDoMes, qtdEquipe, qtdCheckout } = useMemo(() => {
+    const lista = vendas.filter(v => {
       if (v.status !== 'aprovada') return false;
       const d = toBRT(v.created_at);
       return d.getUTCFullYear() === mesSel.ano && d.getUTCMonth() === mesSel.mes;
     });
+    const equipe = lista.filter(v => v.seller_id && String(v.seller_id) !== '' && v.seller_name !== 'CHECKOUT');
+    const checkout = lista.filter(v => !v.seller_id || String(v.seller_id) === '' || v.seller_name === 'CHECKOUT');
+    return { vendasDoMes: lista, qtdEquipe: equipe.length, qtdCheckout: checkout.length };
   }, [vendas, mesSel]);
 
   // Agrupa por dia do mês
@@ -181,11 +184,25 @@ export function TrafegoPago() {
         </div>
 
         {/* Cards de resumo */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
             <p className="text-zinc-500 text-[10px] uppercase tracking-widest mb-1">Total do Mês</p>
             <p className="text-2xl font-black text-white">{vendasDoMes.length}</p>
             <p className="text-zinc-600 text-[10px]">vendas aprovadas</p>
+          </div>
+          <div className="bg-zinc-900 border border-green-800/50 rounded-xl p-4">
+            <p className="text-green-500 text-[10px] uppercase tracking-widest mb-1">Equipe de Vendas</p>
+            <p className="text-2xl font-black text-green-400">{qtdEquipe}</p>
+            <p className="text-zinc-600 text-[10px]">
+              {vendasDoMes.length > 0 ? Math.round((qtdEquipe / vendasDoMes.length) * 100) : 0}% do total
+            </p>
+          </div>
+          <div className="bg-zinc-900 border border-purple-800/50 rounded-xl p-4">
+            <p className="text-purple-400 text-[10px] uppercase tracking-widest mb-1">Checkout</p>
+            <p className="text-2xl font-black text-purple-400">{qtdCheckout}</p>
+            <p className="text-zinc-600 text-[10px]">
+              {vendasDoMes.length > 0 ? Math.round((qtdCheckout / vendasDoMes.length) * 100) : 0}% do total
+            </p>
           </div>
           <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
             <p className="text-zinc-500 text-[10px] uppercase tracking-widest mb-1">Dias com Vendas</p>
