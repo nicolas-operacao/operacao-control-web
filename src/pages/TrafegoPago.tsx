@@ -86,6 +86,22 @@ export function TrafegoPago() {
     return map;
   }, [vendasDoMes]);
 
+  // Vendas por produto (curso)
+  const porProduto = useMemo(() => {
+    const map = new Map<string, { total: number; equipe: number; checkout: number }>();
+    for (const v of vendasDoMes) {
+      const nome = v.product_name || 'Desconhecido';
+      const isCheckout = !v.seller_id || String(v.seller_id) === '' || v.seller_name === 'CHECKOUT';
+      const entry = map.get(nome) ?? { total: 0, equipe: 0, checkout: 0 };
+      entry.total++;
+      if (isCheckout) entry.checkout++; else entry.equipe++;
+      map.set(nome, entry);
+    }
+    return Array.from(map.entries())
+      .map(([nome, dados]) => ({ nome, ...dados }))
+      .sort((a, b) => b.total - a.total);
+  }, [vendasDoMes]);
+
   // Dias do calendário
   const diasDoMes = useMemo(() => {
     const totalDias = new Date(mesSel.ano, mesSel.mes + 1, 0).getDate();
@@ -323,6 +339,66 @@ export function TrafegoPago() {
             </div>
           </div>
         </div>
+
+        {/* Tabela de cursos vendidos */}
+        {porProduto.length > 0 && (
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
+            <h3 className="text-xs font-black uppercase tracking-widest text-zinc-400 mb-4">
+              📦 Vendas por Curso — {MESES[mesSel.mes]} {mesSel.ano}
+            </h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-zinc-800">
+                    <th className="text-left text-zinc-500 uppercase tracking-widest font-bold py-2 pr-4">Curso</th>
+                    <th className="text-center text-zinc-500 uppercase tracking-widest font-bold py-2 pr-4">Total</th>
+                    <th className="text-center text-green-500 uppercase tracking-widest font-bold py-2 pr-4">Equipe</th>
+                    <th className="text-center text-purple-400 uppercase tracking-widest font-bold py-2 pr-4">Checkout</th>
+                    <th className="text-left text-zinc-500 uppercase tracking-widest font-bold py-2">Distribuição</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {porProduto.map(p => {
+                    const pctEquipe = p.total > 0 ? Math.round((p.equipe / p.total) * 100) : 0;
+                    const pctCheckout = 100 - pctEquipe;
+                    return (
+                      <tr key={p.nome} className="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors">
+                        <td className="py-3 pr-4">
+                          <span className="text-white font-semibold">{p.nome}</span>
+                        </td>
+                        <td className="py-3 pr-4 text-center">
+                          <span className="text-white font-black text-sm">{p.total}</span>
+                        </td>
+                        <td className="py-3 pr-4 text-center">
+                          <span className="text-green-400 font-bold">{p.equipe}</span>
+                          <span className="text-zinc-600 ml-1">({pctEquipe}%)</span>
+                        </td>
+                        <td className="py-3 pr-4 text-center">
+                          <span className="text-purple-400 font-bold">{p.checkout}</span>
+                          <span className="text-zinc-600 ml-1">({pctCheckout}%)</span>
+                        </td>
+                        <td className="py-3 w-40">
+                          <div className="flex h-2 rounded-full overflow-hidden bg-zinc-800 w-full">
+                            {p.equipe > 0 && (
+                              <div className="bg-green-500 h-full" style={{ width: `${pctEquipe}%` }} />
+                            )}
+                            {p.checkout > 0 && (
+                              <div className="bg-purple-500 h-full" style={{ width: `${pctCheckout}%` }} />
+                            )}
+                          </div>
+                          <div className="flex justify-between mt-0.5">
+                            <span className="text-green-600 text-[9px]">Equipe</span>
+                            <span className="text-purple-600 text-[9px]">Checkout</span>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
 
         {/* Detalhes do dia selecionado */}
         {diaSel !== null && (
