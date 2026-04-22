@@ -112,7 +112,7 @@ export function Login() {
       }));
 
       // Redireciona após 2.5 segundos
-      const destino = user.role === 'admin' ? '/dashboard' : user.role === 'suporte' ? '/liberacoes' : '/vendas';
+      const destino = user.role === 'admin' ? '/dashboard' : user.role === 'suporte' ? '/liberacoes' : user.role === 'trafego' ? '/trafego' : '/vendas';
       setTimeout(() => navigate(destino), 2500);
 
     } catch (err: any) {

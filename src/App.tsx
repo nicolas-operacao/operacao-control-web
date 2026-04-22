@@ -13,6 +13,8 @@ import { LojaAdmin } from './pages/LojaAdmin';
 import { PrivateRoute } from './components/PrivateRoute';
 import { AdminRoute } from './components/AdminRoute';
 import { SuporteRoute } from './components/SuporteRoute';
+import { TrafegoPagoRoute } from './components/TrafegoPagoRoute';
+import { TrafegoPago } from './pages/TrafegoPago';
 import { ToastContainer } from './components/ToastContainer';
 import { SomPoller } from './components/SomPoller';
 
@@ -69,6 +71,7 @@ export default function App() {
         <Route path="/arsenal" element={<PrivateRoute><Arsenal /></PrivateRoute>} />
         <Route path="/comparativo" element={<AdminRoute><Comparativo /></AdminRoute>} />
         <Route path="/loja-admin" element={<AdminRoute><LojaAdmin /></AdminRoute>} />
+        <Route path="/trafego" element={<TrafegoPagoRoute><TrafegoPago /></TrafegoPagoRoute>} />
       </Routes>
     </BrowserRouter>
   );

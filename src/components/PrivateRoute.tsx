@@ -7,6 +7,8 @@ export function PrivateRoute({ children }: { children: React.ReactNode }) {
   const user = JSON.parse(userStr);
   // Suporte só acessa /liberacoes — qualquer outra rota privada redireciona
   if (user.role === 'suporte') return <Navigate to="/liberacoes" replace />;
+  // Tráfego só acessa /trafego
+  if (user.role === 'trafego') return <Navigate to="/trafego" replace />;
 
   return children;
 }

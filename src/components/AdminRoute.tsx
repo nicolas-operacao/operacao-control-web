@@ -6,6 +6,7 @@ export function AdminRoute({ children }: { children: React.ReactNode }) {
 
   const user = JSON.parse(userStr);
   if (user.role === 'suporte') return <Navigate to="/liberacoes" replace />;
+  if (user.role === 'trafego') return <Navigate to="/trafego" replace />;
   if (user.role !== 'admin') return <Navigate to="/vendas" replace />;
 
   return children;
