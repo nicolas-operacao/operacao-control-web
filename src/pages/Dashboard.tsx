@@ -404,6 +404,18 @@ export function Dashboard() {
                         <span>{icon}</span>{label}
                       </button>
                     ))}
+                    <button onClick={async () => {
+                      somClick(); setDropdownAberto(false);
+                      const { api: apiService } = await import('../services/api');
+                      const t = toast.loading('Corrigindo valores...');
+                      try {
+                        const res = await apiService.post('/admin/reparar-seller-values');
+                        toast.dismiss(t);
+                        toast.success(`Corrigidas: ${res.data.corrigidas} vendas. Sem match: ${res.data.naoEncontradas}`);
+                      } catch { toast.dismiss(t); toast.error('Erro ao reparar valores'); }
+                    }} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-orange-400 hover:bg-orange-500/10 text-xs font-bold transition-all">
+                      <span>🔧</span>Reparar Valores Hubla
+                    </button>
                   </div>
                   <div className="border-t border-zinc-800 p-1">
                     <p className="text-zinc-600 text-[9px] font-black uppercase tracking-widest px-3 py-1.5">Análise</p>
