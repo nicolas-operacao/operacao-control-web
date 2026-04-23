@@ -406,13 +406,11 @@ export function Dashboard() {
                     ))}
                     <button onClick={async () => {
                       somClick(); setDropdownAberto(false);
-                      const { api: apiService } = await import('../services/api');
-                      const t = toast.loading('Corrigindo valores...');
+                      toast.info('Corrigindo valores da Hubla...');
                       try {
-                        const res = await apiService.post('/admin/reparar-seller-values');
-                        toast.dismiss(t);
+                        const res = await api.post('/admin/reparar-seller-values');
                         toast.success(`Corrigidas: ${res.data.corrigidas} vendas. Sem match: ${res.data.naoEncontradas}`);
-                      } catch { toast.dismiss(t); toast.error('Erro ao reparar valores'); }
+                      } catch { toast.error('Erro ao reparar valores'); }
                     }} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-orange-400 hover:bg-orange-500/10 text-xs font-bold transition-all">
                       <span>🔧</span>Reparar Valores Hubla
                     </button>

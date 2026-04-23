@@ -688,7 +688,6 @@ export function TrafegoPago() {
             </div>
           );
         })()}
-        )}
 
         {/* Loading */}
         {loading && (
