@@ -105,6 +105,9 @@ export function Dashboard() {
   const [selectedSaleToAction, setSelectedSaleToAction] = useState<Venda | null>(null);
 
   const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', message: '', type: 'blue' as 'red' | 'blue' | 'green' | 'yellow', action: async () => {} });
+  const [isModalHublaReplayOpen, setIsModalHublaReplayOpen] = useState(false);
+  const [hublaReplayPayload, setHublaReplayPayload] = useState('');
+  const [hublaReplayLoading, setHublaReplayLoading] = useState(false);
 
 
   const lancarConfetes = () => confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 }, colors: ['#FACC15', '#22C55E', '#3B82F6'] });
@@ -413,6 +416,13 @@ export function Dashboard() {
                       } catch { toast.error('Erro ao reparar valores'); }
                     }} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-orange-400 hover:bg-orange-500/10 text-xs font-bold transition-all">
                       <span>🔧</span>Reparar Valores Hubla
+                    </button>
+                    <button onClick={() => {
+                      somClick(); setDropdownAberto(false);
+                      setHublaReplayPayload('');
+                      setIsModalHublaReplayOpen(true);
+                    }} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-red-400 hover:bg-red-500/10 text-xs font-bold transition-all">
+                      <span>🔄</span>Replay Venda Hubla
                     </button>
                   </div>
                   <div className="border-t border-zinc-800 p-1">
@@ -823,6 +833,59 @@ export function Dashboard() {
           />
         );
       })()}
+
+      {/* Modal: Replay de venda Hubla perdida */}
+      {isModalHublaReplayOpen && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-sm px-4"
+          onClick={e => { if (e.target === e.currentTarget) setIsModalHublaReplayOpen(false); }}>
+          <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-6 w-full max-w-2xl flex flex-col gap-4 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-white font-black text-lg">🔄 Replay Venda Hubla</h2>
+                <p className="text-zinc-400 text-xs mt-1">Cole aqui o payload JSON do log da Hubla para registrar a venda manualmente.</p>
+              </div>
+              <button onClick={() => setIsModalHublaReplayOpen(false)} className="text-zinc-500 hover:text-white text-xl font-bold">✕</button>
+            </div>
+            <textarea
+              value={hublaReplayPayload}
+              onChange={e => setHublaReplayPayload(e.target.value)}
+              placeholder='Cole aqui o JSON do webhook da Hubla...\n\nEx: {"event":{"type":"NewSale","userEmail":"cliente@email.com",...}}'
+              className="w-full h-64 bg-zinc-800 border border-zinc-700 rounded-xl p-3 text-zinc-300 text-xs font-mono resize-none focus:outline-none focus:border-yellow-500"
+            />
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setIsModalHublaReplayOpen(false)}
+                className="px-4 py-2 rounded-lg bg-zinc-800 text-zinc-400 text-sm font-bold hover:bg-zinc-700 transition-all">
+                Cancelar
+              </button>
+              <button disabled={hublaReplayLoading || !hublaReplayPayload.trim()} onClick={async () => {
+                somClick();
+                let parsed: any;
+                try { parsed = JSON.parse(hublaReplayPayload); }
+                catch { toast.error('JSON inválido. Verifique o payload.'); return; }
+                setHublaReplayLoading(true);
+                try {
+                  const res = await api.post('/admin/hubla/replay', parsed);
+                  if (res.data?.ignorado) {
+                    toast.error(`Evento ignorado: ${res.data.motivo || 'tipo não reconhecido'}`);
+                  } else if (res.data?.venda_id) {
+                    toast.success('Venda registrada com sucesso!');
+                    setIsModalHublaReplayOpen(false);
+                    fetchVendasPlacar();
+                  } else {
+                    toast.error(`Erro: ${res.data?.erro || 'Resposta inesperada'}`);
+                  }
+                } catch (e: any) {
+                  toast.error(e?.response?.data?.erro || e?.response?.data?.error || 'Erro ao registrar venda');
+                } finally {
+                  setHublaReplayLoading(false);
+                }
+              }} className="px-4 py-2 rounded-lg bg-yellow-400 text-black text-sm font-black hover:bg-yellow-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                {hublaReplayLoading ? 'Registrando...' : 'Registrar Venda'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Toast notificação admin: nova venda registrada */}
       {novaVendaToast && (

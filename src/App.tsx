@@ -45,7 +45,7 @@ function GlobalMusic() {
       ref={ref}
       src=""
       allow="autoplay"
-      style={{ position: 'fixed', width: 0, height: 0, opacity: 0, pointerEvents: 'none', border: 'none' }}
+      style={{ position: 'fixed', width: 1, height: 1, opacity: 0, pointerEvents: 'none', border: 'none', left: '-9999px', top: '-9999px' }}
       title="music-global"
     />
   );
