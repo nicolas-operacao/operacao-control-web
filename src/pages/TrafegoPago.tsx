@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useRef } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 
@@ -60,15 +60,8 @@ export function TrafegoPago() {
     return { ano: now.getFullYear(), mes: now.getMonth() };
   });
   const [diaSel, setDiaSel] = useState<number | null>(null);
-  const detalheRef = useRef<HTMLDivElement>(null);
   const [filtroProduto, setFiltroProduto] = useState('');
   const [filtroVendedor, setFiltroVendedor] = useState('');
-
-  useEffect(() => {
-    if (diaSel !== null) {
-      setTimeout(() => detalheRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
-    }
-  }, [diaSel]);
 
   useEffect(() => {
     api.get('/sales')
@@ -534,13 +527,12 @@ export function TrafegoPago() {
           </div>
         )}
 
-        {/* Detalhes do dia selecionado */}
+        {/* Modal de detalhes do dia */}
         {diaSel !== null && (() => {
           const todasDoDia = porDia.get(diaSel) || [];
           const equipesDia = todasDoDia.filter(v => v.seller_id && String(v.seller_id) !== '' && v.seller_name !== 'CHECKOUT');
           const checkoutsDia = todasDoDia.filter(v => !v.seller_id || String(v.seller_id) === '' || v.seller_name === 'CHECKOUT');
 
-          // Cursos do dia com split equipe/checkout
           const cursosDia = (() => {
             const map = new Map<string, { equipe: number; checkout: number }>();
             for (const v of todasDoDia) {
@@ -556,141 +548,133 @@ export function TrafegoPago() {
           })();
 
           return (
-            <div className="space-y-4" ref={detalheRef}>
-              {/* Card resumo do dia */}
-              <div className="bg-zinc-900 border border-yellow-500/30 rounded-xl p-4">
-                <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
-                  <h3 className="text-sm font-black uppercase tracking-widest text-yellow-400">
-                    📅 {String(diaSel).padStart(2,'0')}/{mesSel.mes+1}/{mesSel.ano}
-                    <span className="ml-2 text-zinc-500 text-xs font-normal">{todasDoDia.length} venda{todasDoDia.length !== 1 ? 's' : ''}</span>
-                  </h3>
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200"
+              onClick={e => { if (e.target === e.currentTarget) setDiaSel(null); }}
+            >
+              <div className="bg-zinc-900 border border-yellow-500/30 rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl animate-in zoom-in-95 duration-200">
+
+                {/* Header fixo */}
+                <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800 shrink-0">
+                  <div>
+                    <p className="text-yellow-400 font-black text-base uppercase tracking-widest">
+                      📅 {String(diaSel).padStart(2,'0')}/{mesSel.mes+1}/{mesSel.ano}
+                    </p>
+                    <p className="text-zinc-500 text-[11px]">{todasDoDia.length} venda{todasDoDia.length !== 1 ? 's' : ''} aprovadas</p>
+                  </div>
                   <button
                     onClick={() => setDiaSel(null)}
-                    className="text-zinc-500 hover:text-white text-xs transition-colors px-2 py-1 rounded hover:bg-zinc-800"
+                    className="w-8 h-8 flex items-center justify-center rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white transition-all text-sm font-bold"
                   >
-                    ✕ Fechar
+                    ✕
                   </button>
                 </div>
 
-                {/* Contadores equipe vs checkout */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
-                  <div className="bg-zinc-800/60 rounded-lg p-3 text-center">
-                    <p className="text-zinc-500 text-[10px] uppercase tracking-widest mb-1">Total</p>
-                    <p className="text-2xl font-black text-white">{todasDoDia.length}</p>
-                  </div>
-                  <div className="bg-green-950/50 border border-green-800/30 rounded-lg p-3 text-center">
-                    <p className="text-green-500 text-[10px] uppercase tracking-widest mb-1">Equipe de Vendas</p>
-                    <p className="text-2xl font-black text-green-400">{equipesDia.length}</p>
-                    <p className="text-zinc-600 text-[10px]">
-                      {todasDoDia.length > 0 ? Math.round((equipesDia.length / todasDoDia.length) * 100) : 0}%
-                    </p>
-                  </div>
-                  <div className="bg-purple-950/50 border border-purple-800/30 rounded-lg p-3 text-center">
-                    <p className="text-purple-400 text-[10px] uppercase tracking-widest mb-1">Checkout</p>
-                    <p className="text-2xl font-black text-purple-400">{checkoutsDia.length}</p>
-                    <p className="text-zinc-600 text-[10px]">
-                      {todasDoDia.length > 0 ? Math.round((checkoutsDia.length / todasDoDia.length) * 100) : 0}%
-                    </p>
-                  </div>
-                </div>
+                {/* Conteúdo com scroll */}
+                <div className="overflow-y-auto flex-1 px-5 py-4 space-y-4">
 
-                {/* Cursos vendidos no dia */}
-                <div className="space-y-2">
-                  <p className="text-zinc-500 text-[10px] uppercase tracking-widest font-bold">Cursos vendidos</p>
-                  {cursosDia.map(c => {
-                    const pctEquipe = c.total > 0 ? (c.equipe / c.total) * 100 : 0;
-                    return (
-                      <div key={c.nome} className="bg-zinc-800/40 rounded-lg px-3 py-2.5 flex items-center gap-3">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-white font-semibold text-xs truncate">{c.nome}</p>
-                        </div>
-                        <div className="flex items-center gap-3 shrink-0">
-                          <span className="text-white font-black text-sm w-6 text-center">{c.total}</span>
-                          <div className="flex items-center gap-1.5">
+                  {/* Contadores */}
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="bg-zinc-800/60 rounded-xl p-3 text-center">
+                      <p className="text-zinc-500 text-[10px] uppercase tracking-widest mb-1">Total</p>
+                      <p className="text-2xl font-black text-white">{todasDoDia.length}</p>
+                    </div>
+                    <div className="bg-green-950/50 border border-green-800/30 rounded-xl p-3 text-center">
+                      <p className="text-green-500 text-[10px] uppercase tracking-widest mb-1">Equipe</p>
+                      <p className="text-2xl font-black text-green-400">{equipesDia.length}</p>
+                      <p className="text-zinc-600 text-[10px]">
+                        {todasDoDia.length > 0 ? Math.round((equipesDia.length / todasDoDia.length) * 100) : 0}%
+                      </p>
+                    </div>
+                    <div className="bg-purple-950/50 border border-purple-800/30 rounded-xl p-3 text-center">
+                      <p className="text-purple-400 text-[10px] uppercase tracking-widest mb-1">Checkout</p>
+                      <p className="text-2xl font-black text-purple-400">{checkoutsDia.length}</p>
+                      <p className="text-zinc-600 text-[10px]">
+                        {todasDoDia.length > 0 ? Math.round((checkoutsDia.length / todasDoDia.length) * 100) : 0}%
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Cursos vendidos */}
+                  <div className="space-y-2">
+                    <p className="text-zinc-500 text-[10px] uppercase tracking-widest font-bold">Cursos vendidos</p>
+                    {cursosDia.map(c => {
+                      const pctEquipe = c.total > 0 ? (c.equipe / c.total) * 100 : 0;
+                      return (
+                        <div key={c.nome} className="bg-zinc-800/40 rounded-lg px-3 py-2.5 flex items-center gap-3">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-white font-semibold text-xs truncate">{c.nome}</p>
+                          </div>
+                          <div className="flex items-center gap-3 shrink-0">
+                            <span className="text-white font-black text-sm w-5 text-center">{c.total}</span>
                             <span className="text-green-400 text-xs font-bold">{c.equipe} equipe</span>
                             <span className="text-zinc-600 text-xs">·</span>
                             <span className="text-purple-400 text-xs font-bold">{c.checkout} checkout</span>
-                          </div>
-                          <div className="w-20 h-2 rounded-full overflow-hidden bg-zinc-700 shrink-0">
-                            {c.equipe > 0 && <div className="h-full bg-green-500 float-left" style={{ width: `${pctEquipe}%` }} />}
-                            {c.checkout > 0 && <div className="h-full bg-purple-500 float-left" style={{ width: `${100 - pctEquipe}%` }} />}
+                            <div className="w-16 h-2 rounded-full overflow-hidden bg-zinc-700 shrink-0">
+                              {c.equipe > 0 && <div className="h-full bg-green-500 float-left" style={{ width: `${pctEquipe}%` }} />}
+                              {c.checkout > 0 && <div className="h-full bg-purple-500 float-left" style={{ width: `${100 - pctEquipe}%` }} />}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Lista detalhada de vendas do dia */}
-              <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
-                <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-                  <h4 className="text-xs font-black uppercase tracking-widest text-zinc-400">Lista de Vendas</h4>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <input
-                      type="text"
-                      placeholder="Filtrar produto..."
-                      value={filtroProduto}
-                      onChange={e => setFiltroProduto(e.target.value)}
-                      className="bg-zinc-800 border border-zinc-700 text-white text-xs rounded-lg px-3 py-1.5 outline-none focus:border-yellow-400 placeholder:text-zinc-600 w-36"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Filtrar vendedor..."
-                      value={filtroVendedor}
-                      onChange={e => setFiltroVendedor(e.target.value)}
-                      className="bg-zinc-800 border border-zinc-700 text-white text-xs rounded-lg px-3 py-1.5 outline-none focus:border-yellow-400 placeholder:text-zinc-600 w-36"
-                    />
+                      );
+                    })}
                   </div>
-                </div>
 
-                {vendasDiaSel.length === 0 ? (
-                  <p className="text-zinc-600 text-sm text-center py-4">Nenhuma venda encontrada com esses filtros.</p>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-xs">
-                      <thead>
-                        <tr className="border-b border-zinc-800">
-                          <th className="text-left text-zinc-500 uppercase tracking-widest font-bold py-2 pr-4">Horário</th>
-                          <th className="text-left text-zinc-500 uppercase tracking-widest font-bold py-2 pr-4">Produto</th>
-                          <th className="text-left text-zinc-500 uppercase tracking-widest font-bold py-2 pr-4">Cliente</th>
-                          <th className="text-left text-zinc-500 uppercase tracking-widest font-bold py-2 pr-4">Vendedor</th>
-                          <th className="text-left text-zinc-500 uppercase tracking-widest font-bold py-2">Pagamento</th>
-                        </tr>
-                      </thead>
-                      <tbody>
+                  {/* Lista de vendas */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+                      <p className="text-zinc-500 text-[10px] uppercase tracking-widest font-bold">Lista de vendas</p>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          placeholder="Produto..."
+                          value={filtroProduto}
+                          onChange={e => setFiltroProduto(e.target.value)}
+                          className="bg-zinc-800 border border-zinc-700 text-white text-xs rounded-lg px-3 py-1.5 outline-none focus:border-yellow-400 placeholder:text-zinc-600 w-28"
+                        />
+                        <input
+                          type="text"
+                          placeholder="Vendedor..."
+                          value={filtroVendedor}
+                          onChange={e => setFiltroVendedor(e.target.value)}
+                          className="bg-zinc-800 border border-zinc-700 text-white text-xs rounded-lg px-3 py-1.5 outline-none focus:border-yellow-400 placeholder:text-zinc-600 w-28"
+                        />
+                      </div>
+                    </div>
+
+                    {vendasDiaSel.length === 0 ? (
+                      <p className="text-zinc-600 text-sm text-center py-4">Nenhuma venda encontrada.</p>
+                    ) : (
+                      <div className="space-y-1">
                         {vendasDiaSel.map(v => {
                           const hora = toBRT(v.created_at).getUTCHours();
                           const isCheckout = !v.seller_id || v.seller_name === 'CHECKOUT';
                           return (
-                            <tr key={v.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors">
-                              <td className="py-2.5 pr-4">
-                                <span className={`font-black ${classeTurno(hora)}`}>{formatHora(v.created_at)}</span>
-                                <span className={`ml-1.5 text-[9px] ${classeTurno(hora)} opacity-70`}>{nomeTurno(hora)}</span>
-                              </td>
-                              <td className="py-2.5 pr-4">
-                                <span className="text-white font-semibold">{v.product_name}</span>
-                              </td>
-                              <td className="py-2.5 pr-4">
-                                <p className="text-zinc-300">{v.customer_name}</p>
-                                {v.customer_email && <p className="text-zinc-600 text-[10px]">{v.customer_email}</p>}
-                              </td>
-                              <td className="py-2.5 pr-4">
-                                {isCheckout
-                                  ? <span className="text-purple-400 font-bold">Checkout</span>
-                                  : <span className="text-zinc-300">{v.seller_name || '—'}</span>
-                                }
-                              </td>
-                              <td className="py-2.5">
-                                <span className="text-zinc-400 text-[10px]">{v.payment_method || '—'}</span>
-                              </td>
-                            </tr>
+                            <div key={v.id} className="bg-zinc-800/30 rounded-lg px-3 py-2 flex items-center gap-3 text-xs">
+                              <span className={`font-black shrink-0 w-12 ${classeTurno(hora)}`}>{formatHora(v.created_at)}</span>
+                              <span className="text-white font-semibold flex-1 truncate">{v.product_name}</span>
+                              <span className="text-zinc-400 truncate hidden sm:block w-28">{v.customer_name}</span>
+                              {isCheckout
+                                ? <span className="text-purple-400 font-bold shrink-0">Checkout</span>
+                                : <span className="text-zinc-300 shrink-0">{v.seller_name || '—'}</span>
+                              }
+                            </div>
                           );
                         })}
-                      </tbody>
-                    </table>
+                      </div>
+                    )}
                   </div>
-                )}
+                </div>
+
+                {/* Footer fixo com botão fechar */}
+                <div className="px-5 py-3 border-t border-zinc-800 shrink-0">
+                  <button
+                    onClick={() => setDiaSel(null)}
+                    className="w-full bg-zinc-800 hover:bg-zinc-700 text-white font-black py-2.5 rounded-xl text-xs uppercase tracking-widest transition-all active:scale-95"
+                  >
+                    Fechar
+                  </button>
+                </div>
               </div>
             </div>
           );
