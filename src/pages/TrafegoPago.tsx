@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 
@@ -60,8 +60,15 @@ export function TrafegoPago() {
     return { ano: now.getFullYear(), mes: now.getMonth() };
   });
   const [diaSel, setDiaSel] = useState<number | null>(null);
+  const detalheRef = useRef<HTMLDivElement>(null);
   const [filtroProduto, setFiltroProduto] = useState('');
   const [filtroVendedor, setFiltroVendedor] = useState('');
+
+  useEffect(() => {
+    if (diaSel !== null) {
+      setTimeout(() => detalheRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+    }
+  }, [diaSel]);
 
   useEffect(() => {
     api.get('/sales')
@@ -549,7 +556,7 @@ export function TrafegoPago() {
           })();
 
           return (
-            <div className="space-y-4">
+            <div className="space-y-4" ref={detalheRef}>
               {/* Card resumo do dia */}
               <div className="bg-zinc-900 border border-yellow-500/30 rounded-xl p-4">
                 <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
