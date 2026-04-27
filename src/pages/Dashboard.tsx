@@ -759,10 +759,11 @@ export function Dashboard() {
 
         const vendasFiltradas = todasVendas.filter(v => {
           if (!v.created_at) return false;
+          // 'semana': não pré-filtra — o modal navega entre semanas internamente via semanaOffset
+          if (modalPeriodo === 'semana') return true;
           const brt = new Date(new Date(v.created_at).getTime() - BRT_MS_F);
           const vMs = Date.UTC(brt.getUTCFullYear(), brt.getUTCMonth(), brt.getUTCDate());
           if (modalPeriodo === 'hoje') return vMs >= hojeMs;
-          if (modalPeriodo === 'semana') return vMs >= inicioSemanaMs;
           return vMs >= inicioMesMs;
         });
 
