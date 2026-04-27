@@ -69,24 +69,35 @@ export function Dashboard() {
 
   const [todasVendas, setTodasVendas] = useState<Venda[]>([]);
 
+  // Classifica uma venda em 'trafego' | 'checkout' | 'vendedor'
+  function classificarVenda(v: { seller_id?: any; payment_method?: string }): 'trafego' | 'checkout' | 'vendedor' {
+    const semVendedor = !v.seller_id || String(v.seller_id) === '' || String(v.seller_id) === 'null';
+    if (semVendedor && (v.payment_method || '').toLowerCase().includes('trafego')) return 'trafego';
+    if (semVendedor) return 'checkout';
+    return 'vendedor';
+  }
+
   // Vendas do mês selecionado (BRT-aware, aprovadas)
-  const { vendasMes, qtdMes, vendasDoMesSel, vendasMesSemCheckout, vendasMesEquipe, vendasMesCheckout, comissaoBase } = useMemo(() => {
+  const { vendasMes, qtdMes, vendasDoMesSel, vendasMesSemCheckout, vendasMesEquipe, vendasMesCheckout, vendasMesTrafego, comissaoBase } = useMemo(() => {
     const aprovadas = todasVendas.filter(v => v.status === 'aprovada' && v.created_at);
     const doMes = aprovadas.filter(v => {
       const d = new Date(new Date(v.created_at).getTime() - BRT_MS);
       return d.getUTCFullYear() === mesSelecionado.ano && d.getUTCMonth() === mesSelecionado.mes;
     });
     // Vendas com vendedor identificado (equipe de vendas)
-    const doMesEquipe = doMes.filter(v => v.seller_id != null && String(v.seller_id) !== '' && v.seller_name !== 'CHECKOUT');
-    // Vendas de checkout direto (sem vendedor)
-    const doMesCheckout = doMes.filter(v => !v.seller_id || String(v.seller_id) === '' || v.seller_name === 'CHECKOUT');
+    const doMesEquipe = doMes.filter(v => classificarVenda(v) === 'vendedor');
+    // Vendas de tráfego pago (sem vendedor + payment_method contém "trafego")
+    const doMesTrafego = doMes.filter(v => classificarVenda(v) === 'trafego');
+    // Vendas de checkout direto (sem vendedor, sem tráfego)
+    const doMesCheckout = doMes.filter(v => classificarVenda(v) === 'checkout');
     return {
       vendasMes: doMes.reduce((acc, v) => acc + Number(v.sale_value), 0),
       qtdMes: doMes.length,
       vendasDoMesSel: doMes,
-      vendasMesSemCheckout: doMesEquipe.reduce((acc, v) => acc + Number(v.sale_value), 0),
-      vendasMesEquipe: doMesEquipe.reduce((acc, v) => acc + Number(v.sale_value), 0),
-      vendasMesCheckout: doMesCheckout.reduce((acc, v) => acc + Number(v.sale_value), 0),
+      vendasMesSemCheckout: doMesEquipe.reduce((acc, v) => acc + Number(v.seller_value ?? v.sale_value), 0),
+      vendasMesEquipe: doMesEquipe.reduce((acc, v) => acc + Number(v.seller_value ?? v.sale_value), 0),
+      vendasMesCheckout: doMesCheckout.reduce((acc, v) => acc + Number(v.seller_value ?? v.sale_value), 0),
+      vendasMesTrafego: doMesTrafego.reduce((acc, v) => acc + Number(v.seller_value ?? v.sale_value), 0),
       comissaoBase: doMesEquipe.reduce((acc, v) => acc + Number(v.seller_value ?? v.sale_value), 0),
     };
   }, [todasVendas, mesSelecionado]);
@@ -669,11 +680,15 @@ export function Dashboard() {
               <div className="bg-yellow-400 h-1 rounded-full transition-all duration-700" style={{ width: `${progressoMeta}%` }} />
             </div>
             <p className="text-zinc-600 text-[9px] sm:text-[10px] mt-1">{qtdMes} vendas · {progressoMeta.toFixed(0)}% meta</p>
-            {/* Subtotais equipe vs checkout */}
+            {/* Subtotais equipe vs tráfego vs checkout */}
             <div className="mt-1.5 flex flex-col gap-0.5">
               <div className="flex items-center justify-between">
                 <span className="text-[9px] text-blue-400 font-black">⚡ Equipe</span>
                 <span className="text-[9px] text-blue-300 font-black">{formataBRL(vendasMesEquipe)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[9px] text-orange-400 font-black">📡 Tráfego</span>
+                <span className="text-[9px] text-orange-300 font-black">{formataBRL(vendasMesTrafego)}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-[9px] text-zinc-500 font-black">🛒 Checkout</span>

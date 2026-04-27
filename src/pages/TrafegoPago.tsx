@@ -70,15 +70,24 @@ export function TrafegoPago() {
       .finally(() => setLoading(false));
   }, []);
 
-  const { vendasDoMes, qtdEquipe, qtdCheckout } = useMemo(() => {
+  function classificarVenda(v: { seller_id?: any; payment_method?: string }): 'trafego' | 'checkout' | 'vendedor' {
+    const semVendedor = !v.seller_id || String(v.seller_id) === '' || String(v.seller_id) === 'null';
+    if (semVendedor && (v.payment_method || '').toLowerCase().includes('trafego')) return 'trafego';
+    if (semVendedor) return 'checkout';
+    return 'vendedor';
+  }
+
+  const { vendasDoMes, qtdEquipe, qtdCheckout, qtdTrafego } = useMemo(() => {
     const lista = vendas.filter(v => {
       if (v.status !== 'aprovada') return false;
       const d = toBRT(v.created_at);
       return d.getUTCFullYear() === mesSel.ano && d.getUTCMonth() === mesSel.mes;
     });
-    const equipe = lista.filter(v => v.seller_id && String(v.seller_id) !== '' && v.seller_name !== 'CHECKOUT');
-    const checkout = lista.filter(v => !v.seller_id || String(v.seller_id) === '' || v.seller_name === 'CHECKOUT');
-    return { vendasDoMes: lista, qtdEquipe: equipe.length, qtdCheckout: checkout.length };
+    const equipe = lista.filter(v => classificarVenda(v) === 'vendedor');
+    const trafego = lista.filter(v => classificarVenda(v) === 'trafego');
+    const checkout = lista.filter(v => classificarVenda(v) === 'checkout');
+    // vendasDoMes mostra apenas as de tráfego pago (foco desta página)
+    return { vendasDoMes: trafego, qtdEquipe: equipe.length, qtdCheckout: checkout.length, qtdTrafego: trafego.length };
   }, [vendas, mesSel]);
 
   // Agrupa por dia do mês
@@ -92,15 +101,13 @@ export function TrafegoPago() {
     return map;
   }, [vendasDoMes]);
 
-  // Vendas por produto (curso)
+  // Vendas por produto (curso) — apenas vendas de tráfego
   const porProduto = useMemo(() => {
-    const map = new Map<string, { total: number; equipe: number; checkout: number }>();
+    const map = new Map<string, { total: number }>();
     for (const v of vendasDoMes) {
       const nome = v.product_name || 'Desconhecido';
-      const isCheckout = !v.seller_id || String(v.seller_id) === '' || v.seller_name === 'CHECKOUT';
-      const entry = map.get(nome) ?? { total: 0, equipe: 0, checkout: 0 };
+      const entry = map.get(nome) ?? { total: 0 };
       entry.total++;
-      if (isCheckout) entry.checkout++; else entry.equipe++;
       map.set(nome, entry);
     }
     return Array.from(map.entries())
@@ -108,28 +115,23 @@ export function TrafegoPago() {
       .sort((a, b) => b.total - a.total);
   }, [vendasDoMes]);
 
-  // Totais financeiros globais do mês
+  // Totais financeiros — apenas vendas de tráfego
   const totaisFinanceiros = useMemo(() => {
-    let globalTotal = 0, equipeTotal = 0, checkoutTotal = 0;
+    let globalTotal = 0;
     for (const v of vendasDoMes) {
-      const val = Number(v.sale_value ?? 0);
-      const isCheckout = !v.seller_id || String(v.seller_id) === '' || v.seller_name === 'CHECKOUT';
-      globalTotal += val;
-      if (isCheckout) checkoutTotal += val; else equipeTotal += val;
+      globalTotal += Number(v.sale_value ?? 0);
     }
-    return { globalTotal, equipeTotal, checkoutTotal };
+    return { globalTotal };
   }, [vendasDoMes]);
 
-  // Valores financeiros por dia
+  // Valores financeiros por dia — apenas vendas de tráfego
   const financeiroPorDia = useMemo(() => {
-    const map = new Map<number, { equipe: number; checkout: number; total: number }>();
+    const map = new Map<number, { total: number }>();
     for (const v of vendasDoMes) {
       const dia = toBRT(v.created_at).getUTCDate();
       const val = Number(v.sale_value ?? 0);
-      const isCheckout = !v.seller_id || String(v.seller_id) === '' || v.seller_name === 'CHECKOUT';
-      const entry = map.get(dia) ?? { equipe: 0, checkout: 0, total: 0 };
+      const entry = map.get(dia) ?? { total: 0 };
       entry.total += val;
-      if (isCheckout) entry.checkout += val; else entry.equipe += val;
       map.set(dia, entry);
     }
     return Array.from(map.entries())
@@ -236,24 +238,20 @@ export function TrafegoPago() {
 
         {/* Cards de resumo */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
-            <p className="text-zinc-500 text-[10px] uppercase tracking-widest mb-1">Total do Mês</p>
-            <p className="text-2xl font-black text-white">{vendasDoMes.length}</p>
-            <p className="text-zinc-600 text-[10px]">vendas aprovadas</p>
+          <div className="bg-zinc-900 border border-orange-800/50 rounded-xl p-4">
+            <p className="text-orange-400 text-[10px] uppercase tracking-widest mb-1">Tráfego Pago</p>
+            <p className="text-2xl font-black text-orange-300">{qtdTrafego}</p>
+            <p className="text-zinc-600 text-[10px]">vendas via tráfego</p>
           </div>
           <div className="bg-zinc-900 border border-green-800/50 rounded-xl p-4">
             <p className="text-green-500 text-[10px] uppercase tracking-widest mb-1">Equipe de Vendas</p>
             <p className="text-2xl font-black text-green-400">{qtdEquipe}</p>
-            <p className="text-zinc-600 text-[10px]">
-              {vendasDoMes.length > 0 ? Math.round((qtdEquipe / vendasDoMes.length) * 100) : 0}% do total
-            </p>
+            <p className="text-zinc-600 text-[10px]">vendas c/ vendedor</p>
           </div>
           <div className="bg-zinc-900 border border-purple-800/50 rounded-xl p-4">
-            <p className="text-purple-400 text-[10px] uppercase tracking-widest mb-1">Checkout</p>
+            <p className="text-purple-400 text-[10px] uppercase tracking-widest mb-1">Checkout Direto</p>
             <p className="text-2xl font-black text-purple-400">{qtdCheckout}</p>
-            <p className="text-zinc-600 text-[10px]">
-              {vendasDoMes.length > 0 ? Math.round((qtdCheckout / vendasDoMes.length) * 100) : 0}% do total
-            </p>
+            <p className="text-zinc-600 text-[10px]">sem vendedor/tráfego</p>
           </div>
           <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
             <p className="text-zinc-500 text-[10px] uppercase tracking-widest mb-1">Dias com Vendas</p>
@@ -285,26 +283,19 @@ export function TrafegoPago() {
             💰 Financeiro do Mês — {MESES[mesSel.mes]} {mesSel.ano}
           </h3>
 
-          {/* Cards de valor */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {/* Cards de valor — focados em tráfego pago */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="bg-orange-950/40 rounded-xl p-4 border border-orange-800/40">
+              <p className="text-orange-400 text-[10px] uppercase tracking-widest mb-1">Total Tráfego Pago</p>
+              <p className="text-xl font-black text-orange-300">{formataBRL(totaisFinanceiros.globalTotal)}</p>
+              <p className="text-zinc-600 text-[10px]">{vendasDoMes.length} venda{vendasDoMes.length !== 1 ? 's' : ''} via tráfego</p>
+            </div>
             <div className="bg-zinc-800/60 rounded-xl p-4 border border-zinc-700/50">
-              <p className="text-zinc-500 text-[10px] uppercase tracking-widest mb-1">Valor Global Total</p>
-              <p className="text-xl font-black text-white">{formataBRL(totaisFinanceiros.globalTotal)}</p>
-              <p className="text-zinc-600 text-[10px]">{vendasDoMes.length} vendas</p>
-            </div>
-            <div className="bg-green-950/40 rounded-xl p-4 border border-green-800/40">
-              <p className="text-green-500 text-[10px] uppercase tracking-widest mb-1">Equipe de Vendas</p>
-              <p className="text-xl font-black text-green-400">{formataBRL(totaisFinanceiros.equipeTotal)}</p>
-              <p className="text-zinc-600 text-[10px]">
-                {totaisFinanceiros.globalTotal > 0 ? Math.round((totaisFinanceiros.equipeTotal / totaisFinanceiros.globalTotal) * 100) : 0}% do total
+              <p className="text-zinc-500 text-[10px] uppercase tracking-widest mb-1">Ticket Médio</p>
+              <p className="text-xl font-black text-white">
+                {vendasDoMes.length > 0 ? formataBRL(totaisFinanceiros.globalTotal / vendasDoMes.length) : 'R$ 0,00'}
               </p>
-            </div>
-            <div className="bg-purple-950/40 rounded-xl p-4 border border-purple-800/40">
-              <p className="text-purple-400 text-[10px] uppercase tracking-widest mb-1">Checkout</p>
-              <p className="text-xl font-black text-purple-400">{formataBRL(totaisFinanceiros.checkoutTotal)}</p>
-              <p className="text-zinc-600 text-[10px]">
-                {totaisFinanceiros.globalTotal > 0 ? Math.round((totaisFinanceiros.checkoutTotal / totaisFinanceiros.globalTotal) * 100) : 0}% do total
-              </p>
+              <p className="text-zinc-600 text-[10px]">por conversão</p>
             </div>
           </div>
 
@@ -315,16 +306,11 @@ export function TrafegoPago() {
                 <thead>
                   <tr className="border-b border-zinc-700">
                     <th className="text-left text-zinc-500 uppercase tracking-widest font-bold py-2 pr-4">Dia</th>
-                    <th className="text-right text-green-500 uppercase tracking-widest font-bold py-2 pr-4">Equipe</th>
-                    <th className="text-right text-purple-400 uppercase tracking-widest font-bold py-2 pr-4">Checkout</th>
-                    <th className="text-right text-zinc-400 uppercase tracking-widest font-bold py-2 pr-4">Total</th>
-                    <th className="text-left text-zinc-500 uppercase tracking-widest font-bold py-2">Distribuição</th>
+                    <th className="text-right text-orange-400 uppercase tracking-widest font-bold py-2 pr-4">Total Tráfego</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {financeiroPorDia.map(({ dia, equipe, checkout, total }) => {
-                    const pctEquipe = total > 0 ? (equipe / total) * 100 : 0;
-                    const pctCheckout = 100 - pctEquipe;
+                  {financeiroPorDia.map(({ dia, total }) => {
                     const qtdDia = porDia.get(dia)?.length || 0;
                     return (
                       <tr
@@ -339,19 +325,7 @@ export function TrafegoPago() {
                           <span className="text-zinc-600 ml-2 text-[10px]">{qtdDia} venda{qtdDia !== 1 ? 's' : ''}</span>
                         </td>
                         <td className="py-2.5 pr-4 text-right">
-                          <span className="text-green-400 font-bold">{formataBRL(equipe)}</span>
-                        </td>
-                        <td className="py-2.5 pr-4 text-right">
-                          <span className="text-purple-400 font-bold">{formataBRL(checkout)}</span>
-                        </td>
-                        <td className="py-2.5 pr-4 text-right">
-                          <span className="text-white font-black">{formataBRL(total)}</span>
-                        </td>
-                        <td className="py-2.5 w-32">
-                          <div className="flex h-2 rounded-full overflow-hidden bg-zinc-800">
-                            {equipe > 0 && <div className="bg-green-500 h-full" style={{ width: `${pctEquipe}%` }} />}
-                            {checkout > 0 && <div className="bg-purple-500 h-full" style={{ width: `${pctCheckout}%` }} />}
-                          </div>
+                          <span className="text-orange-300 font-black">{formataBRL(total)}</span>
                         </td>
                       </tr>
                     );
@@ -360,10 +334,7 @@ export function TrafegoPago() {
                 <tfoot>
                   <tr className="border-t border-zinc-700">
                     <td className="py-2.5 pr-4 font-black text-zinc-400 uppercase text-[10px] tracking-widest">Total</td>
-                    <td className="py-2.5 pr-4 text-right font-black text-green-400">{formataBRL(totaisFinanceiros.equipeTotal)}</td>
-                    <td className="py-2.5 pr-4 text-right font-black text-purple-400">{formataBRL(totaisFinanceiros.checkoutTotal)}</td>
-                    <td className="py-2.5 pr-4 text-right font-black text-white">{formataBRL(totaisFinanceiros.globalTotal)}</td>
-                    <td />
+                    <td className="py-2.5 pr-4 text-right font-black text-orange-300">{formataBRL(totaisFinanceiros.globalTotal)}</td>
                   </tr>
                 </tfoot>
               </table>
@@ -467,60 +438,31 @@ export function TrafegoPago() {
           </div>
         </div>
 
-        {/* Tabela de cursos vendidos */}
+        {/* Tabela de cursos vendidos — apenas tráfego */}
         {porProduto.length > 0 && (
           <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
             <h3 className="text-xs font-black uppercase tracking-widest text-zinc-400 mb-4">
-              📦 Vendas por Curso — {MESES[mesSel.mes]} {mesSel.ano}
+              📦 Conversões por Curso (Tráfego) — {MESES[mesSel.mes]} {mesSel.ano}
             </h3>
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
                   <tr className="border-b border-zinc-800">
                     <th className="text-left text-zinc-500 uppercase tracking-widest font-bold py-2 pr-4">Curso</th>
-                    <th className="text-center text-zinc-500 uppercase tracking-widest font-bold py-2 pr-4">Total</th>
-                    <th className="text-center text-green-500 uppercase tracking-widest font-bold py-2 pr-4">Equipe</th>
-                    <th className="text-center text-purple-400 uppercase tracking-widest font-bold py-2 pr-4">Checkout</th>
-                    <th className="text-left text-zinc-500 uppercase tracking-widest font-bold py-2">Distribuição</th>
+                    <th className="text-center text-orange-400 uppercase tracking-widest font-bold py-2">Conversões</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {porProduto.map(p => {
-                    const pctEquipe = p.total > 0 ? Math.round((p.equipe / p.total) * 100) : 0;
-                    const pctCheckout = 100 - pctEquipe;
-                    return (
-                      <tr key={p.nome} className="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors">
-                        <td className="py-3 pr-4">
-                          <span className="text-white font-semibold">{p.nome}</span>
-                        </td>
-                        <td className="py-3 pr-4 text-center">
-                          <span className="text-white font-black text-sm">{p.total}</span>
-                        </td>
-                        <td className="py-3 pr-4 text-center">
-                          <span className="text-green-400 font-bold">{p.equipe}</span>
-                          <span className="text-zinc-600 ml-1">({pctEquipe}%)</span>
-                        </td>
-                        <td className="py-3 pr-4 text-center">
-                          <span className="text-purple-400 font-bold">{p.checkout}</span>
-                          <span className="text-zinc-600 ml-1">({pctCheckout}%)</span>
-                        </td>
-                        <td className="py-3 w-40">
-                          <div className="flex h-2 rounded-full overflow-hidden bg-zinc-800 w-full">
-                            {p.equipe > 0 && (
-                              <div className="bg-green-500 h-full" style={{ width: `${pctEquipe}%` }} />
-                            )}
-                            {p.checkout > 0 && (
-                              <div className="bg-purple-500 h-full" style={{ width: `${pctCheckout}%` }} />
-                            )}
-                          </div>
-                          <div className="flex justify-between mt-0.5">
-                            <span className="text-green-600 text-[9px]">Equipe</span>
-                            <span className="text-purple-600 text-[9px]">Checkout</span>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  {porProduto.map(p => (
+                    <tr key={p.nome} className="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors">
+                      <td className="py-3 pr-4">
+                        <span className="text-white font-semibold">{p.nome}</span>
+                      </td>
+                      <td className="py-3 text-center">
+                        <span className="text-orange-300 font-black text-sm">{p.total}</span>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -530,20 +472,17 @@ export function TrafegoPago() {
         {/* Modal de detalhes do dia */}
         {diaSel !== null && (() => {
           const todasDoDia = porDia.get(diaSel) || [];
-          const equipesDia = todasDoDia.filter(v => v.seller_id && String(v.seller_id) !== '' && v.seller_name !== 'CHECKOUT');
-          const checkoutsDia = todasDoDia.filter(v => !v.seller_id || String(v.seller_id) === '' || v.seller_name === 'CHECKOUT');
 
           const cursosDia = (() => {
-            const map = new Map<string, { equipe: number; checkout: number }>();
+            const map = new Map<string, { total: number }>();
             for (const v of todasDoDia) {
               const nome = v.product_name || 'Desconhecido';
-              const isC = !v.seller_id || String(v.seller_id) === '' || v.seller_name === 'CHECKOUT';
-              const e = map.get(nome) ?? { equipe: 0, checkout: 0 };
-              if (isC) e.checkout++; else e.equipe++;
+              const e = map.get(nome) ?? { total: 0 };
+              e.total++;
               map.set(nome, e);
             }
             return Array.from(map.entries())
-              .map(([nome, d]) => ({ nome, total: d.equipe + d.checkout, ...d }))
+              .map(([nome, d]) => ({ nome, ...d }))
               .sort((a, b) => b.total - a.total);
           })();
 
@@ -573,51 +512,25 @@ export function TrafegoPago() {
                 {/* Conteúdo com scroll */}
                 <div className="overflow-y-auto flex-1 px-5 py-4 space-y-4">
 
-                  {/* Contadores */}
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="bg-zinc-800/60 rounded-xl p-3 text-center">
-                      <p className="text-zinc-500 text-[10px] uppercase tracking-widest mb-1">Total</p>
-                      <p className="text-2xl font-black text-white">{todasDoDia.length}</p>
-                    </div>
-                    <div className="bg-green-950/50 border border-green-800/30 rounded-xl p-3 text-center">
-                      <p className="text-green-500 text-[10px] uppercase tracking-widest mb-1">Equipe</p>
-                      <p className="text-2xl font-black text-green-400">{equipesDia.length}</p>
-                      <p className="text-zinc-600 text-[10px]">
-                        {todasDoDia.length > 0 ? Math.round((equipesDia.length / todasDoDia.length) * 100) : 0}%
-                      </p>
-                    </div>
-                    <div className="bg-purple-950/50 border border-purple-800/30 rounded-xl p-3 text-center">
-                      <p className="text-purple-400 text-[10px] uppercase tracking-widest mb-1">Checkout</p>
-                      <p className="text-2xl font-black text-purple-400">{checkoutsDia.length}</p>
-                      <p className="text-zinc-600 text-[10px]">
-                        {todasDoDia.length > 0 ? Math.round((checkoutsDia.length / todasDoDia.length) * 100) : 0}%
-                      </p>
+                  {/* Contador — apenas tráfego do dia */}
+                  <div className="grid grid-cols-1 gap-3">
+                    <div className="bg-orange-950/50 border border-orange-800/30 rounded-xl p-3 text-center">
+                      <p className="text-orange-400 text-[10px] uppercase tracking-widest mb-1">Conversões Tráfego</p>
+                      <p className="text-2xl font-black text-orange-300">{todasDoDia.length}</p>
                     </div>
                   </div>
 
                   {/* Cursos vendidos */}
                   <div className="space-y-2">
-                    <p className="text-zinc-500 text-[10px] uppercase tracking-widest font-bold">Cursos vendidos</p>
-                    {cursosDia.map(c => {
-                      const pctEquipe = c.total > 0 ? (c.equipe / c.total) * 100 : 0;
-                      return (
-                        <div key={c.nome} className="bg-zinc-800/40 rounded-lg px-3 py-2.5 flex items-center gap-3">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-white font-semibold text-xs truncate">{c.nome}</p>
-                          </div>
-                          <div className="flex items-center gap-3 shrink-0">
-                            <span className="text-white font-black text-sm w-5 text-center">{c.total}</span>
-                            <span className="text-green-400 text-xs font-bold">{c.equipe} equipe</span>
-                            <span className="text-zinc-600 text-xs">·</span>
-                            <span className="text-purple-400 text-xs font-bold">{c.checkout} checkout</span>
-                            <div className="w-16 h-2 rounded-full overflow-hidden bg-zinc-700 shrink-0">
-                              {c.equipe > 0 && <div className="h-full bg-green-500 float-left" style={{ width: `${pctEquipe}%` }} />}
-                              {c.checkout > 0 && <div className="h-full bg-purple-500 float-left" style={{ width: `${100 - pctEquipe}%` }} />}
-                            </div>
-                          </div>
+                    <p className="text-zinc-500 text-[10px] uppercase tracking-widest font-bold">Cursos convertidos</p>
+                    {cursosDia.map(c => (
+                      <div key={c.nome} className="bg-zinc-800/40 rounded-lg px-3 py-2.5 flex items-center gap-3">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-white font-semibold text-xs truncate">{c.nome}</p>
                         </div>
-                      );
-                    })}
+                        <span className="text-orange-300 font-black text-sm">{c.total}</span>
+                      </div>
+                    ))}
                   </div>
 
                   {/* Lista de vendas */}
@@ -648,16 +561,14 @@ export function TrafegoPago() {
                       <div className="space-y-1">
                         {vendasDiaSel.map(v => {
                           const hora = toBRT(v.created_at).getUTCHours();
-                          const isCheckout = !v.seller_id || v.seller_name === 'CHECKOUT';
+                          // Todas as vendas nesta página são de tráfego
+                          const utmLabel = (v.payment_method || '').match(/trafego-[\w]+/i)?.[0] || 'Tráfego';
                           return (
                             <div key={v.id} className="bg-zinc-800/30 rounded-lg px-3 py-2 flex items-center gap-3 text-xs">
                               <span className={`font-black shrink-0 w-12 ${classeTurno(hora)}`}>{formatHora(v.created_at)}</span>
                               <span className="text-white font-semibold flex-1 truncate">{v.product_name}</span>
                               <span className="text-zinc-400 truncate hidden sm:block w-28">{v.customer_name}</span>
-                              {isCheckout
-                                ? <span className="text-purple-400 font-bold shrink-0">Checkout</span>
-                                : <span className="text-zinc-300 shrink-0">{v.seller_name || '—'}</span>
-                              }
+                              <span className="text-orange-400 font-bold shrink-0">{utmLabel}</span>
                             </div>
                           );
                         })}

@@ -343,7 +343,9 @@ export function ModalEstatisticasPeriodo({ titulo, periodo, vendas, onClose, onE
                     </p>
                     <div className="space-y-2 max-h-64 overflow-y-auto">
                       {vendasDia.map(v => {
-                        const isCheckout = !v.seller_id || String(v.seller_id) === '' || String(v.seller_id) === 'null';
+                        const semVendedor = !v.seller_id || String(v.seller_id) === '' || String(v.seller_id) === 'null';
+                        const isTrafego = semVendedor && (v.payment_method || '').toLowerCase().includes('trafego');
+                        const isCheckout = semVendedor && !isTrafego;
                         const hora = toBRT(v.created_at);
                         const horaStr = `${String(hora.getUTCHours()).padStart(2,'0')}:${String(hora.getUTCMinutes()).padStart(2,'0')}`;
                         return (
@@ -351,14 +353,14 @@ export function ModalEstatisticasPeriodo({ titulo, periodo, vendas, onClose, onE
                             {/* Avatar inicial vendedor */}
                             <div className="w-8 h-8 rounded-full bg-zinc-700 border border-zinc-600 flex items-center justify-center flex-shrink-0">
                               <span className="text-[10px] font-black text-zinc-300">
-                                {isCheckout ? '🛒' : (v.seller_name ?? '?').split(' ').map((p: string) => p[0]).slice(0,2).join('').toUpperCase()}
+                                {isTrafego ? '📡' : isCheckout ? '🛒' : (v.seller_name ?? '?').split(' ').map((p: string) => p[0]).slice(0,2).join('').toUpperCase()}
                               </span>
                             </div>
                             <div className="flex-1 min-w-0">
                               {/* Linha 1: vendedor + horário */}
                               <div className="flex items-center justify-between gap-1 mb-0.5">
                                 <span className="text-zinc-200 text-xs font-black truncate">
-                                  {isCheckout ? 'Checkout' : (v.seller_name ?? 'Desconhecido')}
+                                  {isTrafego ? 'Tráfego Pago' : isCheckout ? 'Checkout' : (v.seller_name ?? 'Desconhecido')}
                                 </span>
                                 <span className="text-zinc-600 text-[10px] font-bold flex-shrink-0">{horaStr}</span>
                               </div>
@@ -451,15 +453,18 @@ export function ModalEstatisticasPeriodo({ titulo, periodo, vendas, onClose, onE
               <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest mb-3">🕒 Últimas Vendas</p>
               <div className="space-y-2">
                 {recentes.map(v => {
-                  const isCheckout = !v.seller_id || String(v.seller_id) === '' || String(v.seller_id) === 'null';
+                  const semVendedor = !v.seller_id || String(v.seller_id) === '' || String(v.seller_id) === 'null';
+                  const isTrafego = semVendedor && (v.payment_method || '').toLowerCase().includes('trafego');
+                  const isCheckout = semVendedor && !isTrafego;
                   return (
                     <div key={v.id} className="flex items-center gap-3 py-1.5 border-b border-zinc-800 last:border-0 rounded-lg px-1">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5">
                           <p className="text-zinc-200 text-xs font-bold truncate">{v.customer_name}</p>
+                          {isTrafego && <span className="text-[9px] font-black text-orange-400 bg-orange-400/10 border border-orange-400/30 px-1 py-0.5 rounded uppercase">tráfego</span>}
                           {isCheckout && <span className="text-[9px] font-black text-yellow-400 bg-yellow-400/10 border border-yellow-400/30 px-1 py-0.5 rounded uppercase">sem vendedor</span>}
                         </div>
-                        <p className="text-zinc-600 text-[10px] truncate">{v.product_name} · {isCheckout ? 'CHECKOUT' : v.seller_name}</p>
+                        <p className="text-zinc-600 text-[10px] truncate">{v.product_name} · {isTrafego ? 'TRÁFEGO' : isCheckout ? 'CHECKOUT' : v.seller_name}</p>
                       </div>
                       <div className="text-right flex-shrink-0 flex items-center gap-1.5">
                         <div>
