@@ -77,7 +77,7 @@ export function TrafegoPago() {
     return 'vendedor';
   }
 
-  const { vendasDoMes, qtdEquipe, qtdCheckout, qtdTrafego } = useMemo(() => {
+  const { vendasDoMes, vendasEquipe, vendasCheckout, qtdEquipe, qtdCheckout, qtdTrafego } = useMemo(() => {
     const lista = vendas.filter(v => {
       if (v.status !== 'aprovada') return false;
       const d = toBRT(v.created_at);
@@ -86,8 +86,14 @@ export function TrafegoPago() {
     const equipe = lista.filter(v => classificarVenda(v) === 'vendedor');
     const trafego = lista.filter(v => classificarVenda(v) === 'trafego');
     const checkout = lista.filter(v => classificarVenda(v) === 'checkout');
-    // vendasDoMes mostra apenas as de tráfego pago (foco desta página)
-    return { vendasDoMes: trafego, qtdEquipe: equipe.length, qtdCheckout: checkout.length, qtdTrafego: trafego.length };
+    return {
+      vendasDoMes: trafego,
+      vendasEquipe: equipe,
+      vendasCheckout: checkout,
+      qtdEquipe: equipe.length,
+      qtdCheckout: checkout.length,
+      qtdTrafego: trafego.length,
+    };
   }, [vendas, mesSel]);
 
   // Agrupa por dia do mês
@@ -138,6 +144,48 @@ export function TrafegoPago() {
       .map(([dia, dados]) => ({ dia, ...dados }))
       .sort((a, b) => a.dia - b.dia);
   }, [vendasDoMes]);
+
+  // Financeiro por dia — Equipe de Vendas
+  const financeiroEquipePorDia = useMemo(() => {
+    const map = new Map<number, { total: number; qtd: number }>();
+    for (const v of vendasEquipe) {
+      const dia = toBRT(v.created_at).getUTCDate();
+      const val = Number(v.seller_value ?? v.sale_value ?? 0);
+      const entry = map.get(dia) ?? { total: 0, qtd: 0 };
+      entry.total += val;
+      entry.qtd++;
+      map.set(dia, entry);
+    }
+    return Array.from(map.entries())
+      .map(([dia, dados]) => ({ dia, ...dados }))
+      .sort((a, b) => a.dia - b.dia);
+  }, [vendasEquipe]);
+
+  const totalEquipe = useMemo(
+    () => vendasEquipe.reduce((acc, v) => acc + Number(v.seller_value ?? v.sale_value ?? 0), 0),
+    [vendasEquipe]
+  );
+
+  // Financeiro por dia — Checkout Direto
+  const financeiroCheckoutPorDia = useMemo(() => {
+    const map = new Map<number, { total: number; qtd: number }>();
+    for (const v of vendasCheckout) {
+      const dia = toBRT(v.created_at).getUTCDate();
+      const val = Number(v.sale_value ?? 0);
+      const entry = map.get(dia) ?? { total: 0, qtd: 0 };
+      entry.total += val;
+      entry.qtd++;
+      map.set(dia, entry);
+    }
+    return Array.from(map.entries())
+      .map(([dia, dados]) => ({ dia, ...dados }))
+      .sort((a, b) => a.dia - b.dia);
+  }, [vendasCheckout]);
+
+  const totalCheckout = useMemo(
+    () => vendasCheckout.reduce((acc, v) => acc + Number(v.sale_value ?? 0), 0),
+    [vendasCheckout]
+  );
 
   // Dias do calendário
   const diasDoMes = useMemo(() => {
@@ -335,6 +383,114 @@ export function TrafegoPago() {
                   <tr className="border-t border-zinc-700">
                     <td className="py-2.5 pr-4 font-black text-zinc-400 uppercase text-[10px] tracking-widest">Total</td>
                     <td className="py-2.5 pr-4 text-right font-black text-orange-300">{formataBRL(totaisFinanceiros.globalTotal)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* Seção Equipe de Vendas */}
+        <div className="bg-zinc-900 border border-green-800/50 rounded-xl p-4 space-y-4">
+          <h3 className="text-xs font-black uppercase tracking-widest text-green-400">
+            👥 Equipe de Vendas — {MESES[mesSel.mes]} {mesSel.ano}
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="bg-green-950/40 rounded-xl p-4 border border-green-800/40">
+              <p className="text-green-400 text-[10px] uppercase tracking-widest mb-1">Total Equipe de Vendas</p>
+              <p className="text-xl font-black text-green-300">{formataBRL(totalEquipe)}</p>
+              <p className="text-zinc-600 text-[10px]">{vendasEquipe.length} venda{vendasEquipe.length !== 1 ? 's' : ''} com vendedor</p>
+            </div>
+            <div className="bg-zinc-800/60 rounded-xl p-4 border border-zinc-700/50">
+              <p className="text-zinc-500 text-[10px] uppercase tracking-widest mb-1">Ticket Médio</p>
+              <p className="text-xl font-black text-white">
+                {vendasEquipe.length > 0 ? formataBRL(totalEquipe / vendasEquipe.length) : 'R$ 0,00'}
+              </p>
+              <p className="text-zinc-600 text-[10px]">por venda com vendedor</p>
+            </div>
+          </div>
+          {financeiroEquipePorDia.length > 0 && (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-zinc-700">
+                    <th className="text-left text-zinc-500 uppercase tracking-widest font-bold py-2 pr-4">Dia</th>
+                    <th className="text-right text-green-400 uppercase tracking-widest font-bold py-2 pr-4">Total Equipe</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {financeiroEquipePorDia.map(({ dia, total, qtd }) => (
+                    <tr key={dia} className="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors">
+                      <td className="py-2.5 pr-4">
+                        <span className="font-black text-white">
+                          {String(dia).padStart(2,'0')}/{mesSel.mes+1}
+                        </span>
+                        <span className="text-zinc-600 ml-2 text-[10px]">{qtd} venda{qtd !== 1 ? 's' : ''}</span>
+                      </td>
+                      <td className="py-2.5 pr-4 text-right">
+                        <span className="text-green-300 font-black">{formataBRL(total)}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t border-zinc-700">
+                    <td className="py-2.5 pr-4 font-black text-zinc-400 uppercase text-[10px] tracking-widest">Total</td>
+                    <td className="py-2.5 pr-4 text-right font-black text-green-300">{formataBRL(totalEquipe)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* Seção Checkout Direto */}
+        <div className="bg-zinc-900 border border-purple-800/50 rounded-xl p-4 space-y-4">
+          <h3 className="text-xs font-black uppercase tracking-widest text-purple-400">
+            🛒 Checkout Direto — {MESES[mesSel.mes]} {mesSel.ano}
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="bg-purple-950/40 rounded-xl p-4 border border-purple-800/40">
+              <p className="text-purple-400 text-[10px] uppercase tracking-widest mb-1">Total Checkout Direto</p>
+              <p className="text-xl font-black text-purple-300">{formataBRL(totalCheckout)}</p>
+              <p className="text-zinc-600 text-[10px]">{vendasCheckout.length} venda{vendasCheckout.length !== 1 ? 's' : ''} sem vendedor/tráfego</p>
+            </div>
+            <div className="bg-zinc-800/60 rounded-xl p-4 border border-zinc-700/50">
+              <p className="text-zinc-500 text-[10px] uppercase tracking-widest mb-1">Ticket Médio</p>
+              <p className="text-xl font-black text-white">
+                {vendasCheckout.length > 0 ? formataBRL(totalCheckout / vendasCheckout.length) : 'R$ 0,00'}
+              </p>
+              <p className="text-zinc-600 text-[10px]">por checkout direto</p>
+            </div>
+          </div>
+          {financeiroCheckoutPorDia.length > 0 && (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-zinc-700">
+                    <th className="text-left text-zinc-500 uppercase tracking-widest font-bold py-2 pr-4">Dia</th>
+                    <th className="text-right text-purple-400 uppercase tracking-widest font-bold py-2 pr-4">Total Checkout</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {financeiroCheckoutPorDia.map(({ dia, total, qtd }) => (
+                    <tr key={dia} className="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors">
+                      <td className="py-2.5 pr-4">
+                        <span className="font-black text-white">
+                          {String(dia).padStart(2,'0')}/{mesSel.mes+1}
+                        </span>
+                        <span className="text-zinc-600 ml-2 text-[10px]">{qtd} venda{qtd !== 1 ? 's' : ''}</span>
+                      </td>
+                      <td className="py-2.5 pr-4 text-right">
+                        <span className="text-purple-300 font-black">{formataBRL(total)}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t border-zinc-700">
+                    <td className="py-2.5 pr-4 font-black text-zinc-400 uppercase text-[10px] tracking-widest">Total</td>
+                    <td className="py-2.5 pr-4 text-right font-black text-purple-300">{formataBRL(totalCheckout)}</td>
                   </tr>
                 </tfoot>
               </table>
