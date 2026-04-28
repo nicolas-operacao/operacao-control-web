@@ -119,6 +119,7 @@ export function Dashboard() {
   const [isModalHublaReplayOpen, setIsModalHublaReplayOpen] = useState(false);
   const [hublaReplayPayload, setHublaReplayPayload] = useState('');
   const [hublaReplayLoading, setHublaReplayLoading] = useState(false);
+  const [hublaCorrigindoValores, setHublaCorrigindoValores] = useState(false);
 
 
   const lancarConfetes = () => confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 }, colors: ['#FACC15', '#22C55E', '#3B82F6'] });
@@ -434,6 +435,25 @@ export function Dashboard() {
                       setIsModalHublaReplayOpen(true);
                     }} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-red-400 hover:bg-red-500/10 text-xs font-bold transition-all">
                       <span>🔄</span>Replay Venda Hubla
+                    </button>
+                    <button
+                      disabled={hublaCorrigindoValores}
+                      onClick={async () => {
+                        somClick(); setDropdownAberto(false);
+                        if (!confirm('Corrigir seller_value de todas as vendas Hubla?\n\nIsso vai atualizar os valores registrados incorretamente (valor bruto da Hubla → preço do produto do sistema).')) return;
+                        setHublaCorrigindoValores(true);
+                        try {
+                          const r = await api.post('/admin/hubla/corrigir-valores');
+                          alert(`✅ ${r.data.corrigidas} de ${r.data.total} vendas Hubla corrigidas.\n${r.data.semPreco?.length ? `\nSem preço cadastrado: ${r.data.semPreco.join(', ')}` : ''}`);
+                        } catch (e: any) {
+                          alert('Erro ao corrigir valores: ' + (e?.response?.data?.error || e.message));
+                        } finally {
+                          setHublaCorrigindoValores(false);
+                        }
+                      }}
+                      className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-orange-400 hover:bg-orange-500/10 text-xs font-bold transition-all disabled:opacity-50"
+                    >
+                      <span>💰</span>{hublaCorrigindoValores ? 'Corrigindo...' : 'Corrigir Valores Hubla'}
                     </button>
                   </div>
                   <div className="border-t border-zinc-800 p-1">
