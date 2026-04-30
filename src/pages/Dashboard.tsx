@@ -455,6 +455,21 @@ export function Dashboard() {
                     >
                       <span>💰</span>{hublaCorrigindoValores ? 'Corrigindo...' : 'Corrigir Valores Hubla'}
                     </button>
+                    <button
+                      onClick={async () => {
+                        somClick(); setDropdownAberto(false);
+                        if (!confirm('Corrigir vendas PRF Boleto Parcelado de R$747 → R$797?\n\nIsso vai atualizar TODAS as vendas do curso PRF pagas com Boleto Parcelado que estão com seller_value = 747.')) return;
+                        try {
+                          const r = await api.post('/admin/hubla/corrigir-prf-boleto');
+                          alert(`✅ ${r.data.corrigidas} vendas PRF Boleto corrigidas (747 → 797).`);
+                        } catch (e: any) {
+                          alert('Erro: ' + (e?.response?.data?.error || e.message));
+                        }
+                      }}
+                      className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-yellow-400 hover:bg-yellow-500/10 text-xs font-bold transition-all"
+                    >
+                      <span>🔧</span>Corrigir PRF Boleto 747→797
+                    </button>
                   </div>
                   <div className="border-t border-zinc-800 p-1">
                     <p className="text-zinc-600 text-[9px] font-black uppercase tracking-widest px-3 py-1.5">Análise</p>
