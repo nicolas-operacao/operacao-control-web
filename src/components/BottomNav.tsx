@@ -3,7 +3,7 @@ import { somClick, somHover } from '../services/hudSounds';
 
 interface BottomNavProps {
   activeTab: string;
-  onNovaVenda: () => void;
+  onNovaVenda?: () => void;
 }
 
 export function BottomNav({ activeTab, onNovaVenda }: BottomNavProps) {
@@ -48,16 +48,16 @@ export function BottomNav({ activeTab, onNovaVenda }: BottomNavProps) {
       destaque: true,
     },
     {
+      id: 'crm',
+      label: 'CRM',
+      icon: '🎯',
+      onClick: () => navigate('/crm'),
+    },
+    {
       id: 'arsenal',
       label: 'Arsenal',
       icon: '⚡',
       onClick: () => navigate('/arsenal'),
-    },
-    {
-      id: 'ranking',
-      label: 'Ranking',
-      icon: '🏆',
-      onClick: scrollToRanking,
     },
     {
       id: 'perfil',
@@ -79,8 +79,14 @@ export function BottomNav({ activeTab, onNovaVenda }: BottomNavProps) {
       id: 'nova-venda',
       label: 'Reg. Venda',
       icon: '➕',
-      onClick: onNovaVenda,
+      onClick: () => onNovaVenda?.(),
       destaque: true,
+    },
+    {
+      id: 'crm',
+      label: 'CRM',
+      icon: '🎯',
+      onClick: () => navigate('/crm'),
     },
     {
       id: 'relatorio',
@@ -115,7 +121,7 @@ export function BottomNav({ activeTab, onNovaVenda }: BottomNavProps) {
           return (
             <button
               key={item.id}
-              onClick={() => { somClick(); item.onClick(); }}
+              onClick={() => { somClick(); item.onClick?.(); }}
               className={`flex-1 flex flex-col items-center justify-center gap-0.5 transition-all active:scale-95 select-none
                 ${item.destaque
                   ? 'bg-yellow-400 text-black shadow-[0_-4px_16px_rgba(250,204,21,0.3)]'
