@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { crmApi, ESTAGIOS_ATIVOS, ESTAGIOS_PERDA } from '../../services/crm/crmApi';
-import type { LeadDetalhe } from '../../services/crm/crmApi';
+import type { LeadDetalhe, WaMensagem } from '../../services/crm/crmApi';
 import { somClick, somHover } from '../../services/hudSounds';
 import { toast } from '../../services/toast';
 
@@ -23,7 +23,7 @@ const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', curren
 
 export function LeadModal({ leadId, onClose, onUpdated }: Props) {
   const [lead, setLead] = useState<LeadDetalhe | null>(null);
-  const [aba, setAba] = useState<'info' | 'atividades' | 'tarefas' | 'historico'>('info');
+  const [aba, setAba] = useState<'info' | 'atividades' | 'tarefas' | 'historico' | 'whatsapp'>('info');
   const [editando, setEditando] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [movendo, setMovendo] = useState(false);
@@ -48,14 +48,34 @@ export function LeadModal({ leadId, onClose, onUpdated }: Props) {
   const [waTemplates, setWaTemplates] = useState<any[]>([]);
   const [enviandoWa, setEnviandoWa] = useState(false);
 
+  // WA chat
+  const [waMensagens, setWaMensagens] = useState<WaMensagem[]>([]);
+  const chatBottomRef = useRef<HTMLDivElement>(null);
+
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const isAdmin = user.role === 'admin';
 
   useEffect(() => {
     carregarLead();
-    crmApi.whatsapp.contas().then(setWaContas).catch(() => {});
+    crmApi.whatsapp.contas().then(c => {
+      setWaContas(c);
+      const online = c.find((x: any) => x.status === 'open' || x.status === 'connected');
+      if (online) setWaContaSelecionada(online.instance_name);
+    }).catch(() => {});
     crmApi.whatsapp.templates().then(setWaTemplates).catch(() => {});
   }, [leadId]);
+
+  // Carrega e faz polling de mensagens quando a aba chat está aberta
+  useEffect(() => {
+    if (aba !== 'whatsapp') return;
+    const carregar = () => crmApi.whatsapp.mensagens(leadId).then(m => {
+      setWaMensagens(m);
+      setTimeout(() => chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+    }).catch(() => {});
+    carregar();
+    const t = setInterval(carregar, 5000);
+    return () => clearInterval(t);
+  }, [aba, leadId]);
 
   async function carregarLead() {
     try {
@@ -138,6 +158,10 @@ export function LeadModal({ leadId, onClose, onUpdated }: Props) {
       });
       setWaMensagem('');
       carregarLead();
+      crmApi.whatsapp.mensagens(leadId).then(m => {
+        setWaMensagens(m);
+        setTimeout(() => chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+      }).catch(() => {});
       toast.success('Mensagem enviada!');
     } catch (e: any) { toast.error(e.message || 'Erro ao enviar'); }
     finally { setEnviandoWa(false); }
@@ -222,6 +246,7 @@ export function LeadModal({ leadId, onClose, onUpdated }: Props) {
         <div className="flex border-b border-zinc-800 flex-shrink-0 overflow-x-auto scrollbar-hide">
           {([
             { key: 'info',       label: '📋 Info'       },
+            { key: 'whatsapp',   label: '💬 Chat'       },
             { key: 'atividades', label: '📌 Atividades' },
             { key: 'tarefas',    label: '✅ Tarefas'    },
             { key: 'historico',  label: '🕒 Histórico'  },
@@ -416,6 +441,78 @@ export function LeadModal({ leadId, onClose, onUpdated }: Props) {
                   </div>
                 );
               })}
+            </div>
+          )}
+
+          {/* ── WHATSAPP CHAT ────────────────────────────────────────────── */}
+          {aba === 'whatsapp' && (
+            <div className="flex flex-col h-full" style={{ minHeight: 360 }}>
+              {/* Mensagens */}
+              <div className="flex-1 overflow-y-auto space-y-2 pb-2" style={{ maxHeight: 340 }}>
+                {waMensagens.length === 0 ? (
+                  <div className="text-center py-10 text-zinc-700 italic text-sm">Nenhuma mensagem ainda.</div>
+                ) : waMensagens.map(m => {
+                  const enviada = m.direcao === 'enviada';
+                  return (
+                    <div key={m.id} className={`flex ${enviada ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`max-w-[78%] rounded-2xl px-3 py-2 text-sm shadow-sm ${
+                        enviada
+                          ? 'bg-green-700 text-white rounded-br-sm'
+                          : 'bg-zinc-800 text-zinc-100 rounded-bl-sm'
+                      }`}>
+                        {m.conta_nome && !enviada && (
+                          <p className="text-[9px] font-black uppercase text-zinc-500 mb-0.5">{m.conta_nome}</p>
+                        )}
+                        <p className="whitespace-pre-wrap break-words">{m.conteudo}</p>
+                        <p className={`text-[9px] mt-1 text-right ${enviada ? 'text-green-300' : 'text-zinc-600'}`}>
+                          {new Date(m.created_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+                <div ref={chatBottomRef} />
+              </div>
+
+              {/* Envio */}
+              {lead.telefone && waContas.filter(c => c.status === 'open' || c.status === 'connected').length > 0 ? (
+                <div className="border-t border-zinc-800 pt-3 mt-2 space-y-2 flex-shrink-0">
+                  <div className="flex gap-2">
+                    <select value={waContaSelecionada} onChange={e => setWaContaSelecionada(e.target.value)}
+                      className="flex-1 bg-zinc-950 border border-zinc-800 text-white rounded-lg px-2 py-1.5 text-xs outline-none">
+                      <option value="">Conta...</option>
+                      {waContas.filter(c => c.status === 'open' || c.status === 'connected').map(c => (
+                        <option key={c.instance_name} value={c.instance_name}>{c.nome}</option>
+                      ))}
+                    </select>
+                    {waTemplates.length > 0 && (
+                      <select onChange={e => {
+                        const t = waTemplates.find((t: any) => String(t.id) === e.target.value);
+                        if (t) setWaMensagem(t.texto.replace('{nome}', lead.nome.split(' ')[0]));
+                        e.target.value = '';
+                      }} className="flex-1 bg-zinc-950 border border-zinc-800 text-zinc-400 rounded-lg px-2 py-1.5 text-xs outline-none">
+                        <option value="">Template...</option>
+                        {waTemplates.map((t: any) => <option key={t.id} value={t.id}>{t.nome}</option>)}
+                      </select>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <textarea value={waMensagem} onChange={e => setWaMensagem(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (!enviandoWa && waContaSelecionada && waMensagem.trim()) enviarWhatsApp(); } }}
+                      placeholder="Digite a mensagem... (Enter para enviar)"
+                      rows={2}
+                      className="flex-1 bg-zinc-950 border border-zinc-800 focus:border-green-500 text-white rounded-xl px-3 py-2 text-sm outline-none resize-none" />
+                    <button onClick={() => { somClick(); enviarWhatsApp(); }} disabled={enviandoWa || !waContaSelecionada || !waMensagem.trim()}
+                      className="px-4 bg-green-600 hover:bg-green-500 disabled:opacity-40 text-white font-black rounded-xl text-sm transition-all flex-shrink-0">
+                      {enviandoWa ? '...' : '▶'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-zinc-600 text-xs text-center pt-3 border-t border-zinc-800">
+                  {lead.telefone ? 'Nenhuma conta WhatsApp conectada.' : 'Lead sem telefone cadastrado.'}
+                </p>
+              )}
             </div>
           )}
 
