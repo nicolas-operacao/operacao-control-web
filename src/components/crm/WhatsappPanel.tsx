@@ -11,6 +11,9 @@ export function WhatsappPanel() {
   const [instanceNova, setInstanceNova] = useState('');
   const [salvandoConta, setSalvandoConta] = useState(false);
   const [qrData, setQrData] = useState<Record<string, any>>({});
+  const [pairingData, setPairingData] = useState<Record<string, string>>({});
+  const [pairingPhone, setPairingPhone] = useState<Record<string, string>>({});
+  const [pairingLoading, setPairingLoading] = useState<string | null>(null);
   const [verificando, setVerificando] = useState<string | null>(null);
 
   const carregar = useCallback(async () => {
@@ -49,6 +52,19 @@ export function WhatsappPanel() {
       const data = await crmApi.whatsapp.qr(instanceName);
       setQrData(prev => ({ ...prev, [instanceName]: data }));
     } catch (e: any) { toast.error(e.message || 'Erro ao gerar QR Code'); }
+  }
+
+  async function solicitarPairingCode(instanceName: string) {
+    const phone = pairingPhone[instanceName]?.trim();
+    if (!phone) return toast.error('Digite o número de telefone');
+    setPairingLoading(instanceName);
+    try {
+      const data = await crmApi.whatsapp.pairingCode(instanceName, phone);
+      const code = data?.pairingCode || data?.code || JSON.stringify(data);
+      setPairingData(prev => ({ ...prev, [instanceName]: code }));
+      setQrData(prev => { const n = { ...prev }; delete n[instanceName]; return n; });
+    } catch (e: any) { toast.error(e.response?.data?.error || e.message || 'Erro ao gerar código'); }
+    finally { setPairingLoading(null); }
   }
 
   async function verificarStatus(instanceName: string) {
@@ -158,12 +174,16 @@ export function WhatsappPanel() {
                     className="p-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded-lg transition-all text-xs" title="Verificar status">
                     {verificando === conta.instance_name ? '⟳' : '↻'}
                   </button>
-                  {!isOnline(conta.status) && (
-                    <button onMouseEnter={somHover} onClick={() => { somClick(); carregarQR(conta.instance_name); }}
+                  {!isOnline(conta.status) && (<>
+                    <button onMouseEnter={somHover} onClick={() => { somClick(); carregarQR(conta.instance_name); setPairingData(prev => { const n = { ...prev }; delete n[conta.instance_name]; return n; }); }}
                       className="px-2.5 py-1.5 bg-green-900/40 hover:bg-green-800 text-green-400 text-[10px] font-black rounded-lg transition-all">
                       QR Code
                     </button>
-                  )}
+                    <button onMouseEnter={somHover} onClick={() => { somClick(); setQrData(prev => { const n = { ...prev }; delete n[conta.instance_name]; return n; }); setPairingData(prev => { const n = { ...prev }; delete n[conta.instance_name]; return n; }); setPairingPhone(prev => ({ ...prev, [conta.instance_name]: prev[conta.instance_name] || '' })); }}
+                      className="px-2.5 py-1.5 bg-blue-900/40 hover:bg-blue-800 text-blue-400 text-[10px] font-black rounded-lg transition-all">
+                      Código
+                    </button>
+                  </>)}
                   {isOnline(conta.status) && (
                     <button onMouseEnter={somHover} onClick={() => { somClick(); desconectar(conta.instance_name); }}
                       className="px-2.5 py-1.5 bg-red-950/40 hover:bg-red-900 text-red-400 text-[10px] font-black rounded-lg transition-all">
@@ -192,6 +212,51 @@ export function WhatsappPanel() {
                     className="px-4 py-2 bg-green-600 text-white font-black text-xs rounded-lg uppercase tracking-widest">
                     ✓ Já escaneei — verificar conexão
                   </button>
+                </div>
+              )}
+
+              {/* Pairing Code (conexão por número de telefone) */}
+              {conta.instance_name in pairingPhone && !qrData[conta.instance_name] && (
+                <div className="mt-4 bg-zinc-950/80 border border-blue-800/40 rounded-xl p-4 space-y-3">
+                  <p className="text-blue-400 font-black text-xs uppercase tracking-wider">📱 Conectar pelo número</p>
+                  <p className="text-zinc-500 text-xs">Digite o número do celular que será vinculado (com DDD, sem o 55):</p>
+                  {!pairingData[conta.instance_name] ? (<>
+                    <div className="flex gap-2">
+                      <input
+                        value={pairingPhone[conta.instance_name] || ''}
+                        onChange={e => setPairingPhone(prev => ({ ...prev, [conta.instance_name]: e.target.value }))}
+                        placeholder="Ex: 11999998888"
+                        className="flex-1 bg-zinc-900 border border-zinc-700 focus:border-blue-500 text-white rounded-lg px-3 py-2 text-sm outline-none font-mono"
+                      />
+                      <button onClick={() => { somClick(); solicitarPairingCode(conta.instance_name); }} disabled={pairingLoading === conta.instance_name}
+                        className="px-4 bg-blue-700 hover:bg-blue-600 disabled:opacity-50 text-white font-black text-xs rounded-lg uppercase tracking-widest transition-all">
+                        {pairingLoading === conta.instance_name ? '...' : 'Gerar'}
+                      </button>
+                    </div>
+                  </>) : (<>
+                    <div className="text-center bg-zinc-900 rounded-xl py-5 px-4">
+                      <p className="text-zinc-500 text-[10px] uppercase tracking-widest mb-2">Seu código de vinculação</p>
+                      <p className="text-4xl font-black text-white tracking-[0.3em] font-mono">{pairingData[conta.instance_name]}</p>
+                    </div>
+                    <div className="bg-blue-950/30 border border-blue-800/30 rounded-lg p-3 text-xs text-blue-300 space-y-1">
+                      <p className="font-black">Como usar:</p>
+                      <p>1. Abra o WhatsApp no celular</p>
+                      <p>2. Toque em <strong>⋮ Menu → Dispositivos vinculados</strong></p>
+                      <p>3. Toque em <strong>Vincular dispositivo</strong></p>
+                      <p>4. Na tela seguinte toque em <strong>"Vincular com número de telefone"</strong></p>
+                      <p>5. Digite o código acima</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => { somClick(); verificarStatus(conta.instance_name); }}
+                        className="flex-1 px-4 py-2 bg-green-700 hover:bg-green-600 text-white font-black text-xs rounded-lg uppercase tracking-widest">
+                        ✓ Já digitei — verificar conexão
+                      </button>
+                      <button onClick={() => { somClick(); setPairingData(prev => { const n = { ...prev }; delete n[conta.instance_name]; return n; }); }}
+                        className="px-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-xs font-black rounded-lg transition-all">
+                        Novo código
+                      </button>
+                    </div>
+                  </>)}
                 </div>
               )}
             </div>
