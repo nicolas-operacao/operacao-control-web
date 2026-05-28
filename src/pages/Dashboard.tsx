@@ -68,6 +68,7 @@ export function Dashboard() {
   });
 
   const [todasVendas, setTodasVendas] = useState<Venda[]>([]);
+  const [fotosPorId, setFotosPorId] = useState<Map<string, string>>(new Map());
 
   // Classifica uma venda em 'trafego' | 'checkout' | 'vendedor'
   function classificarVenda(v: { seller_id?: any; payment_method?: string }): 'trafego' | 'checkout' | 'vendedor' {
@@ -161,7 +162,12 @@ export function Dashboard() {
 
   async function fetchVendasPlacar() {
     try {
-      const response = await api.get('/sales');
+      const [response, rankingRes] = await Promise.all([
+        api.get('/sales'),
+        api.get('/ranking').catch(() => ({ data: [] })),
+      ]);
+      const ranking: any[] = Array.isArray(rankingRes.data) ? rankingRes.data : (rankingRes.data.data || []);
+      setFotosPorId(new Map(ranking.filter(u => u.foto_url).map(u => [String(u.id), u.foto_url])));
       setTodasVendas(response.data);
       const vendasAprovadas = response.data.filter((v: Venda) => v.status === 'aprovada');
       // BRT-aware: usa offset fixo de 3h para calcular hoje/semana no horário de Brasília
@@ -335,13 +341,13 @@ export function Dashboard() {
   const isCurrentMonth = mesSelecionado.mes === new Date().getMonth() && mesSelecionado.ano === new Date().getFullYear();
 
   const vendedoresLista = (() => {
-    const map = new Map<string, { id: string; nome: string; totalMes: number; qtdMes: number; totalHoje: number }>();
+    const map = new Map<string, { id: string; nome: string; totalMes: number; qtdMes: number; totalHoje: number; foto_url?: string }>();
     const nowBRT = new Date(Date.now() - BRT_MS);
     const hoje = { y: nowBRT.getUTCFullYear(), m: nowBRT.getUTCMonth(), d: nowBRT.getUTCDate() };
     todasVendas.forEach(v => {
       if (!v.seller_name || v.seller_name === 'Desconhecido' || v.status !== 'aprovada') return;
       const key = String(v.seller_id ?? v.seller_name);
-      if (!map.has(key)) map.set(key, { id: key, nome: v.seller_name, totalMes: 0, qtdMes: 0, totalHoje: 0 });
+      if (!map.has(key)) map.set(key, { id: key, nome: v.seller_name, totalMes: 0, qtdMes: 0, totalHoje: 0, foto_url: fotosPorId.get(key) });
       const e = map.get(key)!;
       const brt = new Date(new Date(v.created_at).getTime() - BRT_MS);
       if (brt.getUTCFullYear() === mesSelecionado.ano && brt.getUTCMonth() === mesSelecionado.mes) { e.totalMes += Number(v.sale_value); e.qtdMes++; }
@@ -767,7 +773,11 @@ export function Dashboard() {
                     className="relative bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-600 rounded-xl p-3 text-left transition-all hover:scale-[1.02] active:scale-95"
                   >
                     {idx < 3 && <span className="absolute top-2 right-2 text-xs">{POSICOES[idx]}</span>}
-                    <div className="w-8 h-8 rounded-full bg-zinc-700 border border-zinc-600 flex items-center justify-center mb-2 text-[10px] font-black text-zinc-300">{iniciais}</div>
+                    {v.foto_url ? (
+                      <img src={v.foto_url} alt={v.nome} className="w-8 h-8 rounded-full object-cover border border-zinc-600 mb-2" />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-zinc-700 border border-zinc-600 flex items-center justify-center mb-2 text-[10px] font-black text-zinc-300">{iniciais}</div>
+                    )}
                     <p className="text-white text-xs font-black truncate">{v.nome.split(' ')[0]}</p>
                     <p className="text-green-400 font-black text-[11px] mt-1">{v.totalMes.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
                     <p className="text-zinc-600 text-[10px]">{v.qtdMes} venda{v.qtdMes !== 1 ? 's' : ''}</p>
