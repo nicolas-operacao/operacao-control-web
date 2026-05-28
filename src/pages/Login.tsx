@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { api } from '../services/api';
 import { somClick, somHover, somLogin } from '../services/hudSounds';
@@ -10,6 +10,22 @@ export function Login() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+
+  const [serverStatus, setServerStatus] = useState<'warming' | 'ready' | 'offline'>('warming');
+
+  useEffect(() => {
+    let cancelled = false;
+    const ping = async () => {
+      try {
+        await api.get('/ranking/ping', { timeout: 15000 });
+        if (!cancelled) setServerStatus('ready');
+      } catch {
+        if (!cancelled) setServerStatus('offline');
+      }
+    };
+    ping();
+    return () => { cancelled = true; };
+  }, []);
 
   // Reset de senha
   const [showReset, setShowReset] = useState(false);
@@ -45,29 +61,23 @@ export function Login() {
     setError('');
 
     try {
-      // 🔥 Rota exata do seu sistema mantida
       const response = await api.post('/auth/login', { email, password });
-      
+
       const { user, token } = response.data;
-      
-      // 1. BLINDAGEM: Limpa qualquer fantasma do usuário anterior
+
       localStorage.removeItem('user');
       localStorage.removeItem('token');
-      
-      // 2. Salva o novo recruta
+
       localStorage.setItem('user', JSON.stringify(user));
       localStorage.setItem('token', token);
-      
-      // 3. Destrava as requisições seguras
+
       api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
-      // Mostra a tela de sucesso imediatamente
       setUserName(user.name);
       setShowSuccess(true);
       setIsLoading(false);
       somLogin();
 
-      // Busca ranking em paralelo para montar a mensagem tática (não bloqueia a tela)
       const normaliza = (eq: string) => String(eq || '').trim().toUpperCase();
       const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
       api.get('/ranking').then(rankingRes => {
@@ -96,7 +106,6 @@ export function Login() {
             msg = `Bora guerreiro! Dá pra alcançar — vocês estão ${fmt(delta)} atrás. Parte pra cima!`;
           }
         }
-        // Atualiza o localStorage com a mensagem pronta
         const payload = JSON.parse(localStorage.getItem('mensagem_tatica') || '{}');
         localStorage.setItem('mensagem_tatica', JSON.stringify({ ...payload, mensagem: msg }));
         setMensagemTatica(msg);
@@ -104,14 +113,12 @@ export function Login() {
         setMensagemTatica('');
       });
 
-      // Guarda a mensagem e equipe no localStorage para o modal na próxima tela
       localStorage.setItem('mensagem_tatica', JSON.stringify({
         mensagem: '',
         equipe: user.role === 'admin' ? 'admin' : (user.equipe || 'A'),
         role: user.role,
       }));
 
-      // Redireciona após 2.5 segundos
       const destino = user.role === 'admin' ? '/dashboard' : user.role === 'suporte' ? '/liberacoes' : user.role === 'trafego' ? '/trafego' : '/vendas';
       setTimeout(() => navigate(destino), 2500);
 
@@ -119,20 +126,17 @@ export function Login() {
       if (err.response) {
         setError(err.response.data.error || 'Acesso negado. Credenciais inválidas.');
       } else {
-        setError('Erro ao conectar com o Comando Central.');
+        setError('Servidor indisponível. Aguarde alguns segundos e tente novamente.');
+        setServerStatus('offline');
       }
       setIsLoading(false);
     }
   }
 
-  // ==========================================
-  // 🔥 FASE 2: TELA DE SUCESSO (ACESSO CONCEDIDO)
-  // ==========================================
   if (showSuccess) {
     const isVendedor = (() => {
       try { return JSON.parse(localStorage.getItem('user') || '{}').role === 'vendedor'; } catch { return false; }
     })();
-    // Dispara no próximo tick — ainda dentro do contexto de gesto do clique de login
     if (isVendedor) {
       setTimeout(() => window.dispatchEvent(new CustomEvent('operacao:music', { detail: { action: 'start' } })), 0);
     }
@@ -164,14 +168,12 @@ export function Login() {
   return (
     <div className="min-h-screen bg-zinc-950 flex flex-col justify-center items-center p-4 relative overflow-hidden font-sans">
 
-      {/* Gradientes de fundo */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-yellow-400/5 rounded-full blur-[120px]" />
         <div className="absolute bottom-0 left-0 w-64 h-64 bg-yellow-600/5 rounded-full blur-[80px]" />
         <div className="absolute top-0 right-0 w-48 h-48 bg-zinc-700/20 rounded-full blur-[80px]" />
       </div>
 
-      {/* Logo + título acima do card */}
       <div className="z-10 text-center mb-8 animate-in fade-in slide-in-from-top-4 duration-500">
         <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-yellow-400 shadow-[0_0_40px_rgba(250,204,21,0.4)] mb-4">
           <span className="text-4xl font-black text-black leading-none select-none">OC</span>
@@ -180,13 +182,10 @@ export function Login() {
         <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest mt-1">Sistema Tático de Vendas</p>
       </div>
 
-      {/* Card */}
       <div className="bg-zinc-900/80 backdrop-blur border border-zinc-800 p-8 rounded-2xl shadow-[0_0_60px_rgba(0,0,0,0.6)] w-full max-w-sm z-10 relative overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
 
-        {/* Linha decorativa topo */}
         <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-yellow-400/60 to-transparent" />
 
-        {/* Overlay de loading */}
         {isLoading && (
           <div className="absolute inset-0 bg-zinc-900/90 backdrop-blur-sm z-20 flex flex-col items-center justify-center animate-in fade-in duration-200 rounded-2xl">
             <div className="w-12 h-12 border-4 border-zinc-800 border-t-yellow-400 rounded-full animate-spin shadow-[0_0_15px_rgba(250,204,21,0.4)] mb-3" />
@@ -249,6 +248,19 @@ export function Login() {
           </button>
         </form>
 
+        {serverStatus === 'warming' && (
+          <div className="mt-4 flex items-center justify-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse" />
+            <p className="text-zinc-600 text-[10px] uppercase tracking-widest font-bold">Conectando ao servidor...</p>
+          </div>
+        )}
+        {serverStatus === 'offline' && (
+          <div className="mt-4 flex items-center justify-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-red-500" />
+            <p className="text-zinc-600 text-[10px] uppercase tracking-widest font-bold">Servidor offline</p>
+          </div>
+        )}
+
         <div className="mt-6 pt-5 border-t border-zinc-800/60 text-center space-y-2">
           <button
             type="button"
@@ -264,7 +276,6 @@ export function Login() {
         </div>
       </div>
 
-      {/* Modal de reset de senha */}
       {showReset && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 w-full max-w-sm space-y-4 animate-in zoom-in duration-200">
