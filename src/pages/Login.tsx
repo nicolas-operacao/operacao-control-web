@@ -5,11 +5,17 @@ import { somClick, somHover, somLogin } from '../services/hudSounds';
 
 export function Login() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(() => localStorage.getItem('saved_email') ?? '');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [lembrarEmail, setLembrarEmail] = useState(() => !!localStorage.getItem('saved_email'));
+  const passwordRef = React.useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (email) passwordRef.current?.focus();
+  }, []);
 
   const [serverStatus, setServerStatus] = useState<'warming' | 'ready' | 'offline'>('warming');
 
@@ -76,6 +82,13 @@ export function Login() {
       
       // 3. Destrava as requisições seguras
       api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+
+      // 4. Lembrar e-mail
+      if (lembrarEmail) {
+        localStorage.setItem('saved_email', email);
+      } else {
+        localStorage.removeItem('saved_email');
+      }
 
       // Mostra a tela de sucesso imediatamente
       setUserName(user.name);
@@ -231,12 +244,22 @@ export function Login() {
               placeholder="seu@email.com"
               className="w-full bg-zinc-950 border border-zinc-800 hover:border-zinc-700 focus:border-yellow-400 text-white rounded-xl px-4 py-3 text-sm outline-none transition-colors placeholder:text-zinc-700"
             />
+            <label className="flex items-center gap-2 cursor-pointer mt-2 w-fit">
+              <input
+                type="checkbox"
+                checked={lembrarEmail}
+                onChange={e => setLembrarEmail(e.target.checked)}
+                className="w-3.5 h-3.5 accent-yellow-400 cursor-pointer"
+              />
+              <span className="text-zinc-600 hover:text-zinc-400 text-[10px] font-bold uppercase tracking-widest transition-colors select-none">Lembrar e-mail</span>
+            </label>
           </div>
 
           <div>
             <label className="block text-zinc-500 text-[10px] font-black uppercase tracking-widest mb-1.5">Senha</label>
             <div className="relative">
               <input
+                ref={passwordRef}
                 type={showPassword ? 'text' : 'password'}
                 required
                 value={password}

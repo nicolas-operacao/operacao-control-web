@@ -370,6 +370,31 @@ export function GuerraEquipes({ refreshTrigger, isAdmin = false }: GuerraEquipes
               </p>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
+              {/* Compartilhar resultado */}
+              <button
+                onMouseEnter={somHover}
+                onClick={() => {
+                  somClick();
+                  const liderNome = liderA ? 'Equipe A ⚡' : liderB ? 'Equipe B 🔥' : null;
+                  const linhas = [
+                    '⚔️ *GUERRA × EQUIPES — Operação Control*',
+                    '',
+                    `⚡ Equipe A: *${fmt(totalA)}*`,
+                    `🔥 Equipe B: *${fmt(totalB)}*`,
+                    '',
+                    empate || !liderNome
+                      ? '🤝 Empate! Cada venda conta!'
+                      : `🏆 ${liderNome} está na frente por *${fmt(delta)}*`,
+                    '',
+                    `🎯 Progresso: ${progressoXP.toFixed(1)}% da meta`,
+                    '',
+                    '— Operação Control ⚡',
+                  ];
+                  window.open('https://wa.me/?text=' + encodeURIComponent(linhas.join('\n')), '_blank');
+                }}
+                title="Compartilhar no WhatsApp"
+                className="w-9 h-9 flex items-center justify-center bg-green-950/40 hover:bg-green-600 border border-green-800/50 hover:border-green-500 rounded-lg text-green-400 hover:text-white transition-all text-base"
+              >📲</button>
               <button
                 onMouseEnter={somHover}
                 onClick={() => { somClick(); fetchRankingEDesafio(); }}

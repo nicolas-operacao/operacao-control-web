@@ -64,6 +64,7 @@ export function Vendas() {
   const [vendas, setVendas] = useState<Venda[]>([]);
   
   const [filtro, setFiltro] = useState<'dia' | 'semana' | 'mes' | 'reembolsos'>('mes');
+  const [busca, setBusca] = useState('');
 
   const [productName, setProductName] = useState('');
   const [customerName, setCustomerName] = useState('');
@@ -224,8 +225,8 @@ export function Vendas() {
         setProductName(prodRes.data[0].nome);
         setSaleValue(String(prodRes.data[0].valor));
       }
-    } catch (error) {
-      console.error('Erro ao carregar dados:', error);
+    } catch {
+      // falha silenciosa — o polling vai tentar novamente em 6s
     }
   }, []);
 
@@ -346,32 +347,43 @@ export function Vendas() {
   // Só refaz as contas se entrar uma venda nova
   // ========================================================
   const vendasFiltradas = useMemo(() => {
+    const buscaNorm = busca.trim().toLowerCase();
     return vendas.filter(venda => {
       if (String(venda.seller_id) !== String(user.id)) return false;
       if (!venda.created_at) return false;
-      
+
       const isCancelada = checkCancelada(venda.status);
 
-      if (filtro === 'reembolsos') return isCancelada;
-      if (isCancelada) return false;
+      if (filtro === 'reembolsos') {
+        if (!isCancelada) return false;
+      } else {
+        if (isCancelada) return false;
 
-      const dataVenda = new Date(venda.created_at);
-      const hoje = new Date();
-      
-      if (filtro === 'dia') return dataVenda.toDateString() === hoje.toDateString();
-      if (filtro === 'semana') {
-        const umaSemanaAtras = new Date();
-        umaSemanaAtras.setDate(hoje.getDate() - 7);
-        return dataVenda >= umaSemanaAtras;
+        const dataVenda = new Date(venda.created_at);
+        const hoje = new Date();
+        const toDateBRT = (d: Date) => d.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+
+        if (filtro === 'dia' && toDateBRT(dataVenda) !== toDateBRT(hoje)) return false;
+        if (filtro === 'semana') {
+          const umaSemanaAtras = new Date(hoje.getTime() - 7 * 24 * 60 * 60 * 1000);
+          if (dataVenda < umaSemanaAtras) return false;
+        }
       }
-      return true; 
+
+      if (buscaNorm) {
+        const matchCliente = venda.customer_name?.toLowerCase().includes(buscaNorm);
+        const matchProduto = venda.product_name?.toLowerCase().includes(buscaNorm);
+        if (!matchCliente && !matchProduto) return false;
+      }
+
+      return true;
     });
-  }, [vendas, filtro, user.id]);
+  }, [vendas, filtro, busca, user.id]);
 
   const ITENS_POR_PAGINA = 10;
   const [paginaAtual, setPaginaAtual] = useState(1);
-  // Reset page when filter changes
-  useEffect(() => { setPaginaAtual(1); }, [filtro]);
+  // Reset page when filter or search changes
+  useEffect(() => { setPaginaAtual(1); }, [filtro, busca]);
   const totalPaginas = Math.max(1, Math.ceil(vendasFiltradas.length / ITENS_POR_PAGINA));
   const vendasPaginadas = vendasFiltradas.slice((paginaAtual - 1) * ITENS_POR_PAGINA, paginaAtual * ITENS_POR_PAGINA);
 
@@ -499,6 +511,20 @@ export function Vendas() {
         {MOSTRAR_HISTORICO_E_COMISSAO && <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 md:p-6 shadow-2xl">
           {/* Filtros + CTA */}
           <div className="flex flex-col gap-3 mb-5 border-b border-zinc-800 pb-5">
+            {/* Barra de busca */}
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 text-sm pointer-events-none">🔍</span>
+              <input
+                type="text"
+                value={busca}
+                onChange={e => setBusca(e.target.value)}
+                placeholder="Buscar por cliente ou produto..."
+                className="w-full bg-zinc-950 border border-zinc-800 hover:border-zinc-700 focus:border-yellow-400/60 text-white rounded-xl pl-9 pr-4 py-2.5 text-sm outline-none transition-colors placeholder:text-zinc-600"
+              />
+              {busca && (
+                <button onClick={() => setBusca('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors text-base">×</button>
+              )}
+            </div>
             <div className="flex flex-wrap gap-2">
               {(['dia','semana','mes'] as const).map(f => (
                 <button
@@ -644,19 +670,45 @@ export function Vendas() {
                         </span>
                       </td>
                       <td className="py-4 text-center">
-                        {isCancelada ? (
-                          <span className="text-[10px] font-bold text-red-500/50 uppercase tracking-widest">Estornado</span>
-                        ) : venda.edit_status === 'pendente' ? (
-                          <span className="text-[10px] font-black text-yellow-500 bg-yellow-500/10 px-2 py-1 rounded border border-yellow-500/30">⏳ EM ANÁLISE</span>
-                        ) : (
-                          <button
-                            onMouseEnter={somHover}
-                            onClick={() => { somClick(); handleOpenEdit(venda); }}
-                            className="text-blue-400 hover:text-blue-300 text-[10px] font-bold uppercase tracking-widest transition-colors border border-blue-400/30 bg-blue-950/20 px-3 py-1.5 rounded"
-                          >
-                            Corrigir Erro
-                          </button>
-                        )}
+                        <div className="flex items-center justify-center gap-2">
+                          {isCancelada ? (
+                            <span className="text-[10px] font-bold text-red-500/50 uppercase tracking-widest">Estornado</span>
+                          ) : venda.edit_status === 'pendente' ? (
+                            <span className="text-[10px] font-black text-yellow-500 bg-yellow-500/10 px-2 py-1 rounded border border-yellow-500/30">⏳ EM ANÁLISE</span>
+                          ) : (
+                            <button
+                              onMouseEnter={somHover}
+                              onClick={() => { somClick(); handleOpenEdit(venda); }}
+                              className="text-blue-400 hover:text-blue-300 text-[10px] font-bold uppercase tracking-widest transition-colors border border-blue-400/30 bg-blue-950/20 px-3 py-1.5 rounded"
+                            >
+                              Corrigir
+                            </button>
+                          )}
+                          {isAprovada && (
+                            <button
+                              onMouseEnter={somHover}
+                              onClick={() => {
+                                somClick();
+                                const data = venda.created_at
+                                  ? new Date(venda.created_at).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })
+                                  : '--';
+                                const valor = (Number(venda.sale_value) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                                const msg = [
+                                  '✅ Venda registrada!',
+                                  `👤 Cliente: ${venda.customer_name}`,
+                                  `📦 Produto: ${venda.product_name}`,
+                                  `💰 Valor: ${valor}`,
+                                  `🗓️ Data: ${data}`,
+                                  '',
+                                  '— Operação Control ⚡',
+                                ].join('\n');
+                                window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
+                              }}
+                              title="Compartilhar via WhatsApp"
+                              className="flex items-center justify-center w-7 h-7 rounded-lg bg-green-950/40 hover:bg-green-600 text-green-400 hover:text-white border border-green-800/50 hover:border-green-500 transition-all active:scale-95 text-sm"
+                            >📲</button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
