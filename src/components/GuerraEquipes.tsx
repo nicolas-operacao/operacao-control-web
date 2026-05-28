@@ -208,8 +208,8 @@ export function GuerraEquipes({ refreshTrigger, isAdmin = false }: GuerraEquipes
   const [totalA,  setTotalA]  = useState(0);
   const [totalB,  setTotalB]  = useState(0);
   const [totalTodasVendas, setTotalTodasVendas] = useState(0);
-  const [showAllA, setShowAllA] = useState(false);
-  const [showAllB, setShowAllB] = useState(false);
+  const [showAllA, setShowAllA] = useState(true);
+  const [showAllB, setShowAllB] = useState(true);
 
   const currentUserId = useMemo(() => {
     try { return String(JSON.parse(localStorage.getItem('user') || '{}').id ?? ''); }
