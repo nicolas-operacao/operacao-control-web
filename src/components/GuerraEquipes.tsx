@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { api } from '../services/api';
 import { somClick, somHover } from '../services/hudSounds';
 import { ModalGerenciarEquipes } from './ModalGerenciarEquipes';
@@ -95,13 +95,14 @@ function BadgeNivel({ count }: { count: number }) {
 // ─── CARD DO SOLDADO ──────────────────────────────────────────────────────────
 
 function CardSoldado({
-  vendedor, posicao, lado, isMVP, onClick,
+  vendedor, posicao, lado, isMVP, onClick, isCurrentUser,
 }: {
   vendedor: VendedorRank | null;
   posicao: number;
   lado: 'A' | 'B';
   isMVP: boolean;
   onClick: () => void;
+  isCurrentUser?: boolean;
 }) {
   const posIcons = ['', '🥇', '🥈', '🥉'];
   const temVenda  = vendedor && Number(vendedor.total_vendido) > 0;
@@ -127,9 +128,11 @@ function CardSoldado({
       className={`group flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-all duration-200 cursor-pointer select-none ${
         isMVP
           ? 'bg-yellow-950/30 border-yellow-500/50 shadow-[0_0_15px_rgba(250,204,21,0.12)]'
+          : isCurrentUser
+          ? 'bg-zinc-800/60 border-white/25 shadow-[0_0_12px_rgba(255,255,255,0.07)]'
           : 'bg-zinc-950/50 border-zinc-800/60 hover:border-zinc-700 hover:bg-zinc-900/70'
       }`}
-      style={isMVP ? {} : { borderColor: cor + '30' }}
+      style={isMVP || isCurrentUser ? {} : { borderColor: cor + '30' }}
     >
       {/* Posição */}
       <span className="text-lg w-6 text-center flex-shrink-0 leading-none">
@@ -141,12 +144,12 @@ function CardSoldado({
         {vendedor.foto_url ? (
           <img src={vendedor.foto_url} alt={vendedor.nome}
             className="w-9 h-9 rounded-full object-cover"
-            style={{ border: `2px solid ${cor}50` }}
+            style={{ border: isCurrentUser ? '2px solid rgba(255,255,255,0.5)' : `2px solid ${cor}50` }}
           />
         ) : (
           <div
             className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-black"
-            style={{ background: cor + '20', border: `2px solid ${cor}50`, color: cor }}
+            style={{ background: cor + '20', border: isCurrentUser ? '2px solid rgba(255,255,255,0.4)' : `2px solid ${cor}50`, color: cor }}
           >
             {iniciais}
           </div>
@@ -154,12 +157,15 @@ function CardSoldado({
         {isMVP && (
           <span className="absolute -top-2 -right-2 text-base drop-shadow-[0_0_8px_rgba(250,204,21,0.9)]">👑</span>
         )}
+        {isCurrentUser && !isMVP && (
+          <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 text-[7px] font-black bg-white text-black px-1 rounded-sm leading-tight whitespace-nowrap">VOCÊ</span>
+        )}
       </div>
 
       {/* Info */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 mb-0.5">
-          <span className={`text-xs font-black truncate ${isMVP ? 'text-yellow-200' : 'text-zinc-100'}`}>
+          <span className={`text-xs font-black truncate ${isMVP ? 'text-yellow-200' : isCurrentUser ? 'text-white' : 'text-zinc-100'}`}>
             {vendedor.nome}
           </span>
           {isMVP && (
@@ -202,6 +208,13 @@ export function GuerraEquipes({ refreshTrigger, isAdmin = false }: GuerraEquipes
   const [totalA,  setTotalA]  = useState(0);
   const [totalB,  setTotalB]  = useState(0);
   const [totalTodasVendas, setTotalTodasVendas] = useState(0);
+  const [showAllA, setShowAllA] = useState(false);
+  const [showAllB, setShowAllB] = useState(false);
+
+  const currentUserId = useMemo(() => {
+    try { return String(JSON.parse(localStorage.getItem('user') || '{}').id ?? ''); }
+    catch { return ''; }
+  }, []);
   const [desafioAtivo, setDesafioAtivo] = useState<any>(null);
   const [tempoRestante, setTempoRestante] = useState({ d: '00', h: '00', m: '00', s: '00', encerrado: false });
   const [ultimoCount, setUltimoCount] = useState<number | null>(null);
@@ -298,6 +311,19 @@ export function GuerraEquipes({ refreshTrigger, isAdmin = false }: GuerraEquipes
   const pctB   = totalGeral > 0 ? (totalB / totalGeral) * 100 : 50;
 
   const todosVendedores = [...equipeA, ...equipeB];
+
+  const meuPerfil = currentUserId ? todosVendedores.find(v => String(v.id) === currentUserId) : null;
+  const minhaEquipe = equipeA.some(v => String(v.id) === currentUserId) ? 'A' : equipeB.some(v => String(v.id) === currentUserId) ? 'B' : null;
+  const minhaPosicaoNaEquipe = (() => {
+    if (!currentUserId || !minhaEquipe) return 0;
+    const eq = minhaEquipe === 'A' ? equipeA : equipeB;
+    const idx = eq.findIndex(v => String(v.id) === currentUserId);
+    return idx >= 0 ? idx + 1 : 0;
+  })();
+  const liderDaMinhaEquipe = minhaEquipe === 'A' ? equipeA[0] : minhaEquipe === 'B' ? equipeB[0] : null;
+  const distanciaDoPrimeiro = meuPerfil && liderDaMinhaEquipe && String(liderDaMinhaEquipe.id) !== currentUserId
+    ? Number(liderDaMinhaEquipe.total_vendido) - Number(meuPerfil.total_vendido)
+    : 0;
   const mvp = todosVendedores.length > 0
     ? todosVendedores.reduce((top, v) => Number(v.total_vendido) > Number(top.total_vendido) ? v : top, todosVendedores[0])
     : null;
@@ -366,6 +392,22 @@ export function GuerraEquipes({ refreshTrigger, isAdmin = false }: GuerraEquipes
               )}
             </div>
           </div>
+
+          {/* ── BANNER: SUA EQUIPE ───────────────────────────────────────────── */}
+          {!isAdmin && minhaEquipe && (
+            <div className={`flex items-center justify-between gap-2 px-3 py-2 rounded-xl border text-xs font-black uppercase tracking-wider ${
+              minhaEquipe === 'A'
+                ? 'bg-blue-950/40 border-blue-700/40 text-blue-300'
+                : 'bg-red-950/40 border-red-700/40 text-red-300'
+            }`}>
+              <span>{minhaEquipe === 'A' ? '⚡' : '🔥'} Você luta pela Equipe {minhaEquipe}</span>
+              {minhaPosicaoNaEquipe > 0 && (
+                <span className="text-zinc-500 font-bold normal-case tracking-normal">
+                  {minhaPosicaoNaEquipe === 1 ? '🥇 Líder da equipe!' : `${minhaPosicaoNaEquipe}º na equipe`}
+                </span>
+              )}
+            </div>
+          )}
 
           {/* ── PLACAR ÉPICO ─────────────────────────────────────────────────── */}
           <div className="grid grid-cols-3 gap-2 items-stretch">
@@ -539,61 +581,134 @@ export function GuerraEquipes({ refreshTrigger, isAdmin = false }: GuerraEquipes
           <div className="flex flex-col md:flex-row gap-4">
 
             {/* Equipe A */}
-            <div className="flex-1 rounded-2xl border border-blue-900/30 bg-blue-950/10 overflow-hidden">
-              <div className="px-4 py-3 bg-blue-950/30 border-b border-blue-900/30 flex justify-between items-center">
-                <span className="text-blue-300 font-black uppercase tracking-widest text-xs flex items-center gap-1.5">
-                  ⚡ Equipe A
-                </span>
-                <span className="text-blue-500/60 text-[10px] font-bold">
-                  {equipeA.filter(v => v.total_vendido > 0).length} soldado{equipeA.filter(v => v.total_vendido > 0).length !== 1 ? 's' : ''}
-                </span>
-              </div>
-              <div className="p-3 space-y-2">
-                {[0, 1, 2].map(i => {
-                  const v = equipeA[i] || null;
-                  const isMVP = mvpTemVenda && v && String(v.id) === String(mvp!.id);
-                  return (
-                    <CardSoldado
-                      key={i}
-                      vendedor={v}
-                      posicao={i + 1}
-                      lado="A"
-                      isMVP={!!isMVP}
-                      onClick={() => v && Number(v.total_vendido) > 0 && openModal(v)}
-                    />
-                  );
-                })}
-              </div>
-            </div>
+            {(() => {
+              const ativos = equipeA.filter(v => v.total_vendido > 0);
+              const lista = showAllA ? equipeA : equipeA.slice(0, 3);
+              return (
+                <div className="flex-1 rounded-2xl border border-blue-900/30 bg-blue-950/10 overflow-hidden">
+                  <div className="px-4 py-3 bg-blue-950/30 border-b border-blue-900/30 flex justify-between items-center">
+                    <span className="text-blue-300 font-black uppercase tracking-widest text-xs flex items-center gap-1.5">
+                      ⚡ Equipe A
+                    </span>
+                    <span className="text-blue-500/60 text-[10px] font-bold">
+                      {ativos.length} soldado{ativos.length !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                  <div className="p-3 space-y-2">
+                    {lista.map((v, i) => {
+                      const isMVP = mvpTemVenda && String(v.id) === String(mvp!.id);
+                      return (
+                        <CardSoldado
+                          key={v.id}
+                          vendedor={v}
+                          posicao={i + 1}
+                          lado="A"
+                          isMVP={!!isMVP}
+                          isCurrentUser={String(v.id) === currentUserId}
+                          onClick={() => Number(v.total_vendido) > 0 && openModal(v)}
+                        />
+                      );
+                    })}
+                    {equipeA.length === 0 && (
+                      <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-zinc-800/50 bg-zinc-950/30">
+                        <span className="text-zinc-700 italic text-xs">Aguardando recrutas...</span>
+                      </div>
+                    )}
+                    {equipeA.length > 3 && (
+                      <button
+                        onClick={() => { somClick(); setShowAllA(s => !s); }}
+                        className="w-full text-blue-500/60 hover:text-blue-400 text-[10px] font-black uppercase tracking-widest py-1.5 transition-colors"
+                      >
+                        {showAllA ? '▲ Mostrar menos' : `▼ Ver todos (${equipeA.length})`}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Equipe B */}
-            <div className="flex-1 rounded-2xl border border-red-900/30 bg-red-950/10 overflow-hidden">
-              <div className="px-4 py-3 bg-red-950/30 border-b border-red-900/30 flex justify-between items-center">
-                <span className="text-red-300 font-black uppercase tracking-widest text-xs flex items-center gap-1.5">
-                  🔥 Equipe B
-                </span>
-                <span className="text-red-500/60 text-[10px] font-bold">
-                  {equipeB.filter(v => v.total_vendido > 0).length} soldado{equipeB.filter(v => v.total_vendido > 0).length !== 1 ? 's' : ''}
-                </span>
-              </div>
-              <div className="p-3 space-y-2">
-                {[0, 1, 2].map(i => {
-                  const v = equipeB[i] || null;
-                  const isMVP = mvpTemVenda && v && String(v.id) === String(mvp!.id);
-                  return (
-                    <CardSoldado
-                      key={i}
-                      vendedor={v}
-                      posicao={i + 1}
-                      lado="B"
-                      isMVP={!!isMVP}
-                      onClick={() => v && Number(v.total_vendido) > 0 && openModal(v)}
-                    />
-                  );
-                })}
+            {(() => {
+              const ativos = equipeB.filter(v => v.total_vendido > 0);
+              const lista = showAllB ? equipeB : equipeB.slice(0, 3);
+              return (
+                <div className="flex-1 rounded-2xl border border-red-900/30 bg-red-950/10 overflow-hidden">
+                  <div className="px-4 py-3 bg-red-950/30 border-b border-red-900/30 flex justify-between items-center">
+                    <span className="text-red-300 font-black uppercase tracking-widest text-xs flex items-center gap-1.5">
+                      🔥 Equipe B
+                    </span>
+                    <span className="text-red-500/60 text-[10px] font-bold">
+                      {ativos.length} soldado{ativos.length !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                  <div className="p-3 space-y-2">
+                    {lista.map((v, i) => {
+                      const isMVP = mvpTemVenda && String(v.id) === String(mvp!.id);
+                      return (
+                        <CardSoldado
+                          key={v.id}
+                          vendedor={v}
+                          posicao={i + 1}
+                          lado="B"
+                          isMVP={!!isMVP}
+                          isCurrentUser={String(v.id) === currentUserId}
+                          onClick={() => Number(v.total_vendido) > 0 && openModal(v)}
+                        />
+                      );
+                    })}
+                    {equipeB.length === 0 && (
+                      <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-zinc-800/50 bg-zinc-950/30">
+                        <span className="text-zinc-700 italic text-xs">Aguardando recrutas...</span>
+                      </div>
+                    )}
+                    {equipeB.length > 3 && (
+                      <button
+                        onClick={() => { somClick(); setShowAllB(s => !s); }}
+                        className="w-full text-red-500/60 hover:text-red-400 text-[10px] font-black uppercase tracking-widest py-1.5 transition-colors"
+                      >
+                        {showAllB ? '▲ Mostrar menos' : `▼ Ver todos (${equipeB.length})`}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+
+          {/* ── SUA POSIÇÃO ──────────────────────────────────────────────────── */}
+          {!isAdmin && meuPerfil && (
+            <div className={`rounded-2xl border p-3 sm:p-4 ${
+              minhaEquipe === 'A' ? 'bg-blue-950/20 border-blue-800/30' : 'bg-red-950/20 border-red-800/30'
+            }`}>
+              <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest mb-3">🎯 Sua Posição</p>
+              <div className="flex items-center gap-3">
+                {meuPerfil.foto_url ? (
+                  <img src={meuPerfil.foto_url} alt={meuPerfil.nome} className="w-10 h-10 rounded-full object-cover border-2 border-white/20 flex-shrink-0" />
+                ) : (
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-black flex-shrink-0 ${minhaEquipe === 'A' ? 'bg-blue-900/50 text-blue-300' : 'bg-red-900/50 text-red-300'}`}>
+                    {meuPerfil.nome.split(' ').map(p => p[0]).slice(0,2).join('').toUpperCase()}
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-white font-black text-sm truncate">{meuPerfil.nome.split(' ')[0]}</p>
+                  <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                    <BadgeNivel count={meuPerfil.total_vendas_count || 0} />
+                    <span className={`text-[10px] font-bold ${minhaEquipe === 'A' ? 'text-blue-400' : 'text-red-400'}`}>
+                      {minhaPosicaoNaEquipe === 1 ? '🥇 Líder' : `${minhaPosicaoNaEquipe}º da equipe`}
+                    </span>
+                  </div>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <p className={`font-black text-base ${minhaEquipe === 'A' ? 'text-blue-300' : 'text-red-300'}`}>
+                    {fmt(Number(meuPerfil.total_vendido))}
+                  </p>
+                  {distanciaDoPrimeiro > 0 && (
+                    <p className="text-zinc-600 text-[10px] mt-0.5">falta {fmt(distanciaDoPrimeiro)} p/ 1º</p>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* ── RODAPÉ: Patentes + Countdown ──────────────────────────────────── */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-3 border-t border-zinc-800/60">

@@ -514,6 +514,7 @@ function CardPaymentLink({
             <button
               onMouseEnter={somHover}
               onClick={() => { somClick(); copiar(lk.url, lk.label); }}
+              title="Copiar link"
               className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl font-black text-xs uppercase tracking-wider transition-all active:scale-95 ${
                 copiados[lk.label]
                   ? 'bg-green-500 text-black'
@@ -522,6 +523,17 @@ function CardPaymentLink({
             >
               {copiados[lk.label] ? '✓' : '📋'}
             </button>
+            <a
+              href={`https://api.whatsapp.com/send?text=${encodeURIComponent(lk.url)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              onMouseEnter={somHover}
+              onClick={() => somClick()}
+              title="Enviar via WhatsApp"
+              className="flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-xl bg-green-900/30 hover:bg-green-600 text-green-400 hover:text-white border border-green-800/50 hover:border-green-500 transition-all active:scale-95 text-base"
+            >
+              📲
+            </a>
           </div>
         ))}
       </div>

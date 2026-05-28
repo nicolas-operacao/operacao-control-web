@@ -10,9 +10,8 @@ export async function registrarServiceWorker(): Promise<void> {
   if (!('serviceWorker' in navigator)) return;
   try {
     swRegistration = await navigator.serviceWorker.register('/sw.js');
-    console.log('[OP Control] Service Worker registrado.');
   } catch (e) {
-    console.warn('[OP Control] SW não registrado:', e);
+    // SW não suportado ou bloqueado — app continua funcional sem notificações
   }
 }
 

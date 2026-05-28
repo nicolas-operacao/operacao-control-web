@@ -720,7 +720,10 @@ export function Dashboard() {
             <div className="w-full bg-zinc-800 rounded-full h-1 mt-1.5 overflow-hidden">
               <div className="bg-yellow-400 h-1 rounded-full transition-all duration-700" style={{ width: `${progressoMeta}%` }} />
             </div>
-            <p className="text-zinc-600 text-[9px] sm:text-[10px] mt-1">{qtdMes} vendas · {progressoMeta.toFixed(0)}% meta</p>
+            <p className="text-zinc-600 text-[9px] sm:text-[10px] mt-1">
+              {qtdMes} vendas · {progressoMeta.toFixed(0)}% meta
+              {!desafioAtivo && <span className="text-zinc-700 ml-1">(meta padrão)</span>}
+            </p>
             {/* Subtotais equipe vs tráfego vs checkout */}
             <div className="mt-1.5 flex flex-col gap-0.5">
               <div className="flex items-center justify-between">
