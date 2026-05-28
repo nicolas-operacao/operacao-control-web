@@ -2,6 +2,7 @@ import axios from 'axios';
 
 export const api = axios.create({
   baseURL: 'https://operacao-control-api.onrender.com',
+  timeout: 30000,
 });
 
 // Intercepta a requisição ANTES dela sair do front-end
