@@ -243,7 +243,28 @@ export function LeadModal({ leadId, onClose, onUpdated }: Props) {
               <span className="text-green-400 font-black">{fmt(Number(lead.valor_estimado))}</span>
             ) : null}
           </div>
-          <button onClick={() => { somClick(); onClose(); }} className="text-zinc-500 hover:text-white transition-colors text-2xl flex-shrink-0">&times;</button>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {isAdmin && (
+              <button
+                onMouseEnter={somHover}
+                onClick={async () => {
+                  somClick();
+                  if (!confirm(`Excluir permanentemente o lead "${lead.nome}"? Esta ação não pode ser desfeita.`)) return;
+                  try {
+                    await crmApi.leads.delete(leadId);
+                    toast.success('Lead excluído');
+                    onUpdated();
+                    onClose();
+                  } catch (e: any) { toast.error(e.response?.data?.error || e.message || 'Erro ao excluir'); }
+                }}
+                className="px-2.5 py-1 bg-red-950/40 hover:bg-red-900/60 text-red-500 hover:text-red-300 text-xs font-black rounded-lg border border-red-900/40 transition-all uppercase tracking-widest"
+                title="Excluir lead"
+              >
+                🗑 Excluir
+              </button>
+            )}
+            <button onClick={() => { somClick(); onClose(); }} className="text-zinc-500 hover:text-white transition-colors text-2xl">&times;</button>
+          </div>
         </div>
 
         {/* Pipeline rápido */}
