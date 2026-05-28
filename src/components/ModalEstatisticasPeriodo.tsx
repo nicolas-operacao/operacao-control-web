@@ -20,6 +20,7 @@ interface Props {
   onClose: () => void;
   onEditVenda?: (venda: Venda) => void;
   onDeleteVenda?: (venda: Venda) => void;
+  fotosPorId?: Map<string, string>;
 }
 
 const METODO_COR: Record<string, string> = {
@@ -57,7 +58,7 @@ const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', curren
 const BRT_MS = 3 * 60 * 60 * 1000;
 const toBRT = (iso: string) => new Date(new Date(iso).getTime() - BRT_MS);
 
-export function ModalEstatisticasPeriodo({ titulo, periodo, vendas, onClose, onEditVenda, onDeleteVenda }: Props) {
+export function ModalEstatisticasPeriodo({ titulo, periodo, vendas, onClose, onEditVenda, onDeleteVenda, fotosPorId }: Props) {
   // semanaOffset: 0 = semana atual, -1 = semana passada, etc.
   const [semanaOffset, setSemanaOffset] = useState(0);
   const [selectedBarIndex, setSelectedBarIndex] = useState<number | null>(null);
@@ -174,10 +175,10 @@ export function ModalEstatisticasPeriodo({ titulo, periodo, vendas, onClose, onE
   // ── Top vendedores ──────────────────────────────────────────────────
   const topVendedores = useMemo(() => {
     const src = periodo === 'semana' ? aprovadasPeriodo : aprovadas;
-    const mapa: Record<string, { valor: number; count: number }> = {};
+    const mapa: Record<string, { valor: number; count: number; seller_id?: string }> = {};
     src.forEach(v => {
       const nome = v.seller_name || 'Desconhecido';
-      if (!mapa[nome]) mapa[nome] = { valor: 0, count: 0 };
+      if (!mapa[nome]) mapa[nome] = { valor: 0, count: 0, seller_id: v.seller_id != null ? String(v.seller_id) : undefined };
       mapa[nome].valor += Number(v.sale_value);
       mapa[nome].count++;
     });
@@ -350,12 +351,21 @@ export function ModalEstatisticasPeriodo({ titulo, periodo, vendas, onClose, onE
                         const horaStr = `${String(hora.getUTCHours()).padStart(2,'0')}:${String(hora.getUTCMinutes()).padStart(2,'0')}`;
                         return (
                           <div key={v.id} className="flex items-start gap-3 p-2.5 rounded-xl bg-zinc-800/60 border border-zinc-700/50">
-                            {/* Avatar inicial vendedor */}
-                            <div className="w-8 h-8 rounded-full bg-zinc-700 border border-zinc-600 flex items-center justify-center flex-shrink-0">
-                              <span className="text-[10px] font-black text-zinc-300">
-                                {isTrafego ? '📡' : isCheckout ? '🛒' : (v.seller_name ?? '?').split(' ').map((p: string) => p[0]).slice(0,2).join('').toUpperCase()}
-                              </span>
-                            </div>
+                            {/* Avatar vendedor */}
+                            {(() => {
+                              const fotoUrl = (!isTrafego && !isCheckout && v.seller_id != null)
+                                ? fotosPorId?.get(String(v.seller_id))
+                                : undefined;
+                              return fotoUrl ? (
+                                <img src={fotoUrl} alt={v.seller_name ?? ''} className="w-8 h-8 rounded-full object-cover border border-zinc-600 flex-shrink-0" />
+                              ) : (
+                                <div className="w-8 h-8 rounded-full bg-zinc-700 border border-zinc-600 flex items-center justify-center flex-shrink-0">
+                                  <span className="text-[10px] font-black text-zinc-300">
+                                    {isTrafego ? '📡' : isCheckout ? '🛒' : (v.seller_name ?? '?').split(' ').map((p: string) => p[0]).slice(0,2).join('').toUpperCase()}
+                                  </span>
+                                </div>
+                              );
+                            })()}
                             <div className="flex-1 min-w-0">
                               {/* Linha 1: vendedor + horário */}
                               <div className="flex items-center justify-between gap-1 mb-0.5">
@@ -431,9 +441,16 @@ export function ModalEstatisticasPeriodo({ titulo, periodo, vendas, onClose, onE
                     return (
                       <div key={v.nome} className="flex items-center gap-2">
                         <span className="text-base w-5 flex-shrink-0">{ICONES[i]}</span>
-                        <div className="w-7 h-7 rounded-full bg-zinc-700 border border-zinc-600 flex items-center justify-center flex-shrink-0">
-                          <span className="text-[10px] font-black text-zinc-300">{iniciais}</span>
-                        </div>
+                        {(() => {
+                          const fotoUrl = v.seller_id ? fotosPorId?.get(v.seller_id) : undefined;
+                          return fotoUrl ? (
+                            <img src={fotoUrl} alt={v.nome} className="w-7 h-7 rounded-full object-cover border border-zinc-600 flex-shrink-0" />
+                          ) : (
+                            <div className="w-7 h-7 rounded-full bg-zinc-700 border border-zinc-600 flex items-center justify-center flex-shrink-0">
+                              <span className="text-[10px] font-black text-zinc-300">{iniciais}</span>
+                            </div>
+                          );
+                        })()}
                         <div className="flex-1 min-w-0">
                           <p className="text-zinc-200 text-xs font-bold truncate">{v.nome}</p>
                           <p className="text-zinc-600 text-[10px]">{v.count} venda{v.count !== 1 ? 's' : ''}</p>
