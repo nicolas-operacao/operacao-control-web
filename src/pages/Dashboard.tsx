@@ -507,6 +507,7 @@ export function Dashboard() {
                   <div className="border-t border-zinc-800 p-1">
                     <p className="text-zinc-600 text-[9px] font-black uppercase tracking-widest px-3 py-1.5">Navegar</p>
                     {[
+                      { label: 'CRM',            icon: '🎯',  path: '/crm' },
                       { label: 'Arsenal',        icon: '⚡',  path: '/arsenal' },
                       { label: 'Suporte',        icon: '🛡️',  path: '/liberacoes' },
                       { label: 'Recrutas',       icon: '🪖',  path: '/admin/recrutas' },
