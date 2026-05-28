@@ -116,6 +116,7 @@ export function CRM() {
   const navigate = useNavigate();
   const user = useMemo(() => JSON.parse(localStorage.getItem('user') || '{}'), []);
   const isAdmin = user.role === 'admin';
+  const isAdminOrSuporte = isAdmin || user.role === 'suporte';
 
   const [aba, setAba] = useState<'kanban' | 'lista' | 'tarefas' | 'whatsapp' | 'analytics'>('kanban');
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -283,8 +284,8 @@ export function CRM() {
             { key: 'kanban',    label: '⚡ Kanban'   },
             { key: 'lista',     label: '📋 Lista'    },
             { key: 'tarefas',   label: `✅ Tarefas${tarefasAtrasadas.length > 0 ? ` (${tarefasAtrasadas.length}!)` : ''}` },
-            ...(isAdmin ? [{ key: 'whatsapp', label: '📱 WhatsApp' }] : []),
-            ...(isAdmin ? [{ key: 'analytics', label: '📊 Analytics' }] : []),
+            ...(isAdminOrSuporte ? [{ key: 'whatsapp', label: '📱 WhatsApp' }] : []),
+            ...(isAdminOrSuporte ? [{ key: 'analytics', label: '📊 Analytics' }] : []),
           ] as const).map(a => (
             <button key={a.key} onClick={() => { somClick(); setAba(a.key as any); }}
               className={`px-4 py-2.5 text-[10px] font-black uppercase tracking-widest transition-colors whitespace-nowrap flex-shrink-0 ${
@@ -449,14 +450,14 @@ export function CRM() {
       )}
 
       {/* ── WHATSAPP ───────────────────────────────────────────────────────────── */}
-      {aba === 'whatsapp' && isAdmin && (
+      {aba === 'whatsapp' && isAdminOrSuporte && (
         <div className="p-4 max-w-2xl mx-auto">
           <WhatsappPanel />
         </div>
       )}
 
       {/* ── ANALYTICS ─────────────────────────────────────────────────────────── */}
-      {aba === 'analytics' && isAdmin && (
+      {aba === 'analytics' && isAdminOrSuporte && (
         <div className="p-4 max-w-2xl mx-auto">
           <CrmAnalytics />
         </div>

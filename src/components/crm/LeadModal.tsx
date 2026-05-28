@@ -41,6 +41,11 @@ export function LeadModal({ leadId, onClose, onUpdated }: Props) {
   const [tituloTarefa, setTituloTarefa] = useState('');
   const [vencimentoTarefa, setVencimentoTarefa] = useState('');
 
+  // Atribuição (admin/suporte)
+  const [vendedores, setVendedores] = useState<{ id: string; name: string }[]>([]);
+  const [vendedorSelecionado, setVendedorSelecionado] = useState('');
+  const [atribuindo, setAtribuindo] = useState(false);
+
   // WA contas
   const [waContas, setWaContas] = useState<any[]>([]);
   const [waContaSelecionada, setWaContaSelecionada] = useState('');
@@ -54,6 +59,27 @@ export function LeadModal({ leadId, onClose, onUpdated }: Props) {
 
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const isAdmin = user.role === 'admin';
+  const isAdminOrSuporte = isAdmin || user.role === 'suporte';
+
+  useEffect(() => {
+    if (isAdminOrSuporte) {
+      crmApi.vendedores.list().then(setVendedores).catch(() => {});
+    }
+  }, [isAdminOrSuporte]);
+
+  async function atribuirLead() {
+    const v = vendedores.find(x => String(x.id) === vendedorSelecionado);
+    if (!v) return;
+    setAtribuindo(true);
+    try {
+      await crmApi.leads.atribuir(leadId, String(v.id), v.name);
+      setVendedorSelecionado('');
+      carregarLead();
+      onUpdated();
+      toast.success(`Lead atribuído para ${v.name}`);
+    } catch (e: any) { toast.error(e.message || 'Erro ao atribuir'); }
+    finally { setAtribuindo(false); }
+  }
 
   useEffect(() => {
     carregarLead();
@@ -359,6 +385,28 @@ export function LeadModal({ leadId, onClose, onUpdated }: Props) {
                       </button>
                     </div>
                   )}
+                  {/* Atribuição — visível apenas para admin/suporte */}
+                  {isAdminOrSuporte && vendedores.length > 0 && (
+                    <div className="bg-zinc-950/60 border border-zinc-800 rounded-xl p-3">
+                      <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest mb-2">👤 Atribuir Lead</p>
+                      <div className="flex gap-2">
+                        <select value={vendedorSelecionado} onChange={e => setVendedorSelecionado(e.target.value)}
+                          className="flex-1 bg-zinc-900 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm outline-none">
+                          <option value="">Selecionar vendedor...</option>
+                          {vendedores.map(v => (
+                            <option key={v.id} value={String(v.id)}>
+                              {v.name}{lead.responsavel_id === String(v.id) ? ' ✓ atual' : ''}
+                            </option>
+                          ))}
+                        </select>
+                        <button onClick={() => { somClick(); atribuirLead(); }} disabled={atribuindo || !vendedorSelecionado}
+                          className="px-3 bg-yellow-400 hover:bg-yellow-300 disabled:opacity-40 text-black font-black rounded-lg text-sm transition-all">
+                          {atribuindo ? '...' : 'Atribuir'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   <button onMouseEnter={somHover} onClick={() => { somClick(); setEditando(true); }}
                     className="w-full py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white font-black text-xs uppercase tracking-widest rounded-lg transition-all">
                     ✏️ Editar Lead

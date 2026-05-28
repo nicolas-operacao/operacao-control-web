@@ -98,6 +98,8 @@ export const crmApi = {
       api.patch<Lead>(`/crm/leads/${id}/move`, { estagio, observacao, motivo_perda }).then(r => r.data),
     delete: (id: string) =>
       api.delete(`/crm/leads/${id}`),
+    atribuir: (id: string, vendedor_id: string, vendedor_nome: string) =>
+      api.patch<Lead>(`/crm/leads/${id}/atribuir`, { vendedor_id, vendedor_nome }).then(r => r.data),
     addAtividade: (id: string, tipo: string, conteudo: string) =>
       api.post<Atividade>(`/crm/leads/${id}/atividades`, { tipo, conteudo }).then(r => r.data),
   },
@@ -114,6 +116,10 @@ export const crmApi = {
 
   analytics: {
     get: () => api.get<Analytics>('/crm/analytics').then(r => r.data),
+  },
+
+  vendedores: {
+    list: () => api.get<{ id: string; name: string }[]>('/crm/vendedores').then(r => r.data),
   },
 
   whatsapp: {
