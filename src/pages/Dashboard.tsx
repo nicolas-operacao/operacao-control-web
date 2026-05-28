@@ -769,7 +769,7 @@ export function Dashboard() {
                   <button
                     key={v.id}
                     onMouseEnter={somHover}
-                    onClick={() => { somClick(); setVendedorModalAdmin({ id: v.id, nome: v.nome, equipe: 'A', total_vendido: v.totalMes, total_vendas_count: v.qtdMes }); }}
+                    onClick={() => { somClick(); setVendedorModalAdmin({ id: v.id, nome: v.nome, equipe: 'A', total_vendido: v.totalMes, total_vendas_count: v.qtdMes, foto_url: v.foto_url }); }}
                     className="relative bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-600 rounded-xl p-3 text-left transition-all hover:scale-[1.02] active:scale-95"
                   >
                     {idx < 3 && <span className="absolute top-2 right-2 text-xs">{POSICOES[idx]}</span>}
