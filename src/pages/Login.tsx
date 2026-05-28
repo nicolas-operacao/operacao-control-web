@@ -17,7 +17,7 @@ export function Login() {
     let cancelled = false;
     const ping = async () => {
       try {
-        await api.get('/ranking/ping', { timeout: 15000 });
+        await api.get('/health', { timeout: 15000 });
         if (!cancelled) setServerStatus('ready');
       } catch {
         if (!cancelled) setServerStatus('offline');
