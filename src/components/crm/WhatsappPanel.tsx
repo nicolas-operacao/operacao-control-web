@@ -40,7 +40,7 @@ export function WhatsappPanel() {
       setNomeNova(''); setInstanceNova(''); setCriando(false);
       toast.success('Conta criada! Agora escaneie o QR Code.');
       carregarQR(data.instance_name);
-    } catch (e: any) { toast.error(e.message || 'Erro ao criar conta'); }
+    } catch (e: any) { toast.error(e.response?.data?.error || e.message || 'Erro ao criar conta'); }
     finally { setSalvandoConta(false); }
   }
 
