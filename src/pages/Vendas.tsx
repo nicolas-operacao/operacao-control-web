@@ -446,6 +446,13 @@ export function Vendas() {
           <div className="flex items-center gap-2">
             <button
               onMouseEnter={somHover}
+              onClick={() => { somClick(); navigate('/crm'); }}
+              className="hidden sm:flex items-center gap-1.5 border border-zinc-700 hover:border-yellow-400/60 text-zinc-400 hover:text-yellow-400 px-3 py-2 rounded-lg font-black transition-all uppercase text-xs"
+            >
+              🎯 CRM
+            </button>
+            <button
+              onMouseEnter={somHover}
               onClick={() => { somClick(); navigate('/arsenal'); }}
               className="hidden sm:flex items-center gap-1.5 border border-zinc-700 hover:border-yellow-400/60 text-zinc-400 hover:text-yellow-400 px-3 py-2 rounded-lg font-black transition-all uppercase text-xs"
             >
