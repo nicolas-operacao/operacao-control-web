@@ -65,7 +65,9 @@ export interface Tarefa {
 
 export interface WaMensagem {
   id: string; lead_id?: string; conta_id?: string;
-  conta_nome?: string; direcao: string; conteudo: string; created_at: string;
+  conta_nome?: string; direcao: string; conteudo: string;
+  media_type?: string | null; media_url?: string | null;
+  created_at: string;
 }
 
 export interface WaConta {

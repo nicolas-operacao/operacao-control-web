@@ -453,20 +453,45 @@ export function LeadModal({ leadId, onClose, onUpdated }: Props) {
                   <div className="text-center py-10 text-zinc-700 italic text-sm">Nenhuma mensagem ainda.</div>
                 ) : waMensagens.map(m => {
                   const enviada = m.direcao === 'enviada';
+                  const hora = new Date(m.created_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' });
                   return (
                     <div key={m.id} className={`flex ${enviada ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[78%] rounded-2xl px-3 py-2 text-sm shadow-sm ${
-                        enviada
-                          ? 'bg-green-700 text-white rounded-br-sm'
-                          : 'bg-zinc-800 text-zinc-100 rounded-bl-sm'
-                      }`}>
+                      <div className={`max-w-[78%] rounded-2xl px-3 py-2 text-sm shadow-sm ${enviada ? 'bg-green-700 text-white rounded-br-sm' : 'bg-zinc-800 text-zinc-100 rounded-bl-sm'}`}>
                         {m.conta_nome && !enviada && (
-                          <p className="text-[9px] font-black uppercase text-zinc-500 mb-0.5">{m.conta_nome}</p>
+                          <p className="text-[9px] font-black uppercase text-zinc-500 mb-1">{m.conta_nome}</p>
                         )}
-                        <p className="whitespace-pre-wrap break-words">{m.conteudo}</p>
-                        <p className={`text-[9px] mt-1 text-right ${enviada ? 'text-green-300' : 'text-zinc-600'}`}>
-                          {new Date(m.created_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })}
-                        </p>
+
+                        {/* Mídia inline */}
+                        {m.media_url && m.media_type === 'image' && (
+                          <img src={m.media_url} alt="imagem" className="rounded-xl max-w-full mb-1 max-h-60 object-cover cursor-pointer" onClick={() => window.open(m.media_url!, '_blank')} />
+                        )}
+                        {m.media_url && m.media_type === 'sticker' && (
+                          <img src={m.media_url} alt="figurinha" className="w-24 h-24 object-contain mb-1" />
+                        )}
+                        {m.media_url && m.media_type === 'audio' && (
+                          <audio controls src={m.media_url} className="w-full mb-1" style={{ height: 36 }} />
+                        )}
+                        {m.media_url && m.media_type === 'video' && (
+                          <video controls src={m.media_url} className="rounded-xl max-w-full max-h-48 mb-1" />
+                        )}
+                        {m.media_url && m.media_type === 'document' && (
+                          <a href={m.media_url} download={m.conteudo} className={`flex items-center gap-2 mb-1 underline text-xs ${enviada ? 'text-green-200' : 'text-blue-400'}`}>
+                            📄 {m.conteudo}
+                          </a>
+                        )}
+
+                        {/* Legenda ou texto */}
+                        {(!m.media_type || m.media_type === 'image' || m.media_type === 'video') && m.conteudo && !['[imagem]','[vídeo]','[mídia]'].includes(m.conteudo) && (
+                          <p className="whitespace-pre-wrap break-words">{m.conteudo}</p>
+                        )}
+                        {!m.media_url && !['image','audio','video','document','sticker'].includes(m.media_type || '') && (
+                          <p className="whitespace-pre-wrap break-words">{m.conteudo}</p>
+                        )}
+                        {m.media_type && !m.media_url && (
+                          <p className="italic opacity-60 text-xs">{m.conteudo}</p>
+                        )}
+
+                        <p className={`text-[9px] mt-1 text-right ${enviada ? 'text-green-300' : 'text-zinc-600'}`}>{hora}</p>
                       </div>
                     </div>
                   );
