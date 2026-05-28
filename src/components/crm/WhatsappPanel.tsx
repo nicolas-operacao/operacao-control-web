@@ -14,6 +14,7 @@ export function WhatsappPanel() {
   const [pairingData, setPairingData] = useState<Record<string, string>>({});
   const [pairingPhone, setPairingPhone] = useState<Record<string, string>>({});
   const [pairingLoading, setPairingLoading] = useState<string | null>(null);
+  const [pairingExpiry, setPairingExpiry] = useState<Record<string, number>>({});
   const [verificando, setVerificando] = useState<string | null>(null);
 
   const carregar = useCallback(async () => {
@@ -62,6 +63,7 @@ export function WhatsappPanel() {
       const data = await crmApi.whatsapp.pairingCode(instanceName, phone);
       const code = data?.pairingCode || data?.code || JSON.stringify(data);
       setPairingData(prev => ({ ...prev, [instanceName]: code }));
+      setPairingExpiry(prev => ({ ...prev, [instanceName]: Date.now() + 60000 }));
       setQrData(prev => { const n = { ...prev }; delete n[instanceName]; return n; });
     } catch (e: any) { toast.error(e.response?.data?.error || e.message || 'Erro ao gerar código'); }
     finally { setPairingLoading(null); }
@@ -219,8 +221,8 @@ export function WhatsappPanel() {
               {conta.instance_name in pairingPhone && !qrData[conta.instance_name] && (
                 <div className="mt-4 bg-zinc-950/80 border border-blue-800/40 rounded-xl p-4 space-y-3">
                   <p className="text-blue-400 font-black text-xs uppercase tracking-wider">📱 Conectar pelo número</p>
-                  <p className="text-zinc-500 text-xs">Digite o número do celular que será vinculado (com DDD, sem o 55):</p>
                   {!pairingData[conta.instance_name] ? (<>
+                    <p className="text-zinc-400 text-xs">Digite o número <strong>do celular que tem o WhatsApp instalado</strong> (com DDD, sem o 55):</p>
                     <div className="flex gap-2">
                       <input
                         value={pairingPhone[conta.instance_name] || ''}
@@ -234,26 +236,34 @@ export function WhatsappPanel() {
                       </button>
                     </div>
                   </>) : (<>
-                    <div className="text-center bg-zinc-900 rounded-xl py-5 px-4">
-                      <p className="text-zinc-500 text-[10px] uppercase tracking-widest mb-2">Seu código de vinculação</p>
-                      <p className="text-4xl font-black text-white tracking-[0.3em] font-mono">{pairingData[conta.instance_name]}</p>
-                    </div>
+                    {pairingExpiry[conta.instance_name] && Date.now() > pairingExpiry[conta.instance_name] ? (
+                      <div className="text-center bg-red-950/30 border border-red-800/30 rounded-xl py-4 px-4">
+                        <p className="text-red-400 font-black text-sm">⏱ Código expirado</p>
+                        <p className="text-zinc-500 text-xs mt-1">Gere um novo código e insira-o rapidamente no WhatsApp (menos de 60 seg)</p>
+                      </div>
+                    ) : (
+                      <div className="text-center bg-zinc-900 rounded-xl py-5 px-4">
+                        <p className="text-zinc-500 text-[10px] uppercase tracking-widest mb-1">Digite este código no WhatsApp</p>
+                        <p className="text-4xl font-black text-white tracking-[0.3em] font-mono">{pairingData[conta.instance_name]}</p>
+                        <p className="text-yellow-500 text-[10px] mt-2 font-black">⚠ Expira em ~60 segundos — seja rápido!</p>
+                      </div>
+                    )}
                     <div className="bg-blue-950/30 border border-blue-800/30 rounded-lg p-3 text-xs text-blue-300 space-y-1">
-                      <p className="font-black">Como usar:</p>
-                      <p>1. Abra o WhatsApp no celular</p>
-                      <p>2. Toque em <strong>⋮ Menu → Dispositivos vinculados</strong></p>
-                      <p>3. Toque em <strong>Vincular dispositivo</strong></p>
-                      <p>4. Na tela seguinte toque em <strong>"Vincular com número de telefone"</strong></p>
-                      <p>5. Digite o código acima</p>
+                      <p className="font-black text-blue-200">Como usar (no celular com WhatsApp):</p>
+                      <p>1. Abra o <strong>WhatsApp</strong></p>
+                      <p>2. Toque nos <strong>3 pontos ⋮ → Dispositivos vinculados</strong></p>
+                      <p>3. Toque em <strong>"Vincular dispositivo"</strong></p>
+                      <p>4. Toque em <strong>"Vincular com número de telefone"</strong></p>
+                      <p>5. Digite o código acima <span className="text-yellow-400 font-black">antes de expirar</span></p>
                     </div>
                     <div className="flex gap-2">
                       <button onClick={() => { somClick(); verificarStatus(conta.instance_name); }}
                         className="flex-1 px-4 py-2 bg-green-700 hover:bg-green-600 text-white font-black text-xs rounded-lg uppercase tracking-widest">
                         ✓ Já digitei — verificar conexão
                       </button>
-                      <button onClick={() => { somClick(); setPairingData(prev => { const n = { ...prev }; delete n[conta.instance_name]; return n; }); }}
-                        className="px-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-xs font-black rounded-lg transition-all">
-                        Novo código
+                      <button onClick={() => { somClick(); setPairingData(prev => { const n = { ...prev }; delete n[conta.instance_name]; return n; }); setPairingExpiry(prev => { const n = { ...prev }; delete n[conta.instance_name]; return n; }); solicitarPairingCode(conta.instance_name); }}
+                        className="px-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-xs font-black rounded-lg transition-all whitespace-nowrap">
+                        🔄 Novo código
                       </button>
                     </div>
                   </>)}
