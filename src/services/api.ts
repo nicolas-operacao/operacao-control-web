@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 export const api = axios.create({
-  baseURL: 'https://operacao-control-api.onrender.com',
+  baseURL: 'https://operacao-control-production.up.railway.app',
   timeout: 30000,
 });
 
