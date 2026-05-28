@@ -91,16 +91,36 @@ export function LeadModal({ leadId, onClose, onUpdated }: Props) {
     crmApi.whatsapp.templates().then(setWaTemplates).catch(() => {});
   }, [leadId]);
 
-  // Carrega e faz polling de mensagens quando a aba chat está aberta
+  // Carrega mensagens + abre stream SSE em tempo real quando a aba chat está aberta
   useEffect(() => {
     if (aba !== 'whatsapp') return;
-    const carregar = () => crmApi.whatsapp.mensagens(leadId).then(m => {
-      setWaMensagens(m);
-      setTimeout(() => chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
-    }).catch(() => {});
-    carregar();
-    const t = setInterval(carregar, 5000);
-    return () => clearInterval(t);
+
+    const scrollBottom = () => setTimeout(() => chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+
+    // Carga inicial
+    crmApi.whatsapp.mensagens(leadId).then(m => { setWaMensagens(m); scrollBottom(); }).catch(() => {});
+
+    // Stream SSE — recebe cada nova mensagem instantaneamente
+    const token = localStorage.getItem('token') || '';
+    const es = new EventSource(
+      `https://operacao-control-production.up.railway.app/crm/whatsapp/stream/${leadId}?token=${encodeURIComponent(token)}`
+    );
+
+    es.onmessage = (e) => {
+      try {
+        const msg = JSON.parse(e.data);
+        setWaMensagens(prev => {
+          // evita duplicar se já estiver na lista
+          if (prev.some(m => m.id === msg.id)) return prev;
+          return [...prev, msg];
+        });
+        scrollBottom();
+      } catch {}
+    };
+
+    es.onerror = () => es.close();
+
+    return () => es.close();
   }, [aba, leadId]);
 
   async function carregarLead() {
