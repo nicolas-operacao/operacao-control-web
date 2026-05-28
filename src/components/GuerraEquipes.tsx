@@ -201,6 +201,7 @@ export function GuerraEquipes({ refreshTrigger, isAdmin = false }: GuerraEquipes
   const [equipeB, setEquipeB] = useState<VendedorRank[]>([]);
   const [totalA,  setTotalA]  = useState(0);
   const [totalB,  setTotalB]  = useState(0);
+  const [totalTodasVendas, setTotalTodasVendas] = useState(0);
   const [desafioAtivo, setDesafioAtivo] = useState<any>(null);
   const [tempoRestante, setTempoRestante] = useState({ d: '00', h: '00', m: '00', s: '00', encerrado: false });
   const [ultimoCount, setUltimoCount] = useState<number | null>(null);
@@ -236,16 +237,19 @@ export function GuerraEquipes({ refreshTrigger, isAdmin = false }: GuerraEquipes
       const mesAtual = nowBRT.getUTCMonth();
 
       const totaisPorVendedor = new Map<string, { total: number; count: number }>();
+      let somaTodasVendas = 0;
       allSales.forEach((v: any) => {
         if (v.status !== 'aprovada') return;
         const brt = new Date(new Date(v.created_at).getTime() - BRT_MS);
         if (brt.getUTCFullYear() !== anoAtual || brt.getUTCMonth() !== mesAtual) return;
+        somaTodasVendas += Number(v.sale_value);
         const key = String(v.seller_id);
         if (!totaisPorVendedor.has(key)) totaisPorVendedor.set(key, { total: 0, count: 0 });
         const e = totaisPorVendedor.get(key)!;
         e.total += Number(v.sale_value);
         e.count++;
       });
+      setTotalTodasVendas(somaTodasVendas);
 
       // Usa dados do /ranking para foto/equipe/patente, mas sobrescreve total_vendido com cálculo local
       const all: VendedorRank[] = allUsers.map(u => ({
@@ -313,7 +317,7 @@ export function GuerraEquipes({ refreshTrigger, isAdmin = false }: GuerraEquipes
   // ─── Derivados ──────────────────────────────────────────────────────────────
 
   const totalGeral   = totalA + totalB;
-  const progressoXP  = totalGeral > 0 ? Math.min((totalGeral / META_OPERACAO) * 100, 100) : 0;
+  const progressoXP  = totalTodasVendas > 0 ? Math.min((totalTodasVendas / META_OPERACAO) * 100, 100) : 0;
   const liderA = totalA >= totalB && totalA > 0;
   const liderB = totalB > totalA && totalB > 0;
   const empate = totalA === totalB;
@@ -524,7 +528,7 @@ export function GuerraEquipes({ refreshTrigger, isAdmin = false }: GuerraEquipes
               <div className="min-w-0">
                 <p className="text-[9px] sm:text-[10px] text-zinc-500 font-black uppercase tracking-widest">🎯 Progresso da Operação</p>
                 <div className="flex items-baseline gap-1.5 mt-0.5 flex-wrap">
-                  <span className="text-white font-black text-base sm:text-lg md:text-xl truncate">{fmt(totalGeral)}</span>
+                  <span className="text-white font-black text-base sm:text-lg md:text-xl truncate">{fmt(totalTodasVendas)}</span>
                   <span className="text-zinc-600 text-[10px] sm:text-xs font-bold truncate">/ {fmt(META_OPERACAO)}</span>
                 </div>
               </div>
