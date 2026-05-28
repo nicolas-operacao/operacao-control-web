@@ -221,11 +221,42 @@ export function GuerraEquipes({ refreshTrigger, isAdmin = false }: GuerraEquipes
       setDesafioAtivo(lista.find((c: any) => c.is_active) || null);
     } catch { /* sem desafio */ }
     try {
-      const res = await api.get('/ranking');
-      const all: VendedorRank[] = Array.isArray(res.data) ? res.data : (res.data.data || []);
+      const [rankingRes, salesRes] = await Promise.all([
+        api.get('/ranking'),
+        api.get('/sales'),
+      ]);
+
+      const allUsers: VendedorRank[] = Array.isArray(rankingRes.data) ? rankingRes.data : (rankingRes.data.data || []);
+      const allSales: any[] = Array.isArray(salesRes.data) ? salesRes.data : [];
+
+      // Mesma lógica do Quadro de Batalha: sale_value, só aprovada, mês atual em BRT
+      const BRT_MS = 3 * 60 * 60 * 1000;
+      const nowBRT = new Date(Date.now() - BRT_MS);
+      const anoAtual = nowBRT.getUTCFullYear();
+      const mesAtual = nowBRT.getUTCMonth();
+
+      const totaisPorVendedor = new Map<string, { total: number; count: number }>();
+      allSales.forEach((v: any) => {
+        if (v.status !== 'aprovada') return;
+        const brt = new Date(new Date(v.created_at).getTime() - BRT_MS);
+        if (brt.getUTCFullYear() !== anoAtual || brt.getUTCMonth() !== mesAtual) return;
+        const key = String(v.seller_id);
+        if (!totaisPorVendedor.has(key)) totaisPorVendedor.set(key, { total: 0, count: 0 });
+        const e = totaisPorVendedor.get(key)!;
+        e.total += Number(v.sale_value);
+        e.count++;
+      });
+
+      // Usa dados do /ranking para foto/equipe/patente, mas sobrescreve total_vendido com cálculo local
+      const all: VendedorRank[] = allUsers.map(u => ({
+        ...u,
+        total_vendido: totaisPorVendedor.get(String(u.id))?.total ?? 0,
+        total_vendas_count: totaisPorVendedor.get(String(u.id))?.count ?? 0,
+      }));
+
       const norm = (eq: string) => String(eq || '').trim().toUpperCase();
-      const a = all.filter(v => ['A','EQUIPE A','EQUIPA A'].includes(norm(v.equipe)));
-      const b = all.filter(v => ['B','EQUIPE B','EQUIPA B'].includes(norm(v.equipe)));
+      const a = all.filter(v => ['A','EQUIPE A','EQUIPA A'].includes(norm(v.equipe))).sort((x, y) => y.total_vendido - x.total_vendido);
+      const b = all.filter(v => ['B','EQUIPE B','EQUIPA B'].includes(norm(v.equipe))).sort((x, y) => y.total_vendido - x.total_vendido);
       setEquipeA(a); setEquipeB(b);
       setTotalA(a.reduce((s, v) => s + (Number(v.total_vendido) || 0), 0));
       setTotalB(b.reduce((s, v) => s + (Number(v.total_vendido) || 0), 0));
