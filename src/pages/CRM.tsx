@@ -1467,6 +1467,19 @@ function ViewWhatsApp() {
     finally { setLoadingAcao(p => ({ ...p, [instanceName + '_pair']: false })); }
   }
 
+  async function handleStatus(instanceName: string) {
+    setLoadingAcao(p => ({ ...p, [instanceName + '_status']: true }));
+    try {
+      const { data } = await api.get(`/crm/whatsapp/contas/${instanceName}/status`);
+      setContas(prev => prev.map(c =>
+        c.instance_name === instanceName ? { ...c, status: data.status } : c
+      ));
+      const label = data.status === 'open' ? '✅ Conectado' : data.status;
+      toast.success(`${instanceName}: ${label}`);
+    } catch (e: any) { toast.error(e.response?.data?.error || 'Erro ao verificar status'); }
+    finally { setLoadingAcao(p => ({ ...p, [instanceName + '_status']: false })); }
+  }
+
   async function handleDesconectar(instanceName: string) {
     if (!confirm('Desconectar esta conta?')) return;
     setLoadingAcao(p => ({ ...p, [instanceName + '_disc']: true }));
@@ -1530,10 +1543,11 @@ function ViewWhatsApp() {
         const isConectada = conta.status === 'open';
         const qr = qrData[conta.instance_name];
         const pairing = pairingData[conta.instance_name];
-        const loadQr = loadingAcao[conta.instance_name + '_qr'];
-        const loadPair = loadingAcao[conta.instance_name + '_pair'];
-        const loadDisc = loadingAcao[conta.instance_name + '_disc'];
-        const loadDel = loadingAcao[conta.instance_name + '_del'];
+        const loadQr     = loadingAcao[conta.instance_name + '_qr'];
+        const loadPair   = loadingAcao[conta.instance_name + '_pair'];
+        const loadDisc   = loadingAcao[conta.instance_name + '_disc'];
+        const loadDel    = loadingAcao[conta.instance_name + '_del'];
+        const loadStatus = loadingAcao[conta.instance_name + '_status'];
         return (
           <div key={conta.id} className={`bg-zinc-900 border rounded-2xl p-4 flex flex-col gap-3 ${isConectada ? 'border-green-700/40' : 'border-zinc-700'}`}>
             <div className="flex items-center justify-between">
@@ -1579,6 +1593,10 @@ function ViewWhatsApp() {
 
             {/* Ações de gerenciamento */}
             <div className="flex gap-2 pt-1 border-t border-zinc-800">
+              <button onClick={() => handleStatus(conta.instance_name)} disabled={!!loadStatus}
+                className="flex-1 py-2 rounded-xl border border-zinc-700 text-zinc-400 text-xs font-bold hover:bg-zinc-800 hover:text-blue-400 hover:border-blue-700/40 transition-colors disabled:opacity-50">
+                {loadStatus ? '...' : '🔄 Verificar'}
+              </button>
               {isConectada && (
                 <button onClick={() => handleDesconectar(conta.instance_name)} disabled={!!loadDisc}
                   className="flex-1 py-2 rounded-xl border border-zinc-700 text-zinc-400 text-xs font-bold hover:bg-zinc-800 hover:text-orange-400 transition-colors disabled:opacity-50">
