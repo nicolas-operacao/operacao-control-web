@@ -57,6 +57,13 @@ type LeadDetalhe = Lead & {
 
 type Membro = { id: string; name: string; role?: string };
 
+type ContaWA = {
+  id: string; instance_name: string; nome: string; status: string;
+  responsavel_id?: string; responsavel_nome?: string;
+};
+
+type Template = { id: string; titulo: string; conteudo: string };
+
 type Analytics = {
   total: number; ativos: number; fechados: number; perdidos: number;
   semResponsavel?: number; valorPipeline: number; valorFechado: number;
@@ -512,9 +519,9 @@ function ModalLead({ lead, membros, isManager, userId, onSalvar, onFechar }: {
 
 // ─── PAINEL DETALHE DO LEAD ───────────────────────────────────────────────────
 
-function PainelLead({ leadId, onFechar, onAtualizar, onDeletar, isManager, membros }: {
+function PainelLead({ leadId, onFechar, onAtualizar, onDeletar, isManager, isAdmin, membros }: {
   leadId: string; onFechar: () => void; onAtualizar: () => void;
-  onDeletar: (id: string) => void; isManager: boolean; membros: Membro[];
+  onDeletar: (id: string) => void; isManager: boolean; isAdmin: boolean; membros: Membro[];
 }) {
   const [lead, setLead] = useState<LeadDetalhe | null>(null);
   const [loading, setLoading] = useState(true);
@@ -533,6 +540,11 @@ function PainelLead({ leadId, onFechar, onAtualizar, onDeletar, isManager, membr
   const [confirmDeletar, setConfirmDeletar] = useState(false);
   // WhatsApp send
   const [msgWA, setMsgWA] = useState(''); const [enviandoWA, setEnviandoWA] = useState(false);
+  const [contasWA, setContasWA] = useState<ContaWA[]>([]);
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [contaSelecionada, setContaSelecionada] = useState('');
+  const [loadingWA, setLoadingWA] = useState(false);
+  const sseRef = useRef<EventSource | null>(null);
 
   const carregarLead = useCallback(async () => {
     setLoading(true);
@@ -551,6 +563,43 @@ function PainelLead({ leadId, onFechar, onAtualizar, onDeletar, isManager, membr
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [onFechar]);
+
+  // Carregar contas WA, templates e abrir SSE quando aba whatsapp
+  useEffect(() => {
+    if (aba !== 'whatsapp') {
+      sseRef.current?.close();
+      sseRef.current = null;
+      return;
+    }
+    async function carregarWA() {
+      setLoadingWA(true);
+      try {
+        const [contasRes, templatesRes] = await Promise.all([
+          api.get('/crm/whatsapp/contas'),
+          api.get('/crm/whatsapp/templates'),
+        ]);
+        const contas: ContaWA[] = contasRes.data;
+        setContasWA(contas);
+        setTemplates(templatesRes.data ?? []);
+        const conectada = contas.find(c => c.status === 'open');
+        if (conectada) setContaSelecionada(conectada.instance_name);
+      } catch { /* silencioso */ }
+      finally { setLoadingWA(false); }
+    }
+    carregarWA();
+    // SSE — mensagens em tempo real
+    const token = localStorage.getItem('token');
+    const apiBase = (api.defaults.baseURL ?? '').replace(/\/$/, '');
+    const es = new EventSource(`${apiBase}/crm/whatsapp/stream/${leadId}?token=${token ?? ''}`);
+    es.onmessage = (e) => {
+      try {
+        const msg: Mensagem = JSON.parse(e.data);
+        setLead(prev => prev ? { ...prev, mensagens: [...prev.mensagens, msg] } : prev);
+      } catch { /* ignore */ }
+    };
+    sseRef.current = es;
+    return () => { es.close(); sseRef.current = null; };
+  }, [aba, leadId]);
 
   async function salvarEdicao(dados: Partial<Lead>) {
     try {
@@ -625,12 +674,17 @@ function PainelLead({ leadId, onFechar, onAtualizar, onDeletar, isManager, membr
   async function handleEnviarWA(e: React.FormEvent) {
     e.preventDefault();
     if (!msgWA.trim() || !lead?.telefone) return;
+    if (!contaSelecionada) return toast.error('Selecione uma conta WhatsApp conectada');
+    const conta = contasWA.find(c => c.instance_name === contaSelecionada);
     setEnviandoWA(true);
     try {
       await api.post('/crm/whatsapp/send', {
-        to: lead.telefone,
-        message: msgWA.trim(),
+        instanceName: contaSelecionada,
+        telefone: lead.telefone,
+        mensagem: msgWA.trim(),
         lead_id: leadId,
+        conta_id: conta?.id,
+        conta_nome: conta?.nome,
       });
       toast.success('Mensagem enviada!'); setMsgWA(''); carregarLead();
     } catch (e: any) {
@@ -696,7 +750,7 @@ function PainelLead({ leadId, onFechar, onAtualizar, onDeletar, isManager, membr
                 className="w-8 h-8 flex items-center justify-center rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white transition-colors text-sm">
                 ✏️
               </button>
-              {isManager && (
+              {isAdmin && (
                 <button onClick={() => setConfirmDeletar(true)} title="Deletar"
                   className="w-8 h-8 flex items-center justify-center rounded-lg bg-zinc-800 hover:bg-red-900/40 text-zinc-400 hover:text-red-400 transition-colors text-sm">
                   🗑️
@@ -981,8 +1035,52 @@ function PainelLead({ leadId, onFechar, onAtualizar, onDeletar, isManager, membr
                 </a>
               )}
 
+              {/* Seletor de conta WA */}
+              {loadingWA ? (
+                <div className="text-center text-zinc-600 text-xs py-2">Carregando contas...</div>
+              ) : contasWA.length === 0 ? (
+                <div className="bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-500 text-center">
+                  ⚠️ Nenhuma conta WhatsApp configurada
+                </div>
+              ) : (
+                <div className="flex flex-col gap-1.5">
+                  {contasWA.length > 1 && (
+                    <select value={contaSelecionada} onChange={e => setContaSelecionada(e.target.value)}
+                      className="bg-zinc-800 border border-zinc-600 rounded-xl px-3 py-2 text-white text-xs focus:border-green-500 outline-none">
+                      <option value="">Selecione uma conta...</option>
+                      {contasWA.map(c => (
+                        <option key={c.instance_name} value={c.instance_name} disabled={c.status !== 'open'}>
+                          {c.nome} {c.status === 'open' ? '✅' : '❌'}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                  {contasWA.length === 1 && (
+                    <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs ${contasWA[0].status === 'open' ? 'bg-green-900/20 border border-green-700/30 text-green-400' : 'bg-red-900/20 border border-red-700/30 text-red-400'}`}>
+                      <span>{contasWA[0].status === 'open' ? '✅' : '❌'}</span>
+                      <span className="font-bold">{contasWA[0].nome}</span>
+                      <span className="ml-auto opacity-60">{contasWA[0].status}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Templates rápidos */}
+              {templates.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {templates.slice(0, 6).map(t => (
+                    <button key={t.id} type="button"
+                      onClick={() => setMsgWA(t.conteudo)}
+                      title={t.conteudo}
+                      className="text-[10px] bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-green-600 text-zinc-400 hover:text-green-400 px-2 py-1 rounded-lg transition-all">
+                      {t.titulo}
+                    </button>
+                  ))}
+                </div>
+              )}
+
               {/* Mensagens */}
-              <div className="flex-1 flex flex-col gap-2 min-h-0">
+              <div className="flex-1 flex flex-col gap-2 min-h-0 overflow-y-auto">
                 {lead.mensagens.length === 0 && (
                   <div className="text-center py-8 text-zinc-600">
                     <div className="text-3xl mb-2">💬</div>
@@ -996,7 +1094,7 @@ function PainelLead({ leadId, onFechar, onAtualizar, onDeletar, isManager, membr
                       {msg.conteudo}
                     </div>
                     <p className={`text-[10px] text-zinc-600 mt-0.5 ${msg.direcao === 'out' ? 'text-right' : ''}`}>
-                      {fmtData(msg.created_at)}
+                      {fmtData(msg.created_at)} {msg.status && msg.status !== 'sent' ? `· ${msg.status}` : ''}
                     </p>
                   </div>
                 ))}
@@ -1005,11 +1103,11 @@ function PainelLead({ leadId, onFechar, onAtualizar, onDeletar, isManager, membr
               {/* Enviar mensagem via API */}
               {lead.telefone && (
                 <form onSubmit={handleEnviarWA} className="flex gap-2 pt-2 border-t border-zinc-800">
-                  <input value={msgWA} onChange={e => setMsgWA(e.target.value)}
-                    className="flex-1 bg-zinc-800 border border-zinc-600 rounded-xl px-3 py-2 text-white text-sm focus:border-green-500 outline-none"
-                    placeholder="Enviar via WhatsApp integrado..." />
-                  <button type="submit" disabled={enviandoWA || !msgWA.trim()}
-                    className="px-4 py-2 rounded-xl bg-green-700 text-white text-sm font-bold hover:bg-green-600 transition-colors disabled:opacity-50">
+                  <textarea value={msgWA} onChange={e => setMsgWA(e.target.value)} rows={2}
+                    className="flex-1 bg-zinc-800 border border-zinc-600 rounded-xl px-3 py-2 text-white text-sm focus:border-green-500 outline-none resize-none"
+                    placeholder={contaSelecionada ? 'Enviar via WhatsApp integrado...' : 'Configure uma conta para enviar...'} />
+                  <button type="submit" disabled={enviandoWA || !msgWA.trim() || !contaSelecionada}
+                    className="px-4 py-2 rounded-xl bg-green-700 text-white text-sm font-bold hover:bg-green-600 transition-colors disabled:opacity-50 self-end">
                     {enviandoWA ? '...' : '▶'}
                   </button>
                 </form>
@@ -1312,6 +1410,190 @@ function TarefaLista({ tarefas, onCompletar, onDeletar, onAbrirLead, vencida }: 
   );
 }
 
+// ─── VIEW WHATSAPP (gerenciamento de contas) ──────────────────────────────────
+
+function ViewWhatsApp() {
+  const [contas, setContas] = useState<ContaWA[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [criando, setCriando] = useState(false);
+  const [nomeNova, setNomeNova] = useState('');
+  const [responsavelId, setResponsavelId] = useState('');
+  const [salvandoConta, setSalvandoConta] = useState(false);
+  const [qrData, setQrData] = useState<Record<string, string>>({});
+  const [pairingData, setPairingData] = useState<Record<string, string>>({});
+  const [loadingAcao, setLoadingAcao] = useState<Record<string, boolean>>({});
+
+  const carregar = useCallback(async () => {
+    try { const { data } = await api.get('/crm/whatsapp/contas'); setContas(data); }
+    catch { toast.error('Erro ao carregar contas'); }
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { carregar(); }, [carregar]);
+
+  async function handleCriar(e: React.FormEvent) {
+    e.preventDefault();
+    if (!nomeNova.trim()) return;
+    setSalvandoConta(true);
+    try {
+      await api.post('/crm/whatsapp/contas', { nome: nomeNova.trim(), responsavel_id: responsavelId || undefined });
+      toast.success('Conta criada!'); setNomeNova(''); setResponsavelId(''); setCriando(false); carregar();
+    } catch (e: any) { toast.error(e.response?.data?.error || 'Erro ao criar conta'); }
+    finally { setSalvandoConta(false); }
+  }
+
+  async function handleQr(instanceName: string) {
+    setLoadingAcao(p => ({ ...p, [instanceName + '_qr']: true }));
+    try {
+      const { data } = await api.get(`/crm/whatsapp/contas/${instanceName}/qr`);
+      setQrData(p => ({ ...p, [instanceName]: data.qrcode ?? data.base64 ?? '' }));
+      setPairingData(p => { const n = { ...p }; delete n[instanceName]; return n; });
+    } catch (e: any) { toast.error(e.response?.data?.error || 'Erro ao obter QR'); }
+    finally { setLoadingAcao(p => ({ ...p, [instanceName + '_qr']: false })); }
+  }
+
+  async function handlePairing(instanceName: string) {
+    const phone = prompt('Digite o número com DDI (ex: 5511999999999):');
+    if (!phone) return;
+    setLoadingAcao(p => ({ ...p, [instanceName + '_pair']: true }));
+    try {
+      const { data } = await api.post(`/crm/whatsapp/contas/${instanceName}/pairing`, { phoneNumber: phone });
+      setPairingData(p => ({ ...p, [instanceName]: data.code ?? data.pairingCode ?? '' }));
+      setQrData(p => { const n = { ...p }; delete n[instanceName]; return n; });
+    } catch (e: any) { toast.error(e.response?.data?.error || 'Erro ao obter código'); }
+    finally { setLoadingAcao(p => ({ ...p, [instanceName + '_pair']: false })); }
+  }
+
+  async function handleDesconectar(instanceName: string) {
+    if (!confirm('Desconectar esta conta?')) return;
+    setLoadingAcao(p => ({ ...p, [instanceName + '_disc']: true }));
+    try {
+      await api.delete(`/crm/whatsapp/contas/${instanceName}/logout`);
+      toast.success('Desconectado'); carregar();
+    } catch (e: any) { toast.error(e.response?.data?.error || 'Erro'); }
+    finally { setLoadingAcao(p => ({ ...p, [instanceName + '_disc']: false })); }
+  }
+
+  async function handleDeletar(instanceName: string) {
+    if (!confirm('Deletar esta conta permanentemente?')) return;
+    setLoadingAcao(p => ({ ...p, [instanceName + '_del']: true }));
+    try {
+      await api.delete(`/crm/whatsapp/contas/${instanceName}`);
+      toast.success('Conta deletada'); carregar();
+    } catch (e: any) { toast.error(e.response?.data?.error || 'Erro'); }
+    finally { setLoadingAcao(p => ({ ...p, [instanceName + '_del']: false })); }
+  }
+
+  if (loading) return <div className="flex items-center justify-center h-64 text-green-400 animate-pulse">Carregando contas...</div>;
+
+  return (
+    <div className="max-w-2xl mx-auto p-4 flex flex-col gap-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-white font-black text-lg">💬 Contas WhatsApp</h2>
+        <button onClick={() => setCriando(v => !v)}
+          className="px-4 py-2 rounded-xl bg-green-700 text-white text-sm font-bold hover:bg-green-600 transition-colors">
+          {criando ? '✕ Cancelar' : '+ Nova Conta'}
+        </button>
+      </div>
+
+      {criando && (
+        <form onSubmit={handleCriar} className="bg-zinc-900 border border-zinc-700 rounded-2xl p-4 flex flex-col gap-3">
+          <h3 className="text-zinc-300 font-bold text-sm">Nova Conta WhatsApp</h3>
+          <input value={nomeNova} onChange={e => setNomeNova(e.target.value)} required
+            className="bg-zinc-800 border border-zinc-600 rounded-xl px-4 py-2.5 text-white text-sm focus:border-green-500 outline-none"
+            placeholder="Nome da conta (ex: Comercial, Suporte)" />
+          <div className="flex gap-2">
+            <button type="button" onClick={() => setCriando(false)}
+              className="flex-1 py-2.5 rounded-xl border border-zinc-600 text-zinc-400 text-sm font-bold hover:bg-zinc-800 transition-colors">
+              Cancelar
+            </button>
+            <button type="submit" disabled={salvandoConta}
+              className="flex-1 py-2.5 rounded-xl bg-green-700 text-white text-sm font-black hover:bg-green-600 transition-colors disabled:opacity-50">
+              {salvandoConta ? 'Criando...' : 'Criar Conta'}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {contas.length === 0 && !criando && (
+        <div className="text-center py-16 text-zinc-600">
+          <div className="text-5xl mb-3">💬</div>
+          <p className="font-bold text-lg">Nenhuma conta configurada</p>
+          <p className="text-sm mt-1">Crie uma conta para enviar mensagens via WhatsApp</p>
+        </div>
+      )}
+
+      {contas.map(conta => {
+        const isConectada = conta.status === 'open';
+        const qr = qrData[conta.instance_name];
+        const pairing = pairingData[conta.instance_name];
+        const loadQr = loadingAcao[conta.instance_name + '_qr'];
+        const loadPair = loadingAcao[conta.instance_name + '_pair'];
+        const loadDisc = loadingAcao[conta.instance_name + '_disc'];
+        const loadDel = loadingAcao[conta.instance_name + '_del'];
+        return (
+          <div key={conta.id} className={`bg-zinc-900 border rounded-2xl p-4 flex flex-col gap-3 ${isConectada ? 'border-green-700/40' : 'border-zinc-700'}`}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-white font-bold">{conta.nome}</p>
+                <p className="text-xs text-zinc-500 mt-0.5">{conta.instance_name}</p>
+              </div>
+              <span className={`text-xs font-black px-3 py-1.5 rounded-full ${isConectada ? 'bg-green-900/40 text-green-400' : 'bg-red-900/30 text-red-400'}`}>
+                {isConectada ? '✅ Conectado' : '❌ ' + conta.status}
+              </span>
+            </div>
+
+            {/* Ações de conexão */}
+            {!isConectada && (
+              <div className="flex gap-2">
+                <button onClick={() => handleQr(conta.instance_name)} disabled={!!loadQr}
+                  className="flex-1 py-2 rounded-xl border border-zinc-600 text-zinc-300 text-xs font-bold hover:bg-zinc-800 transition-colors disabled:opacity-50">
+                  {loadQr ? '...' : '📷 QR Code'}
+                </button>
+                <button onClick={() => handlePairing(conta.instance_name)} disabled={!!loadPair}
+                  className="flex-1 py-2 rounded-xl border border-zinc-600 text-zinc-300 text-xs font-bold hover:bg-zinc-800 transition-colors disabled:opacity-50">
+                  {loadPair ? '...' : '🔢 Código'}
+                </button>
+              </div>
+            )}
+
+            {/* QR Code */}
+            {qr && (
+              <div className="flex flex-col items-center gap-2 p-4 bg-white rounded-xl">
+                <img src={qr.startsWith('data:') ? qr : `data:image/png;base64,${qr}`} alt="QR Code" className="w-48 h-48 object-contain" />
+                <p className="text-black text-xs text-center">Escaneie com o WhatsApp do celular</p>
+              </div>
+            )}
+
+            {/* Pairing Code */}
+            {pairing && (
+              <div className="flex flex-col items-center gap-2 p-4 bg-zinc-800 rounded-xl border border-green-700/40">
+                <p className="text-xs text-zinc-400">Código de pareamento:</p>
+                <p className="text-3xl font-black text-green-400 tracking-widest">{pairing}</p>
+                <p className="text-xs text-zinc-500 text-center">Digite este código no WhatsApp: Dispositivos Vinculados → Vincular com número</p>
+              </div>
+            )}
+
+            {/* Ações de gerenciamento */}
+            <div className="flex gap-2 pt-1 border-t border-zinc-800">
+              {isConectada && (
+                <button onClick={() => handleDesconectar(conta.instance_name)} disabled={!!loadDisc}
+                  className="flex-1 py-2 rounded-xl border border-zinc-700 text-zinc-400 text-xs font-bold hover:bg-zinc-800 hover:text-orange-400 transition-colors disabled:opacity-50">
+                  {loadDisc ? '...' : '⏏ Desconectar'}
+                </button>
+              )}
+              <button onClick={() => handleDeletar(conta.instance_name)} disabled={!!loadDel}
+                className="flex-1 py-2 rounded-xl border border-zinc-700 text-zinc-400 text-xs font-bold hover:bg-red-900/20 hover:text-red-400 hover:border-red-700/40 transition-colors disabled:opacity-50">
+                {loadDel ? '...' : '🗑️ Deletar'}
+              </button>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ─── PÁGINA PRINCIPAL ─────────────────────────────────────────────────────────
 
 export function Crm() {
@@ -1319,6 +1601,7 @@ export function Crm() {
   const userStr  = localStorage.getItem('user');
   const user = useMemo(() => userStr ? JSON.parse(userStr) : { id: '', name: '', role: 'vendedor' }, [userStr]);
   const isManager = ['admin', 'suporte'].includes(user.role);
+  const isAdmin = user.role === 'admin';
 
   // ─ Estado global ─
   const [leads, setLeads]     = useState<Lead[]>([]);
@@ -1337,7 +1620,7 @@ export function Crm() {
   const [showFiltrosAvancados, setShowFiltrosAvancados] = useState(false);
 
   // ─ UI ─
-  const [view, setView]             = useState<'kanban' | 'lista' | 'tarefas'>('kanban');
+  const [view, setView]             = useState<'kanban' | 'lista' | 'tarefas' | 'whatsapp'>('kanban');
   const [leadSelecionadoId, setLeadSelecionadoId] = useState<string | null>(null);
   const [showModalLead, setShowModalLead]         = useState(false);
   const [showAnalytics, setShowAnalytics]         = useState(false);
@@ -1501,15 +1784,16 @@ export function Crm() {
             {/* Views toggle */}
             <div className="flex bg-zinc-900 rounded-xl border border-zinc-800 p-0.5">
               {([
-                { id: 'kanban',  label: '⊞', title: 'Kanban' },
-                { id: 'lista',   label: '≡', title: 'Lista' },
+                { id: 'kanban',    label: '⊞', title: 'Kanban',    show: true },
+                { id: 'lista',     label: '≡', title: 'Lista',     show: true },
                 {
-                  id: 'tarefas', title: 'Tarefas',
+                  id: 'tarefas', title: 'Tarefas', show: true,
                   label: alertasProxAtiv > 0
                     ? <span className="relative"><span>✅</span><span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[8px] font-black rounded-full w-3.5 h-3.5 flex items-center justify-center">{alertasProxAtiv > 9 ? '9+' : alertasProxAtiv}</span></span>
                     : '✅',
                 },
-              ] as { id: 'kanban' | 'lista' | 'tarefas'; label: React.ReactNode; title: string }[]).map(v => (
+                { id: 'whatsapp', label: '💬', title: 'WhatsApp', show: isManager },
+              ] as { id: 'kanban' | 'lista' | 'tarefas' | 'whatsapp'; label: React.ReactNode; title: string; show: boolean }[]).filter(v => v.show).map(v => (
                 <button key={v.id} onClick={() => setView(v.id)} title={v.title}
                   className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-all ${view === v.id ? 'bg-zinc-700 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}>
                   {v.label}
@@ -1623,6 +1907,8 @@ export function Crm() {
           </div>
         ) : view === 'tarefas' ? (
           <ViewTarefas isManager={isManager} onAbrirLead={id => { setLeadSelecionadoId(id); setView('kanban'); }} />
+        ) : view === 'whatsapp' ? (
+          <ViewWhatsApp />
         ) : view === 'kanban' ? (
           // ─── KANBAN ──────────────────────────────────────────────────────────
           <div className="flex gap-3 p-4 h-full" style={{ minWidth: 'max-content' }}>
@@ -1747,6 +2033,7 @@ export function Crm() {
           onAtualizar={carregarLeads}
           onDeletar={handleDeletar}
           isManager={isManager}
+          isAdmin={isAdmin}
           membros={membros}
         />
       )}
