@@ -22,5 +22,5 @@
     "noFallthroughCasesInSwitch": true
   },
   "include": ["src"],
-  "exclude": ["src/pages/_backup_crm_v1"]
+  "exclude": ["src/pages/_backup_crm_v1", "src/pages/_backup_crm_v2"]
 }
