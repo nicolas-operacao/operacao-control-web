@@ -1435,8 +1435,11 @@ function ViewWhatsApp() {
     e.preventDefault();
     if (!nomeNova.trim()) return;
     setSalvandoConta(true);
+    const instanceName = nomeNova.trim().toLowerCase()
+      .normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .replace(/[^a-z0-9_-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
     try {
-      await api.post('/crm/whatsapp/contas', { nome: nomeNova.trim(), responsavel_id: responsavelId || undefined });
+      await api.post('/crm/whatsapp/contas', { nome: nomeNova.trim(), instance_name: instanceName, responsavel_id: responsavelId || undefined });
       toast.success('Conta criada!'); setNomeNova(''); setResponsavelId(''); setCriando(false); carregar();
     } catch (e: any) { toast.error(e.response?.data?.error || 'Erro ao criar conta'); }
     finally { setSalvandoConta(false); }
