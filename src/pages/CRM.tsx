@@ -1,518 +1,988 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  DndContext, DragEndEvent, DragOverEvent, DragStartEvent,
-  PointerSensor, TouchSensor, useSensor, useSensors,
-  closestCorners, DragOverlay,
-} from '@dnd-kit/core';
-import {
-  SortableContext, verticalListSortingStrategy,
-  useSortable, arrayMove,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-
-import { crmApi, ESTAGIOS_ATIVOS, ESTAGIOS_PERDA } from '../services/crm/crmApi';
-import type { Lead } from '../services/crm/crmApi';
-import { somClick, somHover } from '../services/hudSounds';
+import { api } from '../services/api';
 import { toast } from '../services/toast';
-import { LeadModal } from '../components/crm/LeadModal';
-import { NovoLeadModal } from '../components/crm/NovoLeadModal';
-import { WhatsappPanel } from '../components/crm/WhatsappPanel';
-import { CrmAnalytics } from '../components/crm/CrmAnalytics';
-import { BottomNav } from '../components/BottomNav';
+import { somClick, somHover } from '../services/hudSounds';
 
-// ─── CARD ARRASTÁVEL ──────────────────────────────────────────────────────────
+// ─── TIPOS ────────────────────────────────────────────────────────────────────
 
-function SortableLead({ lead, onClick }: { lead: Lead; onClick: () => void }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: lead.id });
+type Lead = {
+  id: string;
+  nome: string;
+  telefone?: string;
+  email?: string;
+  produto_interesse?: string;
+  valor_estimado?: number;
+  origem?: string;
+  observacoes?: string;
+  estagio: string;
+  motivo_perda?: string;
+  responsavel_id?: string;
+  responsavel_nome?: string;
+  created_at: string;
+  updated_at: string;
+};
 
-  const diasNoEstagio = Math.floor((Date.now() - new Date(lead.updated_at).getTime()) / 86400000);
-  const atrasado = diasNoEstagio >= 3;
-  const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+type Atividade = {
+  id: string;
+  lead_id: string;
+  user_id: string;
+  user_nome: string;
+  tipo: string;
+  conteudo: string;
+  created_at: string;
+};
+
+type Tarefa = {
+  id: string;
+  lead_id?: string;
+  user_id: string;
+  user_nome: string;
+  titulo: string;
+  descricao?: string;
+  vencimento?: string;
+  concluida: boolean;
+  crm_leads?: { nome: string; estagio: string };
+};
+
+type Historico = {
+  id: string;
+  estagio_anterior?: string;
+  estagio_novo: string;
+  user_nome: string;
+  observacao?: string;
+  created_at: string;
+};
+
+type LeadDetalhe = Lead & {
+  historico: Historico[];
+  atividades: Atividade[];
+  tarefas: Tarefa[];
+};
+
+type Membro = { id: string; name: string; role?: string };
+
+type Analytics = {
+  total: number;
+  ativos: number;
+  fechados: number;
+  perdidos: number;
+  semResponsavel?: number;
+  valorPipeline: number;
+  valorFechado: number;
+  taxaConversao: number;
+  idadeMediaDias?: number;
+  porEstagio: Record<string, number>;
+  funil?: Record<string, number>;
+  porMembro?: Array<{ nome: string; total: number; ativos: number; fechados: number; perdidos: number; valor: number }>;
+};
+
+// ─── CONFIGURAÇÃO DE ESTÁGIOS ─────────────────────────────────────────────────
+
+const COLUNAS_KANBAN = [
+  { id: 'base',          label: 'Entrada',      cor: 'border-zinc-600',   icone: '📥' },
+  { id: 'prospeccao',    label: 'Prospecção',   cor: 'border-blue-500',   icone: '🔍' },
+  { id: 'conexao',       label: 'Conexão',      cor: 'border-cyan-500',   icone: '📞' },
+  { id: 'qualificacao',  label: 'Qualificação', cor: 'border-violet-500', icone: '🎯' },
+  { id: 'apresentacao',  label: 'Apresentação', cor: 'border-orange-500', icone: '🎤' },
+  { id: 'negociacao',    label: 'Negociação',   cor: 'border-yellow-500', icone: '🤝' },
+  { id: 'followup',      label: 'Follow-up',    cor: 'border-pink-500',   icone: '🔄' },
+  { id: 'fechamento',    label: 'Fechado ✅',   cor: 'border-green-500',  icone: '🏆' },
+  { id: 'perdido',       label: 'Perdidos ❌',  cor: 'border-red-700',    icone: '💀' },
+];
+
+const ESTAGIOS_PERDIDO = ['perdido_sem_interesse','perdido_sem_contato','perdido_concorrente','perdido_preco','perdido_nao_qualificado'];
+
+const MOTIVOS_PERDA: Record<string, string> = {
+  perdido_sem_interesse: 'Sem interesse',
+  perdido_sem_contato:   'Sem contato',
+  perdido_concorrente:   'Concorrência',
+  perdido_preco:         'Preço',
+  perdido_nao_qualificado: 'Não qualificado',
+};
+
+const ORIGENS = ['Instagram','Facebook','Indicação','Google','YouTube','TikTok','WhatsApp','Site','Evento','Outro'];
+const TIPOS_ATIVIDADE = ['nota','ligacao','email','reuniao','whatsapp','outro'];
+
+function fmtMoeda(v?: number) {
+  if (!v) return '—';
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
+}
+
+function fmtData(s: string) {
+  return new Date(s).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
+
+function fmtDataCurta(s: string) {
+  return new Date(s).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+}
+
+function diasDesde(s: string) {
+  return Math.floor((Date.now() - new Date(s).getTime()) / 86400000);
+}
+
+function labelEstagio(e: string) {
+  return COLUNAS_KANBAN.find(c => c.id === e || (c.id === 'perdido' && ESTAGIOS_PERDIDO.includes(e)))?.label ?? e;
+}
+
+// ─── COMPONENTE CARD LEAD ─────────────────────────────────────────────────────
+
+function CardLead({ lead, onClick }: { lead: Lead; onClick: () => void }) {
+  const dias = diasDesde(lead.updated_at);
+  const quente = dias <= 1;
+  const frio   = dias > 5;
 
   return (
-    <div
-      ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }}
-      {...attributes}
-      {...listeners}
+    <button
       onClick={() => { somClick(); onClick(); }}
       onMouseEnter={somHover}
-      className="group rounded-xl border bg-zinc-900/90 border-zinc-800 hover:border-zinc-600 p-3 cursor-pointer transition-all select-none touch-none"
+      className="w-full text-left bg-zinc-900 border border-zinc-700/60 rounded-lg p-3 hover:border-yellow-400/40 hover:bg-zinc-800/80 transition-all group"
     >
       <div className="flex items-start justify-between gap-2 mb-1.5">
-        <p className="text-white font-black text-sm leading-tight truncate">{lead.nome}</p>
-        {lead.valor_estimado ? (
-          <span className="text-green-400 font-black text-xs whitespace-nowrap flex-shrink-0">{fmt(Number(lead.valor_estimado))}</span>
-        ) : null}
+        <span className="font-bold text-white text-sm leading-tight line-clamp-1">{lead.nome}</span>
+        <span className={`text-[10px] font-black px-1.5 py-0.5 rounded shrink-0 ${quente ? 'bg-green-500/20 text-green-400' : frio ? 'bg-red-500/20 text-red-400' : 'bg-zinc-700 text-zinc-400'}`}>
+          {dias === 0 ? 'hoje' : `${dias}d`}
+        </span>
       </div>
       {lead.produto_interesse && (
-        <p className="text-zinc-600 text-[10px] uppercase tracking-wider truncate mb-2">{lead.produto_interesse}</p>
+        <p className="text-[11px] text-yellow-400/80 font-medium truncate mb-1">{lead.produto_interesse}</p>
       )}
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5">
-          {lead.responsavel_nome && (
-            <span className="text-[9px] text-zinc-600 font-bold truncate max-w-[80px]">{lead.responsavel_nome.split(' ')[0]}</span>
-          )}
-          {lead.origem && lead.origem !== 'Manual' && (
-            <span className="text-[8px] text-zinc-700 border border-zinc-800 px-1 rounded">{lead.origem}</span>
-          )}
-        </div>
-        {atrasado && (
-          <span className="text-[8px] font-black text-orange-500 bg-orange-500/10 px-1.5 py-0.5 rounded border border-orange-500/20">
-            {diasNoEstagio}d parado
-          </span>
+      <div className="flex items-center justify-between">
+        {lead.valor_estimado ? (
+          <span className="text-[11px] text-green-400 font-bold">{fmtMoeda(lead.valor_estimado)}</span>
+        ) : <span />}
+        {lead.responsavel_nome && (
+          <span className="text-[10px] text-zinc-500 truncate max-w-[90px]">{lead.responsavel_nome.split(' ')[0]}</span>
         )}
       </div>
-    </div>
+    </button>
   );
 }
 
-// ─── COLUNA DO KANBAN ─────────────────────────────────────────────────────────
+// ─── MODAL CRIAR/EDITAR LEAD ──────────────────────────────────────────────────
 
-function KanbanColuna({
-  estagio, leads, onLeadClick,
+function ModalLead({
+  lead,
+  membros,
+  isManager,
+  onSalvar,
+  onFechar,
 }: {
-  estagio: typeof ESTAGIOS_ATIVOS[number];
-  leads: Lead[];
-  onLeadClick: (id: string) => void;
+  lead?: Lead | null;
+  membros: Membro[];
+  isManager: boolean;
+  onSalvar: (data: Partial<Lead>) => Promise<void>;
+  onFechar: () => void;
 }) {
-  const valorTotal = leads.reduce((s, l) => s + (Number(l.valor_estimado) || 0), 0);
-  const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const [nome, setNome] = useState(lead?.nome ?? '');
+  const [telefone, setTelefone] = useState(lead?.telefone ?? '');
+  const [email, setEmail] = useState(lead?.email ?? '');
+  const [produto, setProduto] = useState(lead?.produto_interesse ?? '');
+  const [valor, setValor] = useState(lead?.valor_estimado ? String(lead.valor_estimado) : '');
+  const [origem, setOrigem] = useState(lead?.origem ?? '');
+  const [obs, setObs] = useState(lead?.observacoes ?? '');
+  const [responsavelId, setResponsavelId] = useState(lead?.responsavel_id ?? '');
+  const [salvando, setSalvando] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!nome.trim()) return toast.error('Nome é obrigatório');
+    setSalvando(true);
+    try {
+      const membro = membros.find(m => String(m.id) === responsavelId);
+      await onSalvar({
+        nome: nome.trim(),
+        telefone: telefone.trim() || undefined,
+        email: email.trim() || undefined,
+        produto_interesse: produto.trim() || undefined,
+        valor_estimado: valor ? Number(valor.replace(',', '.')) : undefined,
+        origem: origem || undefined,
+        observacoes: obs.trim() || undefined,
+        responsavel_id: responsavelId || undefined,
+        responsavel_nome: membro?.name,
+      });
+    } finally {
+      setSalvando(false);
+    }
+  }
 
   return (
-    <div className="flex flex-col rounded-2xl overflow-hidden border border-zinc-800/60 bg-zinc-950/60 w-64 flex-shrink-0 max-h-[calc(100vh-180px)]">
-      {/* Header da coluna */}
-      <div className="px-3 py-3 flex-shrink-0 border-b border-zinc-800/60"
-        style={{ background: estagio.cor + '12', borderTopColor: estagio.cor + '40' }}>
-        <div className="flex items-center justify-between">
-          <span className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wider" style={{ color: estagio.cor }}>
-            {estagio.emoji} {estagio.label}
-          </span>
-          <span className="text-[10px] font-black px-1.5 py-0.5 rounded-full bg-zinc-800 text-zinc-400">{leads.length}</span>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={onFechar}>
+      <form
+        onClick={e => e.stopPropagation()}
+        onSubmit={handleSubmit}
+        className="bg-zinc-900 border border-zinc-700 rounded-xl w-full max-w-md max-h-[90vh] overflow-y-auto p-5 flex flex-col gap-3"
+      >
+        <h2 className="text-yellow-400 font-black text-lg">{lead ? '✏️ Editar Lead' : '➕ Novo Lead'}</h2>
+
+        <label className="flex flex-col gap-1">
+          <span className="text-xs text-zinc-400 font-bold">Nome *</span>
+          <input
+            value={nome} onChange={e => setNome(e.target.value)} required
+            className="bg-zinc-800 border border-zinc-600 rounded-lg px-3 py-2 text-white text-sm focus:border-yellow-400 outline-none"
+            placeholder="Nome do lead"
+          />
+        </label>
+
+        <div className="grid grid-cols-2 gap-3">
+          <label className="flex flex-col gap-1">
+            <span className="text-xs text-zinc-400 font-bold">Telefone</span>
+            <input value={telefone} onChange={e => setTelefone(e.target.value)}
+              className="bg-zinc-800 border border-zinc-600 rounded-lg px-3 py-2 text-white text-sm focus:border-yellow-400 outline-none"
+              placeholder="(00) 00000-0000" />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs text-zinc-400 font-bold">E-mail</span>
+            <input value={email} onChange={e => setEmail(e.target.value)} type="email"
+              className="bg-zinc-800 border border-zinc-600 rounded-lg px-3 py-2 text-white text-sm focus:border-yellow-400 outline-none"
+              placeholder="email@exemplo.com" />
+          </label>
         </div>
-        {valorTotal > 0 && (
-          <p className="text-[10px] font-bold mt-0.5" style={{ color: estagio.cor + 'aa' }}>{fmt(valorTotal)}</p>
+
+        <div className="grid grid-cols-2 gap-3">
+          <label className="flex flex-col gap-1">
+            <span className="text-xs text-zinc-400 font-bold">Produto / Interesse</span>
+            <input value={produto} onChange={e => setProduto(e.target.value)}
+              className="bg-zinc-800 border border-zinc-600 rounded-lg px-3 py-2 text-white text-sm focus:border-yellow-400 outline-none"
+              placeholder="Ex: Mentoria Premium" />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs text-zinc-400 font-bold">Valor estimado (R$)</span>
+            <input value={valor} onChange={e => setValor(e.target.value)} type="number" min="0" step="0.01"
+              className="bg-zinc-800 border border-zinc-600 rounded-lg px-3 py-2 text-white text-sm focus:border-yellow-400 outline-none"
+              placeholder="0,00" />
+          </label>
+        </div>
+
+        <label className="flex flex-col gap-1">
+          <span className="text-xs text-zinc-400 font-bold">Origem</span>
+          <select value={origem} onChange={e => setOrigem(e.target.value)}
+            className="bg-zinc-800 border border-zinc-600 rounded-lg px-3 py-2 text-white text-sm focus:border-yellow-400 outline-none">
+            <option value="">Selecione...</option>
+            {ORIGENS.map(o => <option key={o} value={o}>{o}</option>)}
+          </select>
+        </label>
+
+        {isManager && membros.length > 0 && (
+          <label className="flex flex-col gap-1">
+            <span className="text-xs text-zinc-400 font-bold">Responsável</span>
+            <select value={responsavelId} onChange={e => setResponsavelId(e.target.value)}
+              className="bg-zinc-800 border border-zinc-600 rounded-lg px-3 py-2 text-white text-sm focus:border-yellow-400 outline-none">
+              <option value="">Auto-distribuir</option>
+              {membros.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+            </select>
+          </label>
         )}
-      </div>
-      {/* Cards */}
-      <div className="flex-1 overflow-y-auto p-2 space-y-2">
-        <SortableContext items={leads.map(l => l.id)} strategy={verticalListSortingStrategy}>
-          {leads.map(lead => (
-            <SortableLead key={lead.id} lead={lead} onClick={() => onLeadClick(lead.id)} />
-          ))}
-        </SortableContext>
-        {leads.length === 0 && (
-          <div className="text-center py-6 text-zinc-800 text-xs italic">Sem leads</div>
-        )}
-      </div>
+
+        <label className="flex flex-col gap-1">
+          <span className="text-xs text-zinc-400 font-bold">Observações</span>
+          <textarea value={obs} onChange={e => setObs(e.target.value)} rows={3}
+            className="bg-zinc-800 border border-zinc-600 rounded-lg px-3 py-2 text-white text-sm focus:border-yellow-400 outline-none resize-none"
+            placeholder="Informações relevantes sobre o lead..." />
+        </label>
+
+        <div className="flex gap-3 mt-1">
+          <button type="button" onClick={onFechar}
+            className="flex-1 py-2.5 rounded-lg border border-zinc-600 text-zinc-400 text-sm font-bold hover:bg-zinc-800 transition-colors">
+            Cancelar
+          </button>
+          <button type="submit" disabled={salvando}
+            className="flex-1 py-2.5 rounded-lg bg-yellow-400 text-black font-black text-sm hover:bg-yellow-300 transition-colors disabled:opacity-50">
+            {salvando ? 'Salvando...' : lead ? 'Salvar' : 'Criar Lead'}
+          </button>
+        </div>
+      </form>
     </div>
   );
 }
 
-// ─── PÁGINA PRINCIPAL ─────────────────────────────────────────────────────────
+// ─── PAINEL DETALHE DO LEAD ───────────────────────────────────────────────────
 
-export function CRM() {
-  const navigate = useNavigate();
-  const user = useMemo(() => JSON.parse(localStorage.getItem('user') || '{}'), []);
-  const isAdmin = user.role === 'admin';
-  const isAdminOrSuporte = isAdmin || user.role === 'suporte';
+function PainelLead({
+  leadId,
+  onFechar,
+  onAtualizar,
+  isManager,
+  membros,
+}: {
+  leadId: string;
+  onFechar: () => void;
+  onAtualizar: () => void;
+  isManager: boolean;
+  membros: Membro[];
+}) {
+  const [lead, setLead] = useState<LeadDetalhe | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [aba, setAba] = useState<'atividades' | 'tarefas' | 'historico'>('atividades');
+  const [novaAtv, setNovaAtv] = useState('');
+  const [tipoAtv, setTipoAtv] = useState('nota');
+  const [salvandoAtv, setSalvandoAtv] = useState(false);
+  const [novaTarefa, setNovaTarefa] = useState('');
+  const [vencTarefa, setVencTarefa] = useState('');
+  const [salvandoTarefa, setSalvandoTarefa] = useState(false);
+  const [movendo, setMovendo] = useState(false);
+  const [novoEstagio, setNovoEstagio] = useState('');
+  const [motivoPerda, setMotivoPerda] = useState('');
+  const [obsMove, setObsMove] = useState('');
+  const [showMove, setShowMove] = useState(false);
+  const [atribuindo, setAtribuindo] = useState(false);
+  const [novoResponsavel, setNovoResponsavel] = useState('');
 
-  const [aba, setAba] = useState<'kanban' | 'lista' | 'tarefas' | 'whatsapp' | 'analytics'>('kanban');
-  const [leads, setLeads] = useState<Lead[]>([]);
-  const [carregando, setCarregando] = useState(true);
-  const [busca, setBusca] = useState('');
-  const [leadModalId, setLeadModalId] = useState<string | null>(null);
-  const [novoLeadModal, setNovoLeadModal] = useState(false);
-  const [filtroPerdidos, setFiltroPerdidos] = useState(false);
+  const carregarLead = useCallback(async () => {
+    try {
+      const { data } = await api.get(`/crm/leads/${leadId}`);
+      setLead(data);
+      setNovoEstagio(data.estagio);
+    } catch { toast.error('Erro ao carregar lead'); }
+    finally { setLoading(false); }
+  }, [leadId]);
 
-  // Drag state
-  const [activeId, setActiveId] = useState<string | null>(null);
+  useEffect(() => { carregarLead(); }, [carregarLead]);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
+  async function handleMover() {
+    if (!novoEstagio) return;
+    const isPerdido = novoEstagio.startsWith('perdido');
+    if (isPerdido && !motivoPerda) return toast.error('Selecione o motivo da perda');
+    setMovendo(true);
+    try {
+      await api.patch(`/crm/leads/${leadId}/move`, {
+        estagio: novoEstagio,
+        observacao: obsMove,
+        motivo_perda: isPerdido ? motivoPerda : undefined,
+      });
+      toast.success('Lead movido!');
+      setShowMove(false);
+      setObsMove('');
+      setMotivoPerda('');
+      onAtualizar();
+      carregarLead();
+    } catch (e: any) { toast.error(e.response?.data?.error || 'Erro ao mover'); }
+    finally { setMovendo(false); }
+  }
+
+  async function handleAtribuir() {
+    if (!novoResponsavel) return;
+    const membro = membros.find(m => String(m.id) === novoResponsavel);
+    if (!membro) return;
+    setAtribuindo(true);
+    try {
+      await api.patch(`/crm/leads/${leadId}/atribuir`, { vendedor_id: membro.id, vendedor_nome: membro.name });
+      toast.success(`Lead atribuído para ${membro.name}`);
+      onAtualizar();
+      carregarLead();
+    } catch (e: any) { toast.error(e.response?.data?.error || 'Erro'); }
+    finally { setAtribuindo(false); }
+  }
+
+  async function handleAtividade(e: React.FormEvent) {
+    e.preventDefault();
+    if (!novaAtv.trim()) return;
+    setSalvandoAtv(true);
+    try {
+      await api.post(`/crm/leads/${leadId}/atividades`, { tipo: tipoAtv, conteudo: novaAtv.trim() });
+      setNovaAtv('');
+      carregarLead();
+    } catch (e: any) { toast.error(e.response?.data?.error || 'Erro'); }
+    finally { setSalvandoAtv(false); }
+  }
+
+  async function handleTarefa(e: React.FormEvent) {
+    e.preventDefault();
+    if (!novaTarefa.trim()) return;
+    setSalvandoTarefa(true);
+    try {
+      await api.post('/crm/tarefas', {
+        lead_id: leadId,
+        titulo: novaTarefa.trim(),
+        vencimento: vencTarefa || undefined,
+      });
+      setNovaTarefa('');
+      setVencTarefa('');
+      carregarLead();
+    } catch (e: any) { toast.error(e.response?.data?.error || 'Erro'); }
+    finally { setSalvandoTarefa(false); }
+  }
+
+  async function handleCompletarTarefa(tarefaId: string) {
+    try {
+      await api.patch(`/crm/tarefas/${tarefaId}/done`);
+      carregarLead();
+    } catch { toast.error('Erro'); }
+  }
+
+  if (loading) return (
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60">
+      <div className="text-yellow-400 text-2xl animate-pulse">Carregando...</div>
+    </div>
   );
 
-  const carregarLeads = useCallback(async () => {
-    try {
-      const data = await crmApi.leads.list();
-      setLeads(data);
-    } catch { toast.error('Erro ao carregar leads'); }
-    finally { setCarregando(false); }
-  }, []);
+  if (!lead) return null;
 
-  useEffect(() => { carregarLeads(); }, [carregarLeads]);
-
-  // Agrupar leads por estágio
-  const leadsPorEstagio = useMemo(() => {
-    const filtrado = busca
-      ? leads.filter(l =>
-          l.nome.toLowerCase().includes(busca.toLowerCase()) ||
-          l.produto_interesse?.toLowerCase().includes(busca.toLowerCase()) ||
-          l.telefone?.includes(busca) ||
-          l.responsavel_nome?.toLowerCase().includes(busca.toLowerCase())
-        )
-      : leads;
-
-    if (filtroPerdidos) {
-      const perdidos = filtrado.filter(l => l.estagio.startsWith('perdido'));
-      return { perdidos };
-    }
-
-    const mapa: Record<string, Lead[]> = {};
-    ESTAGIOS_ATIVOS.forEach(e => { mapa[e.key] = []; });
-    filtrado.filter(l => !l.estagio.startsWith('perdido')).forEach(l => {
-      if (mapa[l.estagio]) mapa[l.estagio].push(l);
-    });
-    return mapa;
-  }, [leads, busca, filtroPerdidos]);
-
-  const leadAtivo = activeId ? leads.find(l => l.id === activeId) : null;
-
-  function onDragStart({ active }: DragStartEvent) {
-    setActiveId(active.id as string);
-  }
-
-  async function onDragEnd({ active, over }: DragEndEvent) {
-    setActiveId(null);
-    if (!over) return;
-
-    const leadId = active.id as string;
-    const overId = over.id as string;
-
-    // Verifica se soltou em uma coluna (id de estágio) ou em outro lead
-    const novoEstagio = ESTAGIOS_ATIVOS.find(e => e.key === overId)?.key
-      ?? leads.find(l => l.id === overId)?.estagio;
-
-    if (!novoEstagio) return;
-    const leadAtualEstagio = leads.find(l => l.id === leadId)?.estagio;
-    if (leadAtualEstagio === novoEstagio) return;
-
-    // Atualiza otimisticamente
-    setLeads(prev => prev.map(l => l.id === leadId ? { ...l, estagio: novoEstagio, updated_at: new Date().toISOString() } : l));
-
-    try {
-      await crmApi.leads.move(leadId, novoEstagio);
-    } catch {
-      toast.error('Erro ao mover lead');
-      carregarLeads();
-    }
-  }
-
-  // ─── TAREFAS ───────────────────────────────────────────────────────────────
-
-  const [tarefas, setTarefas] = useState<any[]>([]);
-  const [tituloTarefa, setTituloTarefa] = useState('');
-  const [vencTarefa, setVencTarefa] = useState('');
-
-  useEffect(() => {
-    if (aba === 'tarefas') {
-      crmApi.tarefas.list().then(setTarefas).catch(() => {});
-    }
-  }, [aba]);
-
-  async function criarTarefa() {
-    if (!tituloTarefa.trim()) return;
-    try {
-      await crmApi.tarefas.create({ titulo: tituloTarefa, vencimento: vencTarefa || undefined });
-      setTituloTarefa(''); setVencTarefa('');
-      crmApi.tarefas.list().then(setTarefas);
-      toast.success('Tarefa criada');
-    } catch { toast.error('Erro ao criar tarefa'); }
-  }
-
-  async function concluirTarefa(id: string) {
-    try {
-      await crmApi.tarefas.complete(id);
-      setTarefas(prev => prev.map(t => t.id === id ? { ...t, concluida: true } : t));
-    } catch { toast.error('Erro'); }
-  }
-
-  async function deletarTarefa(id: string) {
-    try {
-      await crmApi.tarefas.delete(id);
-      setTarefas(prev => prev.filter(t => t.id !== id));
-    } catch { toast.error('Erro'); }
-  }
-
-  const tarefasHoje = tarefas.filter(t => !t.concluida && t.vencimento && new Date(t.vencimento).toDateString() === new Date().toDateString());
-  const tarefasAtrasadas = tarefas.filter(t => !t.concluida && t.vencimento && new Date(t.vencimento) < new Date() && new Date(t.vencimento).toDateString() !== new Date().toDateString());
-  const tarefasFuturas = tarefas.filter(t => !t.concluida && (!t.vencimento || new Date(t.vencimento) > new Date()));
-  const tarefasConcluidas = tarefas.filter(t => t.concluida);
-
-  // Totais para header
-  const totalAtivos = leads.filter(l => !l.estagio.startsWith('perdido')).length;
-  const totalFechados = leads.filter(l => l.estagio === 'fechamento').length;
-  const valorPipeline = leads.filter(l => !l.estagio.startsWith('perdido')).reduce((s, l) => s + (Number(l.valor_estimado) || 0), 0);
+  const isPerdido = lead.estagio.startsWith('perdido');
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans relative pb-28 md:pb-8">
-      {/* Header */}
-      <div className="sticky top-0 z-30 bg-zinc-950/95 backdrop-blur border-b border-zinc-800">
-        <div className="max-w-full px-4 py-3 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <button onMouseEnter={somHover} onClick={() => { somClick(); navigate(-1); }}
-              className="text-zinc-500 hover:text-white transition-colors text-lg">←</button>
-            <div>
-              <h1 className="text-base font-black text-yellow-400 uppercase tracking-widest flex items-center gap-1.5">
-                🎯 CRM
-              </h1>
-              <p className="text-zinc-600 text-[10px] font-bold">
-                {totalAtivos} ativos · {totalFechados} fechados · {valorPipeline.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-              </p>
+    <div className="fixed inset-0 z-40 flex" onClick={onFechar}>
+      <div className="ml-auto w-full max-w-lg h-full bg-zinc-950 border-l border-zinc-800 flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+        {/* Header */}
+        <div className="p-4 border-b border-zinc-800 flex items-start gap-3">
+          <div className="flex-1 min-w-0">
+            <h2 className="text-white font-black text-lg leading-tight truncate">{lead.nome}</h2>
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
+              <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${isPerdido ? 'bg-red-900/50 text-red-400' : lead.estagio === 'fechamento' ? 'bg-green-900/50 text-green-400' : 'bg-zinc-800 text-yellow-400'}`}>
+                {labelEstagio(lead.estagio)}
+              </span>
+              {lead.responsavel_nome && (
+                <span className="text-xs text-zinc-500">👤 {lead.responsavel_nome}</span>
+              )}
             </div>
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            {(aba === 'kanban' || aba === 'lista') && (
-              <div className="relative hidden sm:block">
-                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500 text-xs pointer-events-none">🔍</span>
-                <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar..."
-                  className="bg-zinc-900 border border-zinc-700 focus:border-yellow-400/60 text-white rounded-lg pl-7 pr-3 py-1.5 text-xs outline-none w-40 transition-colors" />
-              </div>
-            )}
-            <button onMouseEnter={somHover} onClick={() => { somClick(); setNovoLeadModal(true); }}
-              className="flex items-center gap-1.5 px-3 py-2 bg-yellow-400 hover:bg-yellow-300 text-black font-black text-xs uppercase tracking-widest rounded-lg transition-all">
-              + Lead
-            </button>
-          </div>
+          <button onClick={onFechar} className="text-zinc-500 hover:text-white text-xl font-bold shrink-0">✕</button>
+        </div>
+
+        {/* Detalhes */}
+        <div className="p-4 border-b border-zinc-800 grid grid-cols-2 gap-2 text-sm">
+          {lead.telefone && <div><span className="text-zinc-500">📞</span> <span className="text-white">{lead.telefone}</span></div>}
+          {lead.email && <div><span className="text-zinc-500">✉️</span> <span className="text-zinc-300 text-xs break-all">{lead.email}</span></div>}
+          {lead.produto_interesse && <div><span className="text-zinc-500">🎯</span> <span className="text-yellow-400">{lead.produto_interesse}</span></div>}
+          {lead.valor_estimado && <div><span className="text-zinc-500">💰</span> <span className="text-green-400 font-bold">{fmtMoeda(lead.valor_estimado)}</span></div>}
+          {lead.origem && <div><span className="text-zinc-500">📡</span> <span className="text-zinc-300">{lead.origem}</span></div>}
+          <div><span className="text-zinc-500">📅</span> <span className="text-zinc-400 text-xs">{fmtData(lead.created_at)}</span></div>
+          {lead.observacoes && (
+            <div className="col-span-2 mt-1 text-zinc-400 text-xs bg-zinc-900 rounded p-2">{lead.observacoes}</div>
+          )}
+        </div>
+
+        {/* Ações: mover + atribuir */}
+        <div className="p-4 border-b border-zinc-800 flex flex-col gap-3">
+          <button
+            onClick={() => setShowMove(v => !v)}
+            className="w-full py-2 rounded-lg border border-zinc-600 text-zinc-300 text-sm font-bold hover:bg-zinc-800 transition-colors"
+          >
+            {showMove ? '✕ Fechar' : '↪️ Mover Estágio'}
+          </button>
+
+          {showMove && (
+            <div className="flex flex-col gap-2">
+              <select value={novoEstagio} onChange={e => { setNovoEstagio(e.target.value); setMotivoPerda(''); }}
+                className="bg-zinc-800 border border-zinc-600 rounded-lg px-3 py-2 text-white text-sm focus:border-yellow-400 outline-none">
+                {COLUNAS_KANBAN.filter(c => c.id !== 'perdido').map(c => (
+                  <option key={c.id} value={c.id}>{c.label}</option>
+                ))}
+                {ESTAGIOS_PERDIDO.map(e => (
+                  <option key={e} value={e}>❌ {MOTIVOS_PERDA[e]}</option>
+                ))}
+              </select>
+              {novoEstagio.startsWith('perdido') && (
+                <select value={motivoPerda} onChange={e => setMotivoPerda(e.target.value)}
+                  className="bg-zinc-800 border border-zinc-600 rounded-lg px-3 py-2 text-white text-sm focus:border-yellow-400 outline-none">
+                  <option value="">Motivo da perda...</option>
+                  {ESTAGIOS_PERDIDO.map(e => <option key={e} value={e}>{MOTIVOS_PERDA[e]}</option>)}
+                </select>
+              )}
+              <input value={obsMove} onChange={e => setObsMove(e.target.value)}
+                className="bg-zinc-800 border border-zinc-600 rounded-lg px-3 py-2 text-white text-sm focus:border-yellow-400 outline-none"
+                placeholder="Observação (opcional)" />
+              <button onClick={handleMover} disabled={movendo}
+                className="py-2 rounded-lg bg-yellow-400 text-black font-black text-sm hover:bg-yellow-300 transition-colors disabled:opacity-50">
+                {movendo ? 'Movendo...' : 'Confirmar Movimento'}
+              </button>
+            </div>
+          )}
+
+          {isManager && (
+            <div className="flex gap-2">
+              <select value={novoResponsavel} onChange={e => setNovoResponsavel(e.target.value)}
+                className="flex-1 bg-zinc-800 border border-zinc-600 rounded-lg px-3 py-2 text-white text-sm focus:border-yellow-400 outline-none">
+                <option value="">Atribuir responsável...</option>
+                {membros.map(m => (
+                  <option key={m.id} value={m.id}>{m.name}</option>
+                ))}
+              </select>
+              <button onClick={handleAtribuir} disabled={atribuindo || !novoResponsavel}
+                className="px-4 py-2 rounded-lg bg-zinc-700 text-white text-sm font-bold hover:bg-zinc-600 transition-colors disabled:opacity-50">
+                {atribuindo ? '...' : 'OK'}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Abas */}
-        <div className="flex overflow-x-auto scrollbar-hide border-t border-zinc-800/60">
-          {([
-            { key: 'kanban',    label: '⚡ Kanban'   },
-            { key: 'lista',     label: '📋 Lista'    },
-            { key: 'tarefas',   label: `✅ Tarefas${tarefasAtrasadas.length > 0 ? ` (${tarefasAtrasadas.length}!)` : ''}` },
-            ...(isAdminOrSuporte ? [{ key: 'whatsapp', label: '📱 WhatsApp' }] : []),
-            ...(isAdminOrSuporte ? [{ key: 'analytics', label: '📊 Analytics' }] : []),
-          ] as const).map(a => (
-            <button key={a.key} onClick={() => { somClick(); setAba(a.key as any); }}
-              className={`px-4 py-2.5 text-[10px] font-black uppercase tracking-widest transition-colors whitespace-nowrap flex-shrink-0 ${
-                aba === a.key ? 'border-b-2 border-yellow-400 text-yellow-400' : 'text-zinc-500 hover:text-zinc-300'
-              }`}>{a.label}</button>
+        <div className="flex border-b border-zinc-800">
+          {(['atividades', 'tarefas', 'historico'] as const).map(a => (
+            <button key={a} onClick={() => setAba(a)}
+              className={`flex-1 py-2.5 text-xs font-bold capitalize transition-colors ${aba === a ? 'text-yellow-400 border-b-2 border-yellow-400' : 'text-zinc-500 hover:text-zinc-300'}`}>
+              {a === 'atividades' ? `📝 Notas (${lead.atividades.length})` : a === 'tarefas' ? `✅ Tarefas (${lead.tarefas.filter(t => !t.concluida).length})` : `📋 Histórico`}
+            </button>
           ))}
+        </div>
+
+        {/* Conteúdo das abas */}
+        <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
+          {aba === 'atividades' && (
+            <>
+              <form onSubmit={handleAtividade} className="flex flex-col gap-2">
+                <div className="flex gap-2">
+                  <select value={tipoAtv} onChange={e => setTipoAtv(e.target.value)}
+                    className="bg-zinc-800 border border-zinc-600 rounded-lg px-2 py-2 text-white text-xs focus:border-yellow-400 outline-none">
+                    {TIPOS_ATIVIDADE.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                  <textarea value={novaAtv} onChange={e => setNovaAtv(e.target.value)} rows={2}
+                    className="flex-1 bg-zinc-800 border border-zinc-600 rounded-lg px-3 py-2 text-white text-sm focus:border-yellow-400 outline-none resize-none"
+                    placeholder="Registrar uma atividade..." />
+                </div>
+                <button type="submit" disabled={salvandoAtv || !novaAtv.trim()}
+                  className="self-end px-4 py-2 rounded-lg bg-zinc-700 text-white text-sm font-bold hover:bg-zinc-600 transition-colors disabled:opacity-50">
+                  {salvandoAtv ? '...' : 'Registrar'}
+                </button>
+              </form>
+              <div className="flex flex-col gap-2">
+                {lead.atividades.length === 0 && <p className="text-zinc-600 text-sm text-center py-4">Nenhuma atividade registrada</p>}
+                {lead.atividades.map(atv => (
+                  <div key={atv.id} className="bg-zinc-900 rounded-lg p-3 border border-zinc-800">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xs font-bold text-yellow-400 capitalize">{atv.tipo}</span>
+                      <span className="text-xs text-zinc-500">{atv.user_nome}</span>
+                      <span className="text-xs text-zinc-600 ml-auto">{fmtDataCurta(atv.created_at)}</span>
+                    </div>
+                    <p className="text-zinc-300 text-sm whitespace-pre-wrap">{atv.conteudo}</p>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {aba === 'tarefas' && (
+            <>
+              <form onSubmit={handleTarefa} className="flex flex-col gap-2">
+                <input value={novaTarefa} onChange={e => setNovaTarefa(e.target.value)}
+                  className="bg-zinc-800 border border-zinc-600 rounded-lg px-3 py-2 text-white text-sm focus:border-yellow-400 outline-none"
+                  placeholder="Nova tarefa..." />
+                <div className="flex gap-2">
+                  <input value={vencTarefa} onChange={e => setVencTarefa(e.target.value)} type="date"
+                    className="flex-1 bg-zinc-800 border border-zinc-600 rounded-lg px-3 py-2 text-white text-sm focus:border-yellow-400 outline-none" />
+                  <button type="submit" disabled={salvandoTarefa || !novaTarefa.trim()}
+                    className="px-4 py-2 rounded-lg bg-zinc-700 text-white text-sm font-bold hover:bg-zinc-600 transition-colors disabled:opacity-50">
+                    {salvandoTarefa ? '...' : '+ Adicionar'}
+                  </button>
+                </div>
+              </form>
+              <div className="flex flex-col gap-2">
+                {lead.tarefas.length === 0 && <p className="text-zinc-600 text-sm text-center py-4">Nenhuma tarefa</p>}
+                {lead.tarefas.map(t => (
+                  <div key={t.id} className={`flex items-start gap-3 p-3 rounded-lg border ${t.concluida ? 'border-zinc-800 opacity-50' : 'border-zinc-700 bg-zinc-900'}`}>
+                    <button onClick={() => !t.concluida && handleCompletarTarefa(t.id)}
+                      className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 mt-0.5 transition-colors ${t.concluida ? 'border-green-500 bg-green-500/20' : 'border-zinc-500 hover:border-yellow-400'}`}>
+                      {t.concluida && <span className="text-green-400 text-xs">✓</span>}
+                    </button>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm font-medium ${t.concluida ? 'line-through text-zinc-500' : 'text-white'}`}>{t.titulo}</p>
+                      {t.vencimento && (
+                        <p className={`text-xs ${new Date(t.vencimento) < new Date() && !t.concluida ? 'text-red-400' : 'text-zinc-500'}`}>
+                          Vence: {new Date(t.vencimento).toLocaleDateString('pt-BR')}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {aba === 'historico' && (
+            <div className="flex flex-col gap-2">
+              {lead.historico.length === 0 && <p className="text-zinc-600 text-sm text-center py-4">Sem histórico</p>}
+              {lead.historico.map(h => (
+                <div key={h.id} className="flex gap-3 items-start">
+                  <div className="w-2 h-2 rounded-full bg-yellow-400 mt-1.5 shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-zinc-300 text-sm">
+                      {h.estagio_anterior
+                        ? <><span className="text-zinc-500">{labelEstagio(h.estagio_anterior)}</span> → <span className="text-yellow-400">{labelEstagio(h.estagio_novo)}</span></>
+                        : <span className="text-yellow-400">{labelEstagio(h.estagio_novo)}</span>
+                      }
+                    </p>
+                    {h.observacao && <p className="text-zinc-500 text-xs mt-0.5">{h.observacao}</p>}
+                    <p className="text-zinc-600 text-xs">{h.user_nome} · {fmtData(h.created_at)}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── PAINEL DE ANALYTICS ──────────────────────────────────────────────────────
+
+function PainelAnalytics({ analytics, onFechar }: { analytics: Analytics; onFechar: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={onFechar}>
+      <div className="bg-zinc-900 border border-zinc-700 rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-5" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-yellow-400 font-black text-xl">📊 Analytics do CRM</h2>
+          <button onClick={onFechar} className="text-zinc-500 hover:text-white text-xl">✕</button>
+        </div>
+
+        {/* Cards de resumo */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+          {[
+            { label: 'Total', valor: analytics.total, cor: 'text-white' },
+            { label: 'Ativos', valor: analytics.ativos, cor: 'text-blue-400' },
+            { label: 'Fechados', valor: analytics.fechados, cor: 'text-green-400' },
+            { label: 'Perdidos', valor: analytics.perdidos, cor: 'text-red-400' },
+          ].map(c => (
+            <div key={c.label} className="bg-zinc-800 rounded-lg p-3 text-center">
+              <p className={`text-2xl font-black ${c.cor}`}>{c.valor}</p>
+              <p className="text-xs text-zinc-500 font-bold mt-0.5">{c.label}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 mb-5">
+          <div className="bg-zinc-800 rounded-lg p-3">
+            <p className="text-xs text-zinc-500 font-bold">PIPELINE</p>
+            <p className="text-lg font-black text-yellow-400">{fmtMoeda(analytics.valorPipeline)}</p>
+          </div>
+          <div className="bg-zinc-800 rounded-lg p-3">
+            <p className="text-xs text-zinc-500 font-bold">FECHADO</p>
+            <p className="text-lg font-black text-green-400">{fmtMoeda(analytics.valorFechado)}</p>
+          </div>
+          <div className="bg-zinc-800 rounded-lg p-3">
+            <p className="text-xs text-zinc-500 font-bold">CONVERSÃO</p>
+            <p className="text-lg font-black text-white">{analytics.taxaConversao}%</p>
+          </div>
+          {analytics.idadeMediaDias !== undefined && (
+            <div className="bg-zinc-800 rounded-lg p-3">
+              <p className="text-xs text-zinc-500 font-bold">IDADE MÉDIA</p>
+              <p className="text-lg font-black text-white">{analytics.idadeMediaDias} dias</p>
+            </div>
+          )}
+          {analytics.semResponsavel !== undefined && analytics.semResponsavel > 0 && (
+            <div className="col-span-2 bg-red-900/30 border border-red-700/50 rounded-lg p-3">
+              <p className="text-xs text-red-400 font-bold">⚠️ SEM RESPONSÁVEL</p>
+              <p className="text-lg font-black text-red-400">{analytics.semResponsavel} leads</p>
+            </div>
+          )}
+        </div>
+
+        {/* Por membro */}
+        {analytics.porMembro && analytics.porMembro.length > 0 && (
+          <div>
+            <h3 className="text-zinc-400 font-bold text-sm mb-3">Por Membro</h3>
+            <div className="flex flex-col gap-2">
+              {analytics.porMembro.map(m => (
+                <div key={m.nome} className="bg-zinc-800 rounded-lg p-3">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-white font-bold text-sm">{m.nome}</span>
+                    <span className="text-zinc-400 text-xs">{m.total} leads</span>
+                  </div>
+                  <div className="flex gap-3 text-xs">
+                    <span className="text-blue-400">⚡ {m.ativos} ativos</span>
+                    <span className="text-green-400">✅ {m.fechados} fechados</span>
+                    <span className="text-red-400">❌ {m.perdidos} perdidos</span>
+                    {m.valor > 0 && <span className="text-yellow-400 ml-auto">{fmtMoeda(m.valor)}</span>}
+                  </div>
+                  {m.total > 0 && (
+                    <div className="mt-2 h-1.5 bg-zinc-700 rounded-full overflow-hidden">
+                      <div className="h-full bg-green-500 rounded-full" style={{ width: `${(m.fechados / m.total) * 100}%` }} />
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── PÁGINA PRINCIPAL DO CRM ──────────────────────────────────────────────────
+
+export function Crm() {
+  const navigate = useNavigate();
+  const userStr = localStorage.getItem('user');
+  const user = useMemo(() => userStr ? JSON.parse(userStr) : { id: '', name: '', role: 'vendedor' }, [userStr]);
+  const isManager = ['admin', 'suporte'].includes(user.role);
+
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [membros, setMembros] = useState<Membro[]>([]);
+  const [analytics, setAnalytics] = useState<Analytics | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const [busca, setBusca] = useState('');
+  const [filtroEstagio, setFiltroEstagio] = useState('');
+  const [filtroResponsavel, setFiltroResponsavel] = useState('');
+
+  const [leadSelecionadoId, setLeadSelecionadoId] = useState<string | null>(null);
+  const [showModalLead, setShowModalLead] = useState(false);
+  const [editandoLead, setEditandoLead] = useState<Lead | null>(null);
+  const [showAnalytics, setShowAnalytics] = useState(false);
+  const [distribuindo, setDistribuindo] = useState(false);
+  const [view, setView] = useState<'kanban' | 'lista'>('kanban');
+
+  const carregarLeads = useCallback(async () => {
+    try {
+      const params: Record<string, string> = {};
+      if (filtroEstagio) params.estagio = filtroEstagio;
+      if (filtroResponsavel) params.responsavel_id = filtroResponsavel;
+      if (busca) params.busca = busca;
+      const { data } = await api.get('/crm/leads', { params });
+      setLeads(data);
+    } catch { toast.error('Erro ao carregar leads'); }
+    finally { setLoading(false); }
+  }, [filtroEstagio, filtroResponsavel, busca]);
+
+  const carregarAnalytics = useCallback(async () => {
+    try {
+      const { data } = await api.get('/crm/analytics');
+      setAnalytics(data);
+    } catch { /* silencioso */ }
+  }, []);
+
+  const carregarMembros = useCallback(async () => {
+    if (!isManager) return;
+    try {
+      const { data } = await api.get('/crm/membros');
+      setMembros(data);
+    } catch { /* silencioso */ }
+  }, [isManager]);
+
+  useEffect(() => {
+    carregarLeads();
+    carregarAnalytics();
+    carregarMembros();
+  }, [carregarLeads, carregarAnalytics, carregarMembros]);
+
+  // Debounce da busca
+  useEffect(() => {
+    const t = setTimeout(carregarLeads, 350);
+    return () => clearTimeout(t);
+  }, [busca, carregarLeads]);
+
+  async function handleCriarLead(data: Partial<Lead>) {
+    try {
+      await api.post('/crm/leads', data);
+      toast.success('Lead criado!');
+      setShowModalLead(false);
+      carregarLeads();
+      carregarAnalytics();
+    } catch (e: any) { toast.error(e.response?.data?.error || 'Erro ao criar'); }
+  }
+
+  async function handleEditarLead(data: Partial<Lead>) {
+    if (!editandoLead) return;
+    try {
+      await api.put(`/crm/leads/${editandoLead.id}`, data);
+      toast.success('Lead atualizado!');
+      setEditandoLead(null);
+      carregarLeads();
+    } catch (e: any) { toast.error(e.response?.data?.error || 'Erro ao atualizar'); }
+  }
+
+  async function handleAutoDistribuir() {
+    if (!isManager) return;
+    setDistribuindo(true);
+    try {
+      const { data } = await api.post('/crm/leads/distribuir');
+      toast.success(`${data.distribuidos} leads distribuídos!`);
+      carregarLeads();
+    } catch (e: any) { toast.error(e.response?.data?.error || 'Erro'); }
+    finally { setDistribuindo(false); }
+  }
+
+  // Leads agrupados por coluna do kanban
+  const leadsPorColuna = useMemo(() => {
+    const grupos: Record<string, Lead[]> = {};
+    COLUNAS_KANBAN.forEach(c => { grupos[c.id] = []; });
+    leads.forEach(lead => {
+      const col = ESTAGIOS_PERDIDO.includes(lead.estagio) ? 'perdido' : lead.estagio;
+      if (grupos[col]) grupos[col].push(lead);
+      else grupos['base']?.push(lead); // fallback
+    });
+    return grupos;
+  }, [leads]);
+
+  const leadsVisiveis = useMemo(() => leads, [leads]);
+
+  return (
+    <div className="min-h-screen bg-zinc-950 flex flex-col">
+      {/* Top bar */}
+      <div className="sticky top-0 z-30 bg-zinc-950/95 backdrop-blur border-b border-zinc-800 px-4 py-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          <button onClick={() => navigate(-1)} className="text-zinc-500 hover:text-white transition-colors text-sm">
+            ← Voltar
+          </button>
+          <h1 className="text-yellow-400 font-black text-lg flex-1">🎯 CRM</h1>
+
+          {/* Stats rápidos */}
+          {analytics && (
+            <div className="hidden md:flex items-center gap-4 text-xs">
+              <span className="text-zinc-400"><span className="text-white font-bold">{analytics.ativos}</span> ativos</span>
+              <span className="text-zinc-400"><span className="text-green-400 font-bold">{analytics.fechados}</span> fechados</span>
+              <span className="text-zinc-400"><span className="text-yellow-400 font-bold">{analytics.taxaConversao}%</span> conversão</span>
+            </div>
+          )}
+
+          <div className="flex gap-2">
+            {/* Toggle view */}
+            <button onClick={() => setView(v => v === 'kanban' ? 'lista' : 'kanban')}
+              className="px-3 py-1.5 rounded-lg border border-zinc-700 text-zinc-400 text-xs font-bold hover:bg-zinc-800 transition-colors">
+              {view === 'kanban' ? '≡ Lista' : '⊞ Kanban'}
+            </button>
+            {/* Analytics */}
+            <button onClick={() => { somClick(); setShowAnalytics(true); carregarAnalytics(); }}
+              className="px-3 py-1.5 rounded-lg border border-zinc-700 text-zinc-400 text-xs font-bold hover:bg-zinc-800 transition-colors">
+              📊
+            </button>
+            {/* Auto-distribuir */}
+            {isManager && (
+              <button onClick={() => { somClick(); handleAutoDistribuir(); }} disabled={distribuindo}
+                className="px-3 py-1.5 rounded-lg border border-zinc-600 text-zinc-300 text-xs font-bold hover:bg-zinc-800 transition-colors disabled:opacity-50">
+                {distribuindo ? '...' : '⚡ Distribuir'}
+              </button>
+            )}
+            {/* Novo Lead */}
+            <button onClick={() => { somClick(); setShowModalLead(true); }}
+              className="px-4 py-1.5 rounded-lg bg-yellow-400 text-black text-xs font-black hover:bg-yellow-300 transition-colors">
+              + Novo Lead
+            </button>
+          </div>
+        </div>
+
+        {/* Filtros */}
+        <div className="flex gap-2 mt-3 flex-wrap">
+          <input
+            value={busca} onChange={e => setBusca(e.target.value)}
+            placeholder="🔍 Buscar por nome, telefone, email..."
+            className="flex-1 min-w-[180px] bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-white text-sm focus:border-yellow-400 outline-none placeholder-zinc-600"
+          />
+          <select value={filtroEstagio} onChange={e => setFiltroEstagio(e.target.value)}
+            className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-white text-sm focus:border-yellow-400 outline-none">
+            <option value="">Todos os estágios</option>
+            {COLUNAS_KANBAN.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+          </select>
+          {isManager && membros.length > 0 && (
+            <select value={filtroResponsavel} onChange={e => setFiltroResponsavel(e.target.value)}
+              className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-white text-sm focus:border-yellow-400 outline-none">
+              <option value="">Todos os membros</option>
+              {membros.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+            </select>
+          )}
         </div>
       </div>
 
-      {/* ── KANBAN ─────────────────────────────────────────────────────────────── */}
-      {aba === 'kanban' && (
-        <div className="p-3">
-          {/* Busca mobile */}
-          <div className="sm:hidden mb-3 relative">
-            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500 text-xs">🔍</span>
-            <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar leads..."
-              className="w-full bg-zinc-900 border border-zinc-700 focus:border-yellow-400/60 text-white rounded-lg pl-7 pr-3 py-2 text-xs outline-none" />
+      {/* Conteúdo */}
+      <div className="flex-1 overflow-x-auto">
+        {loading ? (
+          <div className="flex items-center justify-center h-64">
+            <p className="text-yellow-400 text-xl animate-pulse">Carregando leads...</p>
           </div>
-
-          {/* Toggle perdidos */}
-          <div className="flex gap-2 mb-3">
-            <button onClick={() => { somClick(); setFiltroPerdidos(false); }}
-              className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${!filtroPerdidos ? 'bg-yellow-400 text-black' : 'bg-zinc-800 text-zinc-500 hover:text-zinc-300'}`}>
-              ⚡ Pipeline
-            </button>
-            <button onClick={() => { somClick(); setFiltroPerdidos(true); }}
-              className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${filtroPerdidos ? 'bg-red-600 text-white' : 'bg-zinc-800 text-zinc-500 hover:text-zinc-300'}`}>
-              ❌ Perdidos ({leads.filter(l => l.estagio.startsWith('perdido')).length})
-            </button>
-          </div>
-
-          {carregando ? (
-            <div className="flex items-center justify-center py-16">
-              <div className="w-8 h-8 border-4 border-zinc-800 border-t-yellow-400 rounded-full animate-spin" />
-            </div>
-          ) : filtroPerdidos ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-              {(leadsPorEstagio.perdidos || []).map(lead => (
-                <div key={lead.id} onClick={() => { somClick(); setLeadModalId(lead.id); }}
-                  className="bg-zinc-900 border border-red-900/30 rounded-xl p-3 cursor-pointer hover:border-red-700/50 transition-all">
-                  <p className="text-white font-black text-sm">{lead.nome}</p>
-                  <p className="text-red-500 text-[10px] font-black uppercase mt-0.5">
-                    {ESTAGIOS_PERDA.find(e => e.key === lead.estagio)?.emoji} {ESTAGIOS_PERDA.find(e => e.key === lead.estagio)?.label || lead.estagio}
-                  </p>
-                  {lead.responsavel_nome && <p className="text-zinc-600 text-[10px] mt-1">{lead.responsavel_nome}</p>}
-                </div>
-              ))}
-              {(leadsPorEstagio.perdidos || []).length === 0 && (
-                <div className="col-span-3 text-center py-12 text-zinc-700 italic">Nenhum lead perdido. 🛡️</div>
-              )}
-            </div>
-          ) : (
-            <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={onDragStart} onDragEnd={onDragEnd}>
-              <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-hide">
-                {ESTAGIOS_ATIVOS.map(estagio => (
-                  <KanbanColuna
-                    key={estagio.key}
-                    estagio={estagio}
-                    leads={leadsPorEstagio[estagio.key] || []}
-                    onLeadClick={id => setLeadModalId(id)}
-                  />
-                ))}
-              </div>
-              <DragOverlay>
-                {leadAtivo ? (
-                  <div className="rounded-xl border-2 border-yellow-400/60 bg-zinc-800 p-3 shadow-2xl w-60 rotate-2 opacity-90">
-                    <p className="text-white font-black text-sm truncate">{leadAtivo.nome}</p>
-                  </div>
-                ) : null}
-              </DragOverlay>
-            </DndContext>
-          )}
-        </div>
-      )}
-
-      {/* ── LISTA ──────────────────────────────────────────────────────────────── */}
-      {aba === 'lista' && (
-        <div className="p-4 max-w-4xl mx-auto">
-          {/* Busca mobile */}
-          <div className="sm:hidden mb-4 relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 text-sm">🔍</span>
-            <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar leads..."
-              className="w-full bg-zinc-900 border border-zinc-700 focus:border-yellow-400/60 text-white rounded-xl pl-9 pr-4 py-2.5 text-sm outline-none" />
-          </div>
-          <div className="space-y-2">
-            {carregando ? (
-              <div className="text-center py-12"><div className="w-8 h-8 border-4 border-zinc-800 border-t-yellow-400 rounded-full animate-spin mx-auto" /></div>
-            ) : (Object.values(leadsPorEstagio).flat() as Lead[]).length === 0 ? (
-              <div className="text-center py-16 text-zinc-700 italic">
-                {busca ? 'Nenhum lead encontrado para esta busca.' : 'Nenhum lead cadastrado ainda.'}
-              </div>
-            ) : (Object.values(leadsPorEstagio).flat() as Lead[]).map(lead => {
-              const e = ESTAGIOS_ATIVOS.find(es => es.key === lead.estagio);
-              const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        ) : view === 'kanban' ? (
+          // ─── KANBAN ──────────────────────────────────────────────────────────
+          <div className="flex gap-3 p-4 min-w-max">
+            {COLUNAS_KANBAN.map(col => {
+              const colLeads = leadsPorColuna[col.id] || [];
               return (
-                <div key={lead.id} onClick={() => { somClick(); setLeadModalId(lead.id); }}
-                  className="flex items-center gap-3 bg-zinc-900 border border-zinc-800 hover:border-zinc-600 rounded-xl p-3 cursor-pointer transition-all">
-                  <span className="text-lg flex-shrink-0">{e?.emoji || '🎯'}</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-white font-black text-sm truncate">{lead.nome}</p>
-                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                      <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded" style={{ color: e?.cor, backgroundColor: (e?.cor || '#71717a') + '15' }}>{e?.label || lead.estagio}</span>
-                      {lead.produto_interesse && <span className="text-zinc-600 text-[10px] truncate">{lead.produto_interesse}</span>}
-                    </div>
+                <div key={col.id} className={`w-60 shrink-0 flex flex-col rounded-xl border-t-2 ${col.cor} bg-zinc-900/50`}>
+                  <div className="p-3 flex items-center gap-2">
+                    <span>{col.icone}</span>
+                    <span className="text-white font-bold text-sm flex-1">{col.label}</span>
+                    <span className="text-xs font-black text-zinc-500 bg-zinc-800 px-2 py-0.5 rounded-full">{colLeads.length}</span>
                   </div>
-                  <div className="text-right flex-shrink-0">
-                    {lead.valor_estimado ? <p className="text-green-400 font-black text-sm">{fmt(Number(lead.valor_estimado))}</p> : null}
-                    {lead.responsavel_nome && <p className="text-zinc-600 text-[10px]">{lead.responsavel_nome.split(' ')[0]}</p>}
+                  <div className="flex-1 overflow-y-auto max-h-[calc(100vh-220px)] p-2 flex flex-col gap-2">
+                    {colLeads.length === 0 && (
+                      <p className="text-zinc-700 text-xs text-center py-8">Vazio</p>
+                    )}
+                    {colLeads.map(lead => (
+                      <CardLead key={lead.id} lead={lead} onClick={() => setLeadSelecionadoId(lead.id)} />
+                    ))}
                   </div>
                 </div>
               );
             })}
           </div>
-        </div>
-      )}
-
-      {/* ── TAREFAS ────────────────────────────────────────────────────────────── */}
-      {aba === 'tarefas' && (
-        <div className="p-4 max-w-2xl mx-auto space-y-5">
-          {/* Nova tarefa */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 space-y-2">
-            <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest">+ Nova Tarefa</p>
-            <input value={tituloTarefa} onChange={e => setTituloTarefa(e.target.value)}
-              placeholder="Ex: Ligar para João amanhã"
-              className="w-full bg-zinc-950 border border-zinc-800 focus:border-yellow-400 text-white rounded-lg px-3 py-2 text-sm outline-none" />
-            <div className="flex gap-2">
-              <input type="datetime-local" value={vencTarefa} onChange={e => setVencTarefa(e.target.value)}
-                className="flex-1 bg-zinc-950 border border-zinc-800 focus:border-yellow-400 text-white rounded-lg px-3 py-2 text-sm outline-none [color-scheme:dark]" />
-              <button onClick={() => { somClick(); criarTarefa(); }} disabled={!tituloTarefa.trim()}
-                className="px-4 bg-yellow-400 hover:bg-yellow-300 disabled:opacity-40 text-black font-black rounded-lg text-sm uppercase tracking-widest transition-all">
-                + Criar
-              </button>
-            </div>
-          </div>
-
-          {tarefasAtrasadas.length > 0 && (
-            <div>
-              <p className="text-red-400 text-[10px] font-black uppercase tracking-widest mb-2">⚠️ Atrasadas ({tarefasAtrasadas.length})</p>
-              <TarefaLista tarefas={tarefasAtrasadas} onConcluir={concluirTarefa} onDeletar={deletarTarefa} atrasada />
-            </div>
-          )}
-          {tarefasHoje.length > 0 && (
-            <div>
-              <p className="text-yellow-400 text-[10px] font-black uppercase tracking-widest mb-2">📅 Hoje ({tarefasHoje.length})</p>
-              <TarefaLista tarefas={tarefasHoje} onConcluir={concluirTarefa} onDeletar={deletarTarefa} />
-            </div>
-          )}
-          {tarefasFuturas.length > 0 && (
-            <div>
-              <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest mb-2">📆 Próximas ({tarefasFuturas.length})</p>
-              <TarefaLista tarefas={tarefasFuturas} onConcluir={concluirTarefa} onDeletar={deletarTarefa} />
-            </div>
-          )}
-          {tarefasConcluidas.length > 0 && (
-            <details>
-              <summary className="text-zinc-700 text-[10px] font-black uppercase tracking-widest cursor-pointer">✓ Concluídas ({tarefasConcluidas.length})</summary>
-              <div className="mt-2"><TarefaLista tarefas={tarefasConcluidas} onConcluir={() => {}} onDeletar={deletarTarefa} /></div>
-            </details>
-          )}
-          {tarefas.length === 0 && <p className="text-center text-zinc-700 italic py-8">Nenhuma tarefa pendente. 🎯</p>}
-        </div>
-      )}
-
-      {/* ── WHATSAPP ───────────────────────────────────────────────────────────── */}
-      {aba === 'whatsapp' && isAdminOrSuporte && (
-        <div className="p-4 max-w-2xl mx-auto">
-          <WhatsappPanel />
-        </div>
-      )}
-
-      {/* ── ANALYTICS ─────────────────────────────────────────────────────────── */}
-      {aba === 'analytics' && isAdminOrSuporte && (
-        <div className="p-4 max-w-2xl mx-auto">
-          <CrmAnalytics />
-        </div>
-      )}
-
-      {/* Modais */}
-      {leadModalId && (
-        <LeadModal
-          leadId={leadModalId}
-          onClose={() => setLeadModalId(null)}
-          onUpdated={carregarLeads}
-        />
-      )}
-      {novoLeadModal && (
-        <NovoLeadModal
-          onClose={() => setNovoLeadModal(false)}
-          onCriado={carregarLeads}
-        />
-      )}
-
-      <BottomNav activeTab="crm" />
-    </div>
-  );
-}
-
-// ─── COMPONENTE AUXILIAR: LISTA DE TAREFAS ────────────────────────────────────
-
-function TarefaLista({ tarefas, onConcluir, onDeletar, atrasada }: {
-  tarefas: any[];
-  onConcluir: (id: string) => void;
-  onDeletar: (id: string) => void;
-  atrasada?: boolean;
-}) {
-  return (
-    <div className="space-y-2">
-      {tarefas.map(t => (
-        <div key={t.id} className={`flex items-start gap-3 border rounded-xl p-3 transition-all ${t.concluida ? 'opacity-50 border-zinc-800' : atrasada ? 'border-red-800/50 bg-red-950/10' : 'border-zinc-800 bg-zinc-900/60'}`}>
-          <button onClick={() => { somClick(); if (!t.concluida) onConcluir(t.id); }}
-            className={`w-5 h-5 rounded border flex-shrink-0 mt-0.5 flex items-center justify-center transition-all ${t.concluida ? 'bg-green-600 border-green-600' : 'border-zinc-600 hover:border-green-500'}`}>
-            {t.concluida && <span className="text-white text-xs">✓</span>}
-          </button>
-          <div className="flex-1 min-w-0">
-            <p className={`text-sm font-bold ${t.concluida ? 'line-through text-zinc-600' : 'text-white'}`}>{t.titulo}</p>
-            {t.crm_leads?.nome && <p className="text-zinc-600 text-[10px] mt-0.5">Lead: {t.crm_leads.nome}</p>}
-            {t.vencimento && (
-              <p className={`text-[10px] mt-0.5 ${atrasada ? 'text-red-400 font-black' : 'text-zinc-600'}`}>
-                {atrasada ? '⚠️ ' : '📅 '}
-                {new Date(t.vencimento).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', dateStyle: 'short', timeStyle: 'short' })}
-              </p>
+        ) : (
+          // ─── LISTA ───────────────────────────────────────────────────────────
+          <div className="p-4">
+            {leadsVisiveis.length === 0 && (
+              <div className="text-center py-20 text-zinc-600">
+                <p className="text-4xl mb-3">🎯</p>
+                <p className="font-bold">Nenhum lead encontrado</p>
+                <p className="text-sm mt-1">Crie um novo lead para começar</p>
+              </div>
             )}
+            <div className="flex flex-col gap-2">
+              {leadsVisiveis.map(lead => {
+                const isPerdido = lead.estagio.startsWith('perdido');
+                const dias = diasDesde(lead.updated_at);
+                return (
+                  <button key={lead.id} onClick={() => setLeadSelecionadoId(lead.id)}
+                    className="w-full text-left bg-zinc-900 border border-zinc-800 rounded-lg p-4 hover:border-yellow-400/30 hover:bg-zinc-800/60 transition-all">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <span className="font-bold text-white">{lead.nome}</span>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${isPerdido ? 'bg-red-900/40 text-red-400' : lead.estagio === 'fechamento' ? 'bg-green-900/40 text-green-400' : 'bg-zinc-800 text-yellow-400'}`}>
+                        {labelEstagio(lead.estagio)}
+                      </span>
+                      {lead.responsavel_nome && (
+                        <span className="text-xs text-zinc-500">👤 {lead.responsavel_nome}</span>
+                      )}
+                      {lead.valor_estimado && (
+                        <span className="text-xs text-green-400 font-bold">{fmtMoeda(lead.valor_estimado)}</span>
+                      )}
+                      <span className={`ml-auto text-xs font-bold ${dias === 0 ? 'text-green-400' : dias > 5 ? 'text-red-400' : 'text-zinc-500'}`}>
+                        {dias === 0 ? 'hoje' : `${dias}d atrás`}
+                      </span>
+                    </div>
+                    {(lead.telefone || lead.produto_interesse) && (
+                      <div className="flex gap-3 mt-1 text-xs text-zinc-500">
+                        {lead.telefone && <span>{lead.telefone}</span>}
+                        {lead.produto_interesse && <span>🎯 {lead.produto_interesse}</span>}
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           </div>
-          <button onClick={() => { somClick(); onDeletar(t.id); }}
-            className="text-zinc-700 hover:text-red-400 transition-colors flex-shrink-0 text-sm mt-0.5">🗑️</button>
-        </div>
-      ))}
+        )}
+      </div>
+
+      {/* Modais e painéis */}
+      {showModalLead && (
+        <ModalLead
+          membros={membros}
+          isManager={isManager}
+          onSalvar={handleCriarLead}
+          onFechar={() => setShowModalLead(false)}
+        />
+      )}
+
+      {editandoLead && (
+        <ModalLead
+          lead={editandoLead}
+          membros={membros}
+          isManager={isManager}
+          onSalvar={handleEditarLead}
+          onFechar={() => setEditandoLead(null)}
+        />
+      )}
+
+      {leadSelecionadoId && (
+        <PainelLead
+          leadId={leadSelecionadoId}
+          onFechar={() => setLeadSelecionadoId(null)}
+          onAtualizar={carregarLeads}
+          isManager={isManager}
+          membros={membros}
+        />
+      )}
+
+      {showAnalytics && analytics && (
+        <PainelAnalytics analytics={analytics} onFechar={() => setShowAnalytics(false)} />
+      )}
     </div>
   );
 }

@@ -3,7 +3,7 @@ import { somClick, somHover } from '../services/hudSounds';
 
 interface BottomNavProps {
   activeTab: string;
-  onNovaVenda?: () => void;
+  onNovaVenda: () => void;
 }
 
 export function BottomNav({ activeTab, onNovaVenda }: BottomNavProps) {
@@ -12,106 +12,53 @@ export function BottomNav({ activeTab, onNovaVenda }: BottomNavProps) {
   const user = userString ? JSON.parse(userString) : { role: 'vendedor' };
   const role = user?.role ?? 'vendedor';
 
-  const isAdmin = role === 'admin';
-  const isSuport = role === 'suporte';
+  const isAdmin   = role === 'admin';
+  const isSuport  = role === 'suporte';
+  const isTrafego = role === 'trafego';
 
   function scrollToTop() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  function scrollToRanking() {
-    const el = document.querySelector('[data-section="guerra-equipes"]');
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth' });
-    } else {
-      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-    }
-  }
-
-  function handlePerfil() {
-    navigate('/perfil');
-  }
-
   // Itens para vendedor
   const itensVendedor = [
-    {
-      id: 'home',
-      label: 'Início',
-      icon: '🏠',
-      onClick: scrollToTop,
-    },
-    {
-      id: 'nova-venda',
-      label: 'Nova Venda',
-      icon: '➕',
-      onClick: onNovaVenda,
-      destaque: true,
-    },
-    {
-      id: 'crm',
-      label: 'CRM',
-      icon: '🎯',
-      onClick: () => navigate('/crm'),
-    },
-    {
-      id: 'arsenal',
-      label: 'Arsenal',
-      icon: '⚡',
-      onClick: () => navigate('/arsenal'),
-    },
-    {
-      id: 'perfil',
-      label: 'Perfil',
-      icon: '👤',
-      onClick: handlePerfil,
-    },
+    { id: 'home',      label: 'Início',    icon: '🏠', onClick: scrollToTop },
+    { id: 'nova-venda',label: 'Nova Venda',icon: '➕', onClick: onNovaVenda, destaque: true },
+    { id: 'crm',       label: 'CRM',       icon: '🎯', onClick: () => navigate('/crm') },
+    { id: 'arsenal',   label: 'Arsenal',   icon: '⚡', onClick: () => navigate('/arsenal') },
+    { id: 'perfil',    label: 'Perfil',    icon: '👤', onClick: () => navigate('/perfil') },
   ];
 
   // Itens para admin
   const itensAdmin = [
-    {
-      id: 'dashboard',
-      label: 'Dashboard',
-      icon: '🏠',
-      onClick: scrollToTop,
-    },
-    {
-      id: 'nova-venda',
-      label: 'Reg. Venda',
-      icon: '➕',
-      onClick: () => onNovaVenda?.(),
-      destaque: true,
-    },
-    {
-      id: 'crm',
-      label: 'CRM',
-      icon: '🎯',
-      onClick: () => navigate('/crm'),
-    },
-    {
-      id: 'relatorio',
-      label: 'Relatório',
-      icon: '📊',
-      onClick: () => {
-        const el = document.querySelector('[data-section="relatorio"]');
-        if (el) el.scrollIntoView({ behavior: 'smooth' });
-      },
-    },
-    {
-      id: 'suporte',
-      label: 'Suporte',
-      icon: '🛡️',
-      onClick: () => navigate('/liberacoes'),
-    },
-    {
-      id: 'arsenal',
-      label: 'Arsenal',
-      icon: '⚡',
-      onClick: () => navigate('/arsenal'),
-    },
+    { id: 'dashboard', label: 'Dashboard', icon: '🏠', onClick: scrollToTop },
+    { id: 'nova-venda',label: 'Reg. Venda',icon: '➕', onClick: onNovaVenda, destaque: true },
+    { id: 'crm',       label: 'CRM',       icon: '🎯', onClick: () => navigate('/crm') },
+    { id: 'suporte',   label: 'Suporte',   icon: '🛡️', onClick: () => navigate('/liberacoes') },
+    { id: 'arsenal',   label: 'Arsenal',   icon: '⚡', onClick: () => navigate('/arsenal') },
   ];
 
-  const itens = (isAdmin || isSuport) ? itensAdmin : itensVendedor;
+  // Itens para suporte
+  const itensSuporte = [
+    { id: 'liberacoes',label: 'Liberações',icon: '🛡️', onClick: () => navigate('/liberacoes') },
+    { id: 'crm',       label: 'CRM',       icon: '🎯', onClick: () => navigate('/crm'), destaque: true },
+    { id: 'perfil',    label: 'Perfil',    icon: '👤', onClick: () => navigate('/perfil') },
+  ];
+
+  // Itens para trafego
+  const itensTrafego = [
+    { id: 'trafego',   label: 'Tráfego',   icon: '📈', onClick: () => navigate('/trafego') },
+    { id: 'crm',       label: 'CRM',       icon: '🎯', onClick: () => navigate('/crm'), destaque: true },
+    { id: 'perfil',    label: 'Perfil',    icon: '👤', onClick: () => navigate('/perfil') },
+  ];
+
+  const itens = isAdmin
+    ? itensAdmin
+    : isSuport
+    ? itensSuporte
+    : isTrafego
+    ? itensTrafego
+    : itensVendedor;
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-zinc-950/98 backdrop-blur-md border-t border-zinc-800/80">
@@ -121,9 +68,10 @@ export function BottomNav({ activeTab, onNovaVenda }: BottomNavProps) {
           return (
             <button
               key={item.id}
-              onClick={() => { somClick(); item.onClick?.(); }}
+              onClick={() => { somClick(); item.onClick(); }}
+              onMouseEnter={somHover}
               className={`flex-1 flex flex-col items-center justify-center gap-0.5 transition-all active:scale-95 select-none
-                ${item.destaque
+                ${(item as any).destaque
                   ? 'bg-yellow-400 text-black shadow-[0_-4px_16px_rgba(250,204,21,0.3)]'
                   : isActive
                   ? 'text-yellow-400'
@@ -132,7 +80,7 @@ export function BottomNav({ activeTab, onNovaVenda }: BottomNavProps) {
               style={{ minHeight: '48px', paddingBottom: 'max(6px, env(safe-area-inset-bottom))' }}
             >
               <span className="text-lg leading-none">{item.icon}</span>
-              <span className={`text-[9px] font-black uppercase tracking-wide leading-none ${item.destaque ? 'text-black' : ''}`}>
+              <span className={`text-[9px] font-black uppercase tracking-wide leading-none ${(item as any).destaque ? 'text-black' : ''}`}>
                 {item.label}
               </span>
             </button>

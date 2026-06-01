@@ -10,12 +10,12 @@ import { Perfil } from './pages/Perfil';
 import { Arsenal } from './pages/Arsenal';
 import { Comparativo } from './pages/Comparativo';
 import { LojaAdmin } from './pages/LojaAdmin';
+import { Crm } from './pages/Crm';
 import { PrivateRoute } from './components/PrivateRoute';
 import { AdminRoute } from './components/AdminRoute';
 import { SuporteRoute } from './components/SuporteRoute';
 import { TrafegoPagoRoute } from './components/TrafegoPagoRoute';
 import { TrafegoPago } from './pages/TrafegoPago';
-import { CRM } from './pages/CRM';
 import { ToastContainer } from './components/ToastContainer';
 import { SomPoller } from './components/SomPoller';
 
@@ -73,7 +73,7 @@ export default function App() {
         <Route path="/comparativo" element={<AdminRoute><Comparativo /></AdminRoute>} />
         <Route path="/loja-admin" element={<AdminRoute><LojaAdmin /></AdminRoute>} />
         <Route path="/trafego" element={<TrafegoPagoRoute><TrafegoPago /></TrafegoPagoRoute>} />
-        <Route path="/crm" element={<PrivateRoute><CRM /></PrivateRoute>} />
+        <Route path="/crm" element={<PrivateRoute><Crm /></PrivateRoute>} />
       </Routes>
     </BrowserRouter>
   );

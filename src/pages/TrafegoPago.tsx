@@ -211,6 +211,12 @@ export function TrafegoPago() {
         <div className="flex items-center gap-3">
           <span className="text-zinc-400 text-xs hidden sm:block">{user.name}</span>
           <button
+            onClick={() => navigate('/crm')}
+            className="text-yellow-400 hover:text-yellow-300 text-xs font-bold uppercase tracking-widest transition-colors"
+          >
+            🎯 CRM
+          </button>
+          <button
             onClick={handleLogout}
             className="text-zinc-500 hover:text-red-400 text-xs font-bold uppercase tracking-widest transition-colors"
           >

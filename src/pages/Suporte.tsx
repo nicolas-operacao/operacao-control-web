@@ -197,6 +197,13 @@ export function Suporte() {
             )}
             <button
               onMouseEnter={somHover}
+              onClick={() => { somClick(); navigate('/crm'); }}
+              className="border border-yellow-500/50 text-yellow-400 hover:bg-yellow-400/10 px-4 py-2 rounded font-bold transition-all text-sm uppercase tracking-wider"
+            >
+              🎯 CRM
+            </button>
+            <button
+              onMouseEnter={somHover}
               onClick={() => { somClick(); handleLogout(); }}
               className="border-2 border-red-900 text-red-500 hover:bg-red-900 hover:text-white px-6 py-2 rounded font-bold transition-all text-sm uppercase tracking-wider"
             >
